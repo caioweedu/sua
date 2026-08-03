@@ -87,6 +87,8 @@ model Trilha {
   title       String
   description String?
   coverUrl    String?
+  // Categoria para agrupar trilhas em seções no painel (ex.: "Operações").
+  category    String?
   published   Boolean @default(false)
   order       Int     @default(0)
   createdAt   DateTime @default(now())

@@ -5,36 +5,84 @@
 :root {
   --brand-color: #2563eb;
   --brand-fg: #ffffff;
+  --brand-rgb: 37 99 235;
+  --brand-fg-rgb: 255 255 255;
 }
 
-body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+@layer base {
+  body {
+    @apply bg-slate-50 text-ink antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  h1,
+  h2,
+  h3 {
+    @apply tracking-tight;
+  }
 }
 
-/* Botão com a cor da marca do tenant */
-.btn-brand {
+@layer components {
+  /* Botões */
+  .btn-brand {
+    background-color: var(--brand-color);
+    color: var(--brand-fg);
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-ink;
+  }
+
+  .card {
+    @apply rounded-2xl border border-slate-200 bg-white p-6 shadow-card;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition placeholder:text-slate-400 focus:border-brand focus:ring-4 focus:ring-brand/15;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.14em] text-slate-400;
+  }
+
+  /* Chip/badge */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium;
+  }
+  .chip-brand {
+    background: rgb(var(--brand-rgb) / 0.1);
+    color: var(--brand-color);
+  }
+}
+
+/* Barra de progresso fina com a cor da marca */
+.progress-track {
+  @apply h-1.5 w-full overflow-hidden rounded-full bg-slate-200;
+}
+.progress-fill {
   background-color: var(--brand-color);
-  color: var(--brand-fg);
-  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition hover:opacity-90 disabled:opacity-50;
+  @apply h-full rounded-full transition-[width] duration-500;
 }
 
-.btn-outline {
-  @apply inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50;
+/* Superfície imersiva (hero, painel de login) que veste a cor do tenant */
+.brand-immersive {
+  background:
+    radial-gradient(1200px 400px at 100% -10%, rgb(var(--brand-rgb) / 0.55), transparent 60%),
+    radial-gradient(800px 500px at -10% 120%, rgb(var(--brand-rgb) / 0.35), transparent 55%),
+    linear-gradient(135deg, #0b1120, #0f172a);
 }
 
-.card {
-  @apply rounded-xl border border-slate-200 bg-white p-6 shadow-sm;
+/* Capa de trilha gerada (fallback sem imagem) — recebe --c1/--c2 inline */
+.cover-gradient {
+  background-image: linear-gradient(135deg, var(--c1), var(--c2));
 }
 
-.input {
-  @apply w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-brand focus:ring-2 focus:ring-brand;
-}
-
-.label {
-  @apply mb-1 block text-sm font-medium text-slate-700;
-}
-
-/* Estilos de impressão do certificado */
+/* Impressão do certificado */
 @media print {
   .no-print {
     display: none !important;
@@ -42,4 +90,17 @@ body {
   body {
     background: white;
   }
+}
+
+/* Scrollbar discreta para os carrosséis */
+.row-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) transparent;
+}
+.row-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+.row-scroll::-webkit-scrollbar-thumb {
+  background: rgb(203 213 225);
+  border-radius: 999px;
 }

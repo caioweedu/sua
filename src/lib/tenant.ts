@@ -40,6 +40,20 @@ export async function resolveTenant() {
   });
 }
 
+// Converte "#0f766e" em "15 118 110" (canais RGB) para usar com opacidade
+// no Tailwind: rgb(var(--brand-rgb) / <alpha>).
+function hexToRgbChannels(hex: string): string {
+  const h = hex.replace("#", "").trim();
+  const full =
+    h.length === 3
+      ? h.split("").map((c) => c + c).join("")
+      : h.padEnd(6, "0").slice(0, 6);
+  const r = parseInt(full.slice(0, 2), 16) || 0;
+  const g = parseInt(full.slice(2, 4), 16) || 0;
+  const b = parseInt(full.slice(4, 6), 16) || 0;
+  return `${r} ${g} ${b}`;
+}
+
 // Injeta as cores do tenant como CSS variables no layout.
 export function tenantThemeStyle(tenant: {
   brandColor: string;
@@ -48,5 +62,7 @@ export function tenantThemeStyle(tenant: {
   return {
     "--brand-color": tenant.brandColor,
     "--brand-fg": tenant.brandFgColor,
+    "--brand-rgb": hexToRgbChannels(tenant.brandColor),
+    "--brand-fg-rgb": hexToRgbChannels(tenant.brandFgColor),
   } as React.CSSProperties;
 }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
+import CourseCard from "@/components/CourseCard";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -10,7 +11,7 @@ export default async function DashboardPage() {
 
   const trilhas = await prisma.trilha.findMany({
     where: { tenantId: user.tenantId, published: true },
-    orderBy: { order: "asc" },
+    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     include: {
       _count: { select: { aulas: true } },
       enrollments: { where: { userId: user.id } },
@@ -18,59 +19,97 @@ export default async function DashboardPage() {
     },
   });
 
-  return (
-    <AppShell user={user} tenant={user.tenant}>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Olá, {user.name.split(" ")[0]} 👋</h1>
-        <p className="text-slate-500">Continue seus treinamentos.</p>
-      </div>
+  const withState = trilhas.map((t) => ({
+    ...t,
+    done: t.enrollments[0]?.status === "COMPLETED",
+    started: t.enrollments.length > 0,
+    hasCert: t.certificates.length > 0,
+  }));
 
-      {trilhas.length === 0 ? (
-        <div className="card text-center text-slate-500">
-          Nenhuma trilha publicada ainda.
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {trilhas.map((t) => {
-            const done = t.enrollments[0]?.status === "COMPLETED";
-            const hasCert = t.certificates.length > 0;
-            return (
-              <Link key={t.id} href={`/trilhas/${t.id}`} className="card block transition hover:shadow-md">
-                <div
-                  className="mb-3 flex h-32 items-center justify-center rounded-lg bg-cover bg-center text-4xl"
-                  style={{
-                    background: t.coverUrl
-                      ? `url(${t.coverUrl}) center/cover`
-                      : "linear-gradient(135deg, var(--brand-color), #0f172a)",
-                    color: "var(--brand-fg)",
-                  }}
-                >
-                  {!t.coverUrl && "🎓"}
-                </div>
-                <h3 className="font-semibold">{t.title}</h3>
-                <p className="mt-1 line-clamp-2 text-sm text-slate-500">
-                  {t.description}
-                </p>
-                <div className="mt-3 flex items-center gap-2 text-xs">
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
-                    {t._count.aulas} aula(s)
-                  </span>
-                  {done && (
-                    <span className="rounded-full bg-green-100 px-2 py-1 text-green-700">
-                      Concluída
-                    </span>
-                  )}
-                  {hasCert && (
-                    <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">
-                      🏆 Certificado
-                    </span>
-                  )}
-                </div>
+  const concluidas = withState.filter((t) => t.done).length;
+  const certificados = withState.filter((t) => t.hasCert).length;
+  const emAndamento = withState.find((t) => t.started && !t.done);
+  const proxima = emAndamento ?? withState.find((t) => !t.started);
+
+  // Agrupa por categoria mantendo a ordem de aparição.
+  const sections: { name: string; items: typeof withState }[] = [];
+  for (const t of withState) {
+    const name = t.category?.trim() || "Trilhas";
+    const sec = sections.find((s) => s.name === name);
+    if (sec) sec.items.push(t);
+    else sections.push({ name, items: [t] });
+  }
+
+  return (
+    <AppShell user={user} tenant={user.tenant} fluid>
+      {/* Hero */}
+      <section className="brand-immersive text-white">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
+          <p className="eyebrow text-white/50">{user.tenant.name}</p>
+          <h1 className="mt-2 text-3xl font-black sm:text-4xl">
+            Olá, {user.name.split(" ")[0]}. Bora aprender? 👋
+          </h1>
+          <p className="mt-2 max-w-xl text-white/70">
+            {proxima
+              ? "Continue de onde parou ou explore novas trilhas."
+              : "Suas trilhas aparecerão aqui assim que forem publicadas."}
+          </p>
+
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            {proxima && (
+              <Link href={`/trilhas/${proxima.id}`} className="btn-brand">
+                {emAndamento ? "▶ Continuar treinamento" : "▶ Começar agora"}
               </Link>
-            );
-          })}
+            )}
+            <div className="flex gap-6 rounded-2xl bg-white/10 px-5 py-3 text-sm backdrop-blur">
+              <Stat n={withState.length} label="Trilhas" />
+              <Stat n={concluidas} label="Concluídas" />
+              <Stat n={certificados} label="Certificados" />
+            </div>
+          </div>
         </div>
-      )}
+      </section>
+
+      {/* Seções de trilhas */}
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        {withState.length === 0 ? (
+          <div className="card text-center text-slate-500">
+            Nenhuma trilha publicada ainda.
+          </div>
+        ) : (
+          <div className="space-y-10">
+            {sections.map((sec) => (
+              <section key={sec.name}>
+                <h2 className="mb-4 text-lg font-bold text-ink">{sec.name}</h2>
+                <div className="row-scroll -mx-4 flex gap-4 overflow-x-auto px-4 pb-2">
+                  {sec.items.map((t) => (
+                    <CourseCard
+                      key={t.id}
+                      id={t.id}
+                      title={t.title}
+                      description={t.description}
+                      coverUrl={t.coverUrl}
+                      aulas={t._count.aulas}
+                      done={t.done}
+                      hasCert={t.hasCert}
+                      progress={t.started ? 45 : 0}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </div>
     </AppShell>
+  );
+}
+
+function Stat({ n, label }: { n: number; label: string }) {
+  return (
+    <div>
+      <div className="text-xl font-black leading-none">{n}</div>
+      <div className="mt-1 text-xs text-white/60">{label}</div>
+    </div>
   );
 }
