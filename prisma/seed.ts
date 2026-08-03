@@ -9,7 +9,7 @@ async function main() {
   console.log("   Mãe (Weedu):      admin@weedu.com.br / weedu123  (SUPER_ADMIN)");
   console.log("                     aluno@weedu.com.br / aluno123  (aluno)");
   console.log("   Filha (Demo):     admin@clientedemo.com / cliente123  (admin filha)");
-  console.log(`   ${res.trilhas} trilhas; 1 com banco de 20 questões (sorteia 6).`);
+  console.log(`   ${res.vitrines} vitrines, ${res.produtos} produtos; 1 com prova (sorteia 6 de 20).`);
 }
 
 main()

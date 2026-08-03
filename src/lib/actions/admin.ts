@@ -11,20 +11,86 @@ async function requireAdmin() {
   return user;
 }
 
-// --- Trilhas -------------------------------------------------------------
+// --- Vitrines ------------------------------------------------------------
+export async function createVitrine(formData: FormData) {
+  const user = await requireAdmin();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return;
+  const slugBase =
+    String(formData.get("slug") ?? "").trim() || name;
+  const slug =
+    slugBase.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `vitrine-${Date.now()}`;
+  const count = await prisma.vitrine.count({ where: { tenantId: user.tenantId } });
+  await prisma.vitrine.create({
+    data: {
+      tenantId: user.tenantId,
+      name,
+      slug,
+      description: String(formData.get("description") ?? "").trim() || null,
+      coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
+      bannerUrl: String(formData.get("bannerUrl") ?? "").trim() || null,
+      order: count,
+    },
+  });
+  revalidatePath("/admin");
+}
+
+export async function deleteVitrine(vitrineId: string) {
+  await requireAdmin();
+  // Não apaga os produtos: apenas os desvincula da vitrine.
+  await prisma.trilha.updateMany({ where: { vitrineId }, data: { vitrineId: null } });
+  await prisma.vitrine.delete({ where: { id: vitrineId } });
+  revalidatePath("/admin");
+}
+
+// --- Produtos (trilhas) --------------------------------------------------
 export async function createTrilha(formData: FormData) {
   const user = await requireAdmin();
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
+  const vitrineId = String(formData.get("vitrineId") ?? "").trim() || null;
   const trilha = await prisma.trilha.create({
     data: {
       tenantId: user.tenantId,
+      vitrineId,
       title,
       description: String(formData.get("description") ?? "").trim() || null,
       coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
     },
   });
   redirect(`/admin/trilhas/${trilha.id}`);
+}
+
+// Atualiza metadados do produto (vitrine, capa, título, descrição).
+export async function updateTrilhaMeta(trilhaId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.trilha.update({
+    where: { id: trilhaId },
+    data: {
+      title: String(formData.get("title") ?? "").trim() || undefined,
+      description: String(formData.get("description") ?? "").trim() || null,
+      coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
+      vitrineId: String(formData.get("vitrineId") ?? "").trim() || null,
+    },
+  });
+  revalidatePath(`/admin/trilhas/${trilhaId}`);
+}
+
+// --- Módulos -------------------------------------------------------------
+export async function addModulo(trilhaId: string, formData: FormData) {
+  await requireAdmin();
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return;
+  const count = await prisma.modulo.count({ where: { trilhaId } });
+  await prisma.modulo.create({ data: { trilhaId, title, order: count } });
+  revalidatePath(`/admin/trilhas/${trilhaId}`);
+}
+
+export async function deleteModulo(moduloId: string, trilhaId: string) {
+  await requireAdmin();
+  await prisma.modulo.delete({ where: { id: moduloId } });
+  revalidatePath(`/admin/trilhas/${trilhaId}`);
 }
 
 export async function togglePublish(trilhaId: string, published: boolean) {
@@ -35,12 +101,14 @@ export async function togglePublish(trilhaId: string, published: boolean) {
 }
 
 // --- Aulas ---------------------------------------------------------------
-export async function addAula(trilhaId: string, formData: FormData) {
+// A aula pertence a um módulo; trilhaId é derivado do módulo.
+export async function addAula(moduloId: string, trilhaId: string, formData: FormData) {
   await requireAdmin();
-  const count = await prisma.aula.count({ where: { trilhaId } });
+  const count = await prisma.aula.count({ where: { moduloId } });
   await prisma.aula.create({
     data: {
       trilhaId,
+      moduloId,
       title: String(formData.get("title") ?? "").trim() || "Nova aula",
       description: String(formData.get("description") ?? "").trim() || null,
       videoUrl: String(formData.get("videoUrl") ?? "").trim() || null,
@@ -155,6 +223,7 @@ export async function updateBranding(formData: FormData) {
       brandColor: String(formData.get("brandColor") ?? user.tenant.brandColor),
       brandFgColor: String(formData.get("brandFgColor") ?? user.tenant.brandFgColor),
       logoUrl: String(formData.get("logoUrl") ?? "").trim() || null,
+      bannerUrl: String(formData.get("bannerUrl") ?? "").trim() || null,
       certificateBg: String(formData.get("certificateBg") ?? "").trim() || null,
       certificateSignature: String(formData.get("certificateSignature") ?? "").trim() || null,
     },
