@@ -1,0 +1,207 @@
+// Plataforma de treinamentos white-label (mãe/filha) da Weedu.
+//
+// Banco: PostgreSQL (Neon/Supabase/RDS em produção). Em runtime a aplicação
+// usa DATABASE_URL (conexão com pooler); as migrations usam DIRECT_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // URL com pooling (ex.: Neon pooler) — usada pela aplicação em runtime.
+  url      = env("DATABASE_URL")
+  // URL direta (sem pooler) — usada pelas migrations. Em dev local pode ser
+  // igual à DATABASE_URL.
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// MULTI-TENANT (white-label)
+// ---------------------------------------------------------------------------
+// Um Tenant é uma "universidade corporativa". A mãe (Weedu) é o tenant raiz;
+// as filhas (clientes) têm `parentId` apontando para a mãe. Cada tenant tem
+// sua própria marca e pode ter um domínio personalizado.
+
+model Tenant {
+  id           String  @id @default(cuid())
+  name         String
+  slug         String  @unique // usado como subdomínio: <slug>.dominio.com
+  type         String  @default("DAUGHTER") // "MOTHER" | "DAUGHTER"
+  parentId     String?
+  parent       Tenant? @relation("TenantHierarchy", fields: [parentId], references: [id])
+  children     Tenant[] @relation("TenantHierarchy")
+
+  // Domínio próprio (ex.: universidade.cliente.com.br). Opcional.
+  customDomain String? @unique
+
+  // Branding
+  brandColor     String  @default("#2563eb")
+  brandFgColor   String  @default("#ffffff")
+  logoUrl        String?
+  // Fundo do certificado (URL de imagem) e texto de assinatura.
+  certificateBg  String?
+  certificateSignature String?
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  users    User[]
+  trilhas  Trilha[]
+
+  @@index([parentId])
+}
+
+// ---------------------------------------------------------------------------
+// USUÁRIOS
+// ---------------------------------------------------------------------------
+// Papéis: SUPER_ADMIN (Weedu, gerencia tudo), TENANT_ADMIN (gestor da filha),
+// STUDENT (aluno). O email é único por tenant.
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  name         String
+  email        String
+  passwordHash String
+  role         String   @default("STUDENT") // SUPER_ADMIN | TENANT_ADMIN | STUDENT
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  enrollments  Enrollment[]
+  attempts     ExamAttempt[]
+  certificates Certificate[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// TRILHAS E AULAS
+// ---------------------------------------------------------------------------
+// Uma trilha pertence a um tenant, é composta por aulas (vídeo por link + PDF)
+// e pode ter uma prova ao final.
+
+model Trilha {
+  id          String  @id @default(cuid())
+  tenantId    String
+  tenant      Tenant  @relation(fields: [tenantId], references: [id])
+  title       String
+  description String?
+  coverUrl    String?
+  // Categoria para agrupar trilhas em seções no painel (ex.: "Operações").
+  category    String?
+  published   Boolean @default(false)
+  order       Int     @default(0)
+  createdAt   DateTime @default(now())
+
+  aulas       Aula[]
+  exam        Exam?
+  enrollments Enrollment[]
+  certificates Certificate[]
+
+  @@index([tenantId])
+}
+
+model Aula {
+  id          String  @id @default(cuid())
+  trilhaId    String
+  trilha      Trilha  @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  // O vídeo é hospedado fora (YouTube, Vimeo, Panda, etc). Guardamos só o link.
+  videoUrl    String?
+  pdfUrl      String?
+  order       Int     @default(0)
+
+  @@index([trilhaId])
+}
+
+// ---------------------------------------------------------------------------
+// PROVA COM BANCO DE QUESTÕES E SORTEIO
+// ---------------------------------------------------------------------------
+// Cadastra-se um banco de N questões na prova; a cada tentativa o sistema
+// sorteia `questionsToShow` questões (ex.: 20 cadastradas, mostra 6).
+
+model Exam {
+  id             String @id @default(cuid())
+  trilhaId       String @unique
+  trilha         Trilha @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  title          String @default("Avaliação final")
+  questionsToShow Int   @default(6)  // quantas questões sortear por tentativa
+  passingScore   Int    @default(70) // % mínimo para aprovação
+  maxAttempts    Int    @default(0)  // 0 = ilimitado
+
+  questions Question[]
+  attempts  ExamAttempt[]
+}
+
+model Question {
+  id        String   @id @default(cuid())
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  statement String
+  order     Int      @default(0)
+  options   QuestionOption[]
+
+  @@index([examId])
+}
+
+model QuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  isCorrect  Boolean  @default(false)
+
+  @@index([questionId])
+}
+
+// ---------------------------------------------------------------------------
+// MATRÍCULA, TENTATIVAS E CERTIFICADO
+// ---------------------------------------------------------------------------
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trilhaId  String
+  trilha    Trilha   @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  status    String   @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
+  createdAt DateTime @default(now())
+
+  @@unique([userId, trilhaId])
+  @@index([userId])
+}
+
+model ExamAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  score     Int      // percentual acertado (0-100)
+  passed    Boolean
+  // Respostas do aluno em JSON (stringificado para compatibilidade com SQLite).
+  answers   String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([examId])
+}
+
+model Certificate {
+  id           String   @id @default(cuid())
+  code         String   @unique // código público de validação
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trilhaId     String
+  trilha       Trilha   @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  // Snapshot dos dados no momento da emissão (para o certificado não mudar depois).
+  studentName  String
+  trilhaTitle  String
+  issuedAt     DateTime @default(now())
+
+  @@index([userId])
+}
