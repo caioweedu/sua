@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { toEmbedUrl } from "@/lib/video";
 import { enroll } from "@/lib/actions/learning";
 import AppShell from "@/components/AppShell";
+import ProfessorChat from "@/components/ProfessorChat";
 
 export default async function TrilhaPage({
   params,
@@ -106,6 +107,8 @@ export default async function TrilhaPage({
           )}
         </div>
       )}
+
+      <ProfessorChat trilhaId={trilha.id} />
     </AppShell>
   );
 }
