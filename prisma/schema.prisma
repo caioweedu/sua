@@ -48,8 +48,38 @@ model Tenant {
 
   users    User[]
   trilhas  Trilha[]
+  vitrines Vitrine[]
+
+  // Banner exibido na entrada (topo do painel do aluno).
+  bannerUrl String?
 
   @@index([parentId])
+}
+
+// ---------------------------------------------------------------------------
+// VITRINES
+// ---------------------------------------------------------------------------
+// Uma vitrine é uma "área"/loja dentro da universidade (ex.: "Operações",
+// "Gestores"). Agrupa produtos (trilhas) e tem imagem/banner próprios.
+// O acesso pode ser restrito por perfil (Fase B).
+
+model Vitrine {
+  id          String  @id @default(cuid())
+  tenantId    String
+  tenant      Tenant  @relation(fields: [tenantId], references: [id])
+  name        String
+  slug        String
+  description String?
+  coverUrl    String?
+  bannerUrl   String?
+  published   Boolean @default(true)
+  order       Int     @default(0)
+  createdAt   DateTime @default(now())
+
+  trilhas Trilha[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
 }
 
 // ---------------------------------------------------------------------------
@@ -78,36 +108,58 @@ model User {
 }
 
 // ---------------------------------------------------------------------------
-// TRILHAS E AULAS
+// PRODUTOS (TRILHAS), MÓDULOS E AULAS
 // ---------------------------------------------------------------------------
-// Uma trilha pertence a um tenant, é composta por aulas (vídeo por link + PDF)
-// e pode ter uma prova ao final.
+// Hierarquia: Vitrine → Trilha (produto) → Módulo → Aula.
+// A trilha (produto) pode ter uma prova ao final e emite certificado.
 
 model Trilha {
   id          String  @id @default(cuid())
   tenantId    String
   tenant      Tenant  @relation(fields: [tenantId], references: [id])
+  // Vitrine à qual o produto pertence (nulo = ainda não organizado).
+  vitrineId   String?
+  vitrine     Vitrine? @relation(fields: [vitrineId], references: [id])
   title       String
   description String?
   coverUrl    String?
-  // Categoria para agrupar trilhas em seções no painel (ex.: "Operações").
+  // Categoria legada (substituída por vitrine; mantida por compatibilidade).
   category    String?
   published   Boolean @default(false)
   order       Int     @default(0)
   createdAt   DateTime @default(now())
 
+  modulos     Modulo[]
   aulas       Aula[]
   exam        Exam?
   enrollments Enrollment[]
   certificates Certificate[]
 
   @@index([tenantId])
+  @@index([vitrineId])
+}
+
+// Módulo agrupa aulas dentro de um produto.
+model Modulo {
+  id        String  @id @default(cuid())
+  trilhaId  String
+  trilha    Trilha  @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  title     String
+  order     Int     @default(0)
+
+  aulas     Aula[]
+
+  @@index([trilhaId])
 }
 
 model Aula {
   id          String  @id @default(cuid())
+  // Aula pertence a um módulo. trilhaId é mantido (denormalizado) para
+  // consultas diretas e compatibilidade.
   trilhaId    String
   trilha      Trilha  @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  moduloId    String?
+  modulo      Modulo? @relation(fields: [moduloId], references: [id], onDelete: Cascade)
   title       String
   description String?
   // O vídeo é hospedado fora (YouTube, Vimeo, Panda, etc). Guardamos só o link.
@@ -116,6 +168,7 @@ model Aula {
   order       Int     @default(0)
 
   @@index([trilhaId])
+  @@index([moduloId])
 }
 
 // ---------------------------------------------------------------------------

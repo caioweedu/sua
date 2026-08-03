@@ -27,7 +27,7 @@ export default function CourseCard({
   return (
     <Link
       href={`/trilhas/${id}`}
-      className="group block w-[280px] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card transition hover:-translate-y-0.5 hover:shadow-lg"
+      className="group block w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card transition hover:-translate-y-0.5 hover:shadow-lg"
     >
       <div
         className="relative flex h-36 items-end p-4 text-white"

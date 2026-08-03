@@ -22,7 +22,13 @@ export default async function TrilhaPage({
   const trilha = await prisma.trilha.findFirst({
     where: { id, tenantId: user.tenantId },
     include: {
-      aulas: { orderBy: { order: "asc" } },
+      vitrine: { select: { id: true, name: true } },
+      modulos: {
+        orderBy: { order: "asc" },
+        include: { aulas: { orderBy: { order: "asc" } } },
+      },
+      // Aulas sem módulo (conteúdo antigo/avulso).
+      aulas: { where: { moduloId: null }, orderBy: { order: "asc" } },
       exam: { include: { _count: { select: { questions: true } } } },
       enrollments: { where: { userId: user.id } },
       certificates: { where: { userId: user.id } },
@@ -34,32 +40,44 @@ export default async function TrilhaPage({
   const cert = trilha.certificates[0];
   const hasExam = !!trilha.exam && trilha.exam._count.questions > 0;
 
-  const current =
-    trilha.aulas.find((x) => x.id === a) ?? trilha.aulas[0] ?? null;
-  const currentIndex = current
-    ? trilha.aulas.findIndex((x) => x.id === current.id)
-    : -1;
+  // Monta os grupos da trilha lateral (módulos + eventuais aulas avulsas).
+  const grupos = [
+    ...trilha.modulos.map((m) => ({ title: m.title, aulas: m.aulas })),
+    ...(trilha.aulas.length > 0 ? [{ title: "Aulas", aulas: trilha.aulas }] : []),
+  ];
+  const flat = grupos.flatMap((g) => g.aulas);
+  const totalAulas = flat.length;
+
+  const current = flat.find((x) => x.id === a) ?? flat[0] ?? null;
+  const currentIndex = current ? flat.findIndex((x) => x.id === current.id) : -1;
   const embed = current?.videoUrl ? toEmbedUrl(current.videoUrl) : null;
 
   return (
     <AppShell user={user} tenant={user.tenant}>
-      <Link href="/dashboard" className="text-sm text-slate-500 hover:text-ink">
-        ← Voltar aos treinamentos
-      </Link>
+      <nav className="flex items-center gap-1.5 text-sm text-slate-500">
+        <Link href="/dashboard" className="hover:text-ink">Início</Link>
+        {trilha.vitrine && (
+          <>
+            <span className="text-slate-300">/</span>
+            <Link href={`/vitrines/${trilha.vitrine.id}`} className="hover:text-ink">
+              {trilha.vitrine.name}
+            </Link>
+          </>
+        )}
+        <span className="text-slate-300">/</span>
+        <span className="text-slate-700">{trilha.title}</span>
+      </nav>
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div>
-          {trilha.category && <p className="eyebrow">{trilha.category}</p>}
-          <h1 className="mt-1 text-2xl font-black text-ink">{trilha.title}</h1>
+          <h1 className="text-2xl font-black text-ink">{trilha.title}</h1>
           {trilha.description && (
             <p className="mt-1 max-w-2xl text-slate-500">{trilha.description}</p>
           )}
         </div>
         {!enrolled && (
           <form action={enroll.bind(null, trilha.id)}>
-            <button className="btn-brand" type="submit">
-              Começar trilha
-            </button>
+            <button className="btn-brand" type="submit">Começar trilha</button>
           </form>
         )}
       </div>
@@ -107,45 +125,55 @@ export default async function TrilhaPage({
           )}
         </div>
 
-        {/* Trilha lateral */}
+        {/* Trilha lateral agrupada por módulo */}
         <aside className="lg:sticky lg:top-20 lg:self-start">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card">
             <div className="border-b border-slate-100 px-4 py-3">
-              <h3 className="text-sm font-bold text-ink">Conteúdo da trilha</h3>
-              <p className="text-xs text-slate-400">{trilha.aulas.length} aula(s)</p>
+              <h3 className="text-sm font-bold text-ink">Conteúdo do treinamento</h3>
+              <p className="text-xs text-slate-400">
+                {grupos.length} módulo(s) · {totalAulas} aula(s)
+              </p>
             </div>
-            <ol className="max-h-[50vh] overflow-y-auto">
-              {trilha.aulas.map((aula, i) => {
-                const active = current?.id === aula.id;
-                return (
-                  <li key={aula.id}>
-                    <Link
-                      href={`/trilhas/${trilha.id}?a=${aula.id}`}
-                      className={`flex items-center gap-3 px-4 py-3 text-sm transition ${
-                        active ? "bg-brand/5" : "hover:bg-slate-50"
-                      }`}
-                    >
-                      <span
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                          active
-                            ? "text-brand-fg"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                        style={active ? { background: "var(--brand-color)" } : undefined}
-                      >
-                        {i + 1}
-                      </span>
-                      <span className={active ? "font-semibold text-ink" : "text-slate-600"}>
-                        {aula.title}
-                      </span>
-                      <span className="ml-auto text-slate-300">
-                        {aula.videoUrl ? "🎬" : aula.pdfUrl ? "📎" : ""}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ol>
+            <div className="max-h-[55vh] overflow-y-auto">
+              {grupos.map((g, gi) => (
+                <div key={gi}>
+                  <div className="bg-slate-50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {g.title}
+                  </div>
+                  <ol>
+                    {g.aulas.map((aula) => {
+                      const active = current?.id === aula.id;
+                      const pos = flat.findIndex((x) => x.id === aula.id) + 1;
+                      return (
+                        <li key={aula.id}>
+                          <Link
+                            href={`/trilhas/${trilha.id}?a=${aula.id}`}
+                            className={`flex items-center gap-3 px-4 py-3 text-sm transition ${
+                              active ? "bg-brand/5" : "hover:bg-slate-50"
+                            }`}
+                          >
+                            <span
+                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                                active ? "text-brand-fg" : "bg-slate-100 text-slate-500"
+                              }`}
+                              style={active ? { background: "var(--brand-color)" } : undefined}
+                            >
+                              {pos}
+                            </span>
+                            <span className={active ? "font-semibold text-ink" : "text-slate-600"}>
+                              {aula.title}
+                            </span>
+                            <span className="ml-auto text-slate-300">
+                              {aula.videoUrl ? "🎬" : aula.pdfUrl ? "📎" : ""}
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              ))}
+            </div>
           </div>
 
           {hasExam && (
