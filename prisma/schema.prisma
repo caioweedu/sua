@@ -1,16 +1,19 @@
 // Plataforma de treinamentos white-label (mãe/filha) da Weedu.
 //
-// No MVP usamos SQLite para rodar em qualquer lugar sem infra.
-// Para produção, troque `provider` para "postgresql" e ajuste a DATABASE_URL.
-// O schema foi escrito para migrar sem dores para o Postgres.
+// Banco: PostgreSQL (Neon/Supabase/RDS em produção). Em runtime a aplicação
+// usa DATABASE_URL (conexão com pooler); as migrations usam DIRECT_URL.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
+  // URL com pooling (ex.: Neon pooler) — usada pela aplicação em runtime.
   url      = env("DATABASE_URL")
+  // URL direta (sem pooler) — usada pelas migrations. Em dev local pode ser
+  // igual à DATABASE_URL.
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------
