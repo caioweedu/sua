@@ -24,6 +24,10 @@ export default async function CertificadoPage({
     year: "numeric",
   });
 
+  // Usa o snapshot do certificado (Fase 3) com fallback para os padrões do tenant.
+  const background = cert.backgroundUrl ?? tenant.certificateBg ?? undefined;
+  const assinatura = cert.assinatura ?? tenant.certificateSignature;
+
   return (
     <main
       className="min-h-screen bg-slate-100 px-4 py-10"
@@ -40,9 +44,7 @@ export default async function CertificadoPage({
           className="relative overflow-hidden rounded-xl border-8 bg-white p-10 text-center shadow-lg"
           style={{
             borderColor: "var(--brand-color)",
-            backgroundImage: tenant.certificateBg
-              ? `url(${tenant.certificateBg})`
-              : undefined,
+            backgroundImage: background ? `url(${background})` : undefined,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -66,11 +68,20 @@ export default async function CertificadoPage({
             concluiu com aproveitamento a trilha de treinamento
           </p>
           <h2 className="mt-1 text-xl font-semibold">{cert.trilhaTitle}</h2>
+
+          {(cert.cargaHoraria || cert.professor) && (
+            <p className="mt-3 text-sm text-slate-600">
+              {cert.cargaHoraria && <>Carga horária: {cert.cargaHoraria}</>}
+              {cert.cargaHoraria && cert.professor && " · "}
+              {cert.professor && <>Ministrado por: {cert.professor}</>}
+            </p>
+          )}
+
           <p className="mt-6 text-slate-600">emitido em {issued}</p>
 
-          {tenant.certificateSignature && (
+          {assinatura && (
             <div className="mx-auto mt-10 w-64 border-t border-slate-400 pt-2 text-sm text-slate-600">
-              {tenant.certificateSignature}
+              {assinatura}
             </div>
           )}
 
@@ -79,6 +90,18 @@ export default async function CertificadoPage({
           </p>
           <p className="text-xs text-slate-400">{tenant.name}</p>
         </div>
+
+        {/* Verso: conteúdo programático */}
+        {cert.conteudoProgramatico && (
+          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8 shadow-lg">
+            <h3 className="mb-3 text-sm font-bold uppercase tracking-widest text-slate-500">
+              Conteúdo programático
+            </h3>
+            <div className="whitespace-pre-line text-sm text-slate-700">
+              {cert.conteudoProgramatico}
+            </div>
+          </div>
+        )}
 
         <div className="no-print mt-6 flex justify-center gap-3">
           <PrintButton />

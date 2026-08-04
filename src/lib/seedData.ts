@@ -195,6 +195,12 @@ export async function seedDatabase(prisma: PrismaClient) {
   // trilha); limpa também para o seed não deixar registros órfãos.
   await prisma.exam.deleteMany({ where: { tenantId: mother.id } });
   await prisma.releaseCondition.deleteMany({ where: { tenantId: mother.id } });
+  await prisma.certificateTemplate.deleteMany({ where: { tenantId: mother.id } });
+
+  // Modelo de certificado padrão (biblioteca), reutilizável nos produtos.
+  const certTemplate = await prisma.certificateTemplate.create({
+    data: { tenantId: mother.id, name: "Certificado Weedu" },
+  });
 
   const vitrineByName = new Map<string, string>();
   const trilhaByTitle = new Map<string, string>();
@@ -266,8 +272,27 @@ export async function seedDatabase(prisma: PrismaClient) {
         const cond = await prisma.releaseCondition.create({
           data: { tenantId: mother.id, type: "AFTER_ALL_LESSONS" },
         });
-        await prisma.examPlacement.create({
+        const provaPlacement = await prisma.examPlacement.create({
           data: { examId: exam.id, trilhaId: trilha.id, releaseConditionId: cond.id },
+        });
+
+        // Certificado do produto (Fase 3): liberado após aprovação nessa prova.
+        const certCond = await prisma.releaseCondition.create({
+          data: {
+            tenantId: mother.id,
+            type: "AFTER_EXAM_PASSED",
+            targetExamPlacementId: provaPlacement.id,
+          },
+        });
+        await prisma.certificatePlacement.create({
+          data: {
+            templateId: certTemplate.id,
+            trilhaId: trilha.id,
+            professor: "Equipe Weedu",
+            cargaHoraria: "8 horas",
+            assinatura: "Weedu Soluções — Gestão de Resultados",
+            releaseConditionId: certCond.id,
+          },
         });
         for (let i = 0; i < 20; i++) {
           const n = i + 1;

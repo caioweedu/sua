@@ -3,6 +3,7 @@
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { issueCertificateForPlacement } from "@/lib/certificate";
 
 export type GradeResult = {
   ok: boolean;
@@ -84,24 +85,38 @@ export async function gradeExam(
       create: { userId: user.id, trilhaId, status: "COMPLETED" },
     });
 
-    // Emite certificado (uma vez por aluno/trilha).
+    // Já emitido? devolve o código.
     const existing = await prisma.certificate.findFirst({
       where: { userId: user.id, trilhaId },
     });
     if (existing) {
       certificateCode = existing.code;
     } else {
-      const code = randomUUID().split("-")[0].toUpperCase() + "-" + Date.now().toString(36).toUpperCase();
-      const cert = await prisma.certificate.create({
-        data: {
-          code,
-          userId: user.id,
-          trilhaId,
-          studentName: user.name,
-          trilhaTitle: placement.trilha.title,
-        },
+      // Certificado como item inserível (Fase 3): se o produto tem uma
+      // colocação de certificado, emite por ela (respeitando a condição).
+      const certPlacement = await prisma.certificatePlacement.findFirst({
+        where: { trilhaId },
+        select: { id: true },
       });
-      certificateCode = cert.code;
+      if (certPlacement) {
+        const res = await issueCertificateForPlacement(user.id, certPlacement.id);
+        if ("code" in res) certificateCode = res.code;
+        // Se a condição ainda não foi satisfeita, o aluno emite depois na trilha.
+      } else {
+        // Legado: emite o certificado padrão do produto ao passar na prova.
+        const code =
+          randomUUID().split("-")[0].toUpperCase() + "-" + Date.now().toString(36).toUpperCase();
+        const cert = await prisma.certificate.create({
+          data: {
+            code,
+            userId: user.id,
+            trilhaId,
+            studentName: user.name,
+            trilhaTitle: placement.trilha.title,
+          },
+        });
+        certificateCode = cert.code;
+      }
     }
   }
 

@@ -54,6 +54,8 @@ model Tenant {
   exams    Exam[]
   // Condições de liberação (motor de gating unificado, Fase 2).
   releaseConditions ReleaseCondition[]
+  // Biblioteca de modelos de certificado (Fase 3).
+  certificateTemplates CertificateTemplate[]
 
   // Banner exibido na entrada (topo do painel do aluno).
   bannerUrl String?
@@ -178,6 +180,8 @@ model Trilha {
   aulas       Aula[]
   // Provas colocadas neste produto (prova final do produto).
   examPlacements ExamPlacement[]
+  // Certificados colocados neste produto (Fase 3).
+  certificatePlacements CertificatePlacement[]
   enrollments Enrollment[]
   certificates Certificate[]
 
@@ -345,6 +349,7 @@ model ReleaseCondition {
   trilhas        Trilha[]
   modulos        Modulo[]
   examPlacements ExamPlacement[]
+  certificatePlacements CertificatePlacement[]
 
   @@index([tenantId])
 }
@@ -420,5 +425,71 @@ model Certificate {
   trilhaTitle  String
   issuedAt     DateTime @default(now())
 
+  // Snapshot do modelo/colocação usados (Fase 3). Nulos = certificado legado
+  // (renderiza com o fundo/assinatura padrão do tenant).
+  templateId           String?
+  template             CertificateTemplate? @relation(fields: [templateId], references: [id])
+  backgroundUrl        String?
+  professor            String?
+  cargaHoraria         String?
+  assinatura           String?
+  conteudoProgramatico String?
+
   @@index([userId])
+  @@index([templateId])
+}
+
+// ---------------------------------------------------------------------------
+// CERTIFICADO COMO ITEM INSERÍVEL (Fase 3)
+// ---------------------------------------------------------------------------
+// O modelo (template) vive na biblioteca do tenant: fundo personalizável e
+// nome. Uma colocação insere o modelo num produto, com os campos preenchidos
+// por produto (professor, carga horária, assinatura, conteúdo programático) e
+// uma condição de liberação (mesmo motor da Fase 2). Ao satisfazer a condição,
+// o certificado é emitido mesclando fundo + campos automáticos (nome do aluno,
+// curso, data) + campos preenchidos.
+
+model CertificateTemplate {
+  id            String @id @default(cuid())
+  tenantId      String
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name          String
+  // Fundo (frente) do certificado. Nulo = usa o fundo padrão do tenant.
+  backgroundUrl String?
+  createdAt     DateTime @default(now())
+
+  placements   CertificatePlacement[]
+  certificates Certificate[]
+
+  @@index([tenantId])
+}
+
+model CertificatePlacement {
+  id         String @id @default(cuid())
+  templateId String
+  template   CertificateTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  // Certificado é sempre vinculado a um produto (como na Cademí).
+  trilhaId   String
+  trilha     Trilha @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+
+  // Campos preenchidos por produto.
+  professor            String?
+  cargaHoraria         String?
+  assinatura           String?
+  // Conteúdo programático; se vazio, é gerado a partir de módulos/aulas.
+  conteudoProgramatico String?
+
+  // Emissão única: fixa os dados na primeira emissão (não muda depois).
+  emissaoUnica Boolean @default(true)
+
+  // Condição de liberação (motor da Fase 2). Nulo = liberado assim que o
+  // produto é concluído (fallback tratado no código).
+  releaseConditionId String?
+  releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([templateId])
+  @@index([trilhaId])
+  @@index([releaseConditionId])
 }
