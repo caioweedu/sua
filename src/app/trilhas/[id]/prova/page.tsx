@@ -39,14 +39,17 @@ export default async function ProvaPage({
   });
   if (cert) redirect(`/certificados/${cert.code}`);
 
-  // SORTEIO: pega `questionsToShow` questões aleatórias do banco cadastrado
-  // e embaralha as alternativas de cada uma.
+  // SORTEIO: pega `questionsToShow` questões aleatórias do banco cadastrado.
+  // As alternativas só são embaralhadas se o admin habilitar essa opção.
   const sampled = shuffle(exam.questions)
     .slice(0, exam.questionsToShow)
     .map((q) => ({
       id: q.id,
       statement: q.statement,
-      options: shuffle(q.options).map((o) => ({ id: o.id, text: o.text })),
+      options: (exam.shuffleOptions ? shuffle(q.options) : q.options).map((o) => ({
+        id: o.id,
+        text: o.text,
+      })),
     }));
 
   return (

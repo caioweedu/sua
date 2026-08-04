@@ -149,6 +149,14 @@ export default async function ManageTrilhaPage({
                   <input name="passingScore" type="number" min={0} max={100} defaultValue={exam?.passingScore ?? 70} className="input" />
                 </div>
               </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="shuffleOptions" defaultChecked={exam?.shuffleOptions ?? true} className="h-4 w-4 rounded border-slate-300" />
+                Embaralhar a ordem das alternativas
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="showAnswers" defaultChecked={exam?.showAnswers ?? false} className="h-4 w-4 rounded border-slate-300" />
+                Mostrar as respostas corretas ao final
+              </label>
               <button className="btn-brand" type="submit">Salvar prova</button>
             </form>
           </div>

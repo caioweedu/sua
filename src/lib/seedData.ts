@@ -46,7 +46,7 @@ export async function seedDatabase(prisma: PrismaClient) {
     },
   });
 
-  await prisma.user.upsert({
+  const aluno = await prisma.user.upsert({
     where: { tenantId_email: { tenantId: mother.id, email: "aluno@weedu.com.br" } },
     update: {},
     create: {
@@ -188,9 +188,11 @@ export async function seedDatabase(prisma: PrismaClient) {
   ];
 
   // Recria a estrutura da mãe para manter o seed idempotente.
+  await prisma.accessProfile.deleteMany({ where: { tenantId: mother.id } });
   await prisma.trilha.deleteMany({ where: { tenantId: mother.id } });
   await prisma.vitrine.deleteMany({ where: { tenantId: mother.id } });
 
+  const vitrineByName = new Map<string, string>();
   let vOrder = 0;
   let produtoCount = 0;
   for (const v of vitrines) {
@@ -204,6 +206,7 @@ export async function seedDatabase(prisma: PrismaClient) {
         order: vOrder++,
       },
     });
+    vitrineByName.set(v.name, vitrine.id);
 
     let pOrder = 0;
     for (const p of v.produtos) {
@@ -248,6 +251,8 @@ export async function seedDatabase(prisma: PrismaClient) {
             title: `Avaliação final — ${p.title}`,
             questionsToShow: 6,
             passingScore: 70,
+            shuffleOptions: true,
+            showAnswers: true,
           },
         });
         for (let i = 0; i < 20; i++) {
@@ -272,5 +277,38 @@ export async function seedDatabase(prisma: PrismaClient) {
     }
   }
 
-  return { tenants: 2, vitrines: vitrines.length, produtos: produtoCount };
+  // Perfis de acesso: um libera só Operações, outro libera tudo.
+  const opsId = vitrineByName.get("Operações");
+  const gestId = vitrineByName.get("Gestores");
+  const perfilOperacional = await prisma.accessProfile.create({
+    data: {
+      tenantId: mother.id,
+      name: "Time Operacional",
+      description: "Acesso às trilhas de operações.",
+      vitrines: { connect: opsId ? [{ id: opsId }] : [] },
+    },
+  });
+  await prisma.accessProfile.create({
+    data: {
+      tenantId: mother.id,
+      name: "Time Gestores",
+      description: "Acesso a operações e gestão.",
+      vitrines: {
+        connect: [opsId, gestId].filter(Boolean).map((id) => ({ id: id as string })),
+      },
+    },
+  });
+
+  // Vincula o aluno de teste ao perfil operacional (demonstra a restrição).
+  await prisma.user.update({
+    where: { id: aluno.id },
+    data: { accessProfileId: perfilOperacional.id },
+  });
+
+  return {
+    tenants: 2,
+    vitrines: vitrines.length,
+    produtos: produtoCount,
+    perfis: 2,
+  };
 }
