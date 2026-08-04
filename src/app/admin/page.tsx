@@ -4,6 +4,8 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import ImportCard from "./import-card";
+import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
+import { describeCondition } from "@/lib/release";
 import {
   createTrilha,
   togglePublish,
@@ -11,7 +13,7 @@ import {
   createDaughter,
   createVitrine,
   deleteVitrine,
-  setVitrinePrereq,
+  setReleaseCondition,
   attachExamToVitrine,
   detachExamPlacement,
   createAccessProfile,
@@ -31,7 +33,7 @@ export default async function AdminPage() {
     orderBy: { order: "asc" },
     include: {
       _count: { select: { trilhas: true } },
-      prereqTrilha: { select: { title: true } },
+      releaseCondition: true,
       examPlacements: {
         include: { exam: { select: { title: true, _count: { select: { questions: true } } } } },
       },
@@ -101,8 +103,8 @@ export default async function AdminPage() {
                       <span className="font-medium">{v.name}</span>
                       <p className="text-xs text-slate-500">
                         {v._count.trilhas} produto(s) · /{v.slug}
-                        {v.prereqTrilha && (
-                          <span className="text-amber-600"> · 🔒 libera após “{v.prereqTrilha.title}”</span>
+                        {v.releaseCondition && (
+                          <span className="text-amber-600"> · 🔒 {describeCondition(v.releaseCondition)}</span>
                         )}
                       </p>
                     </div>
@@ -112,19 +114,17 @@ export default async function AdminPage() {
                       </button>
                     </form>
                   </div>
-                  <form action={setVitrinePrereq.bind(null, v.id)} className="mt-2 flex items-center gap-1">
-                    <select
-                      name="prereqTrilhaId"
-                      defaultValue={v.prereqTrilhaId ?? ""}
-                      className="input py-1.5 text-xs"
-                    >
-                      <option value="">Sem pré-requisito de liberação</option>
-                      {trilhas.map((t) => (
-                        <option key={t.id} value={t.id}>{t.title}</option>
-                      ))}
-                    </select>
-                    <button className="btn-outline px-2 py-1.5 text-xs" type="submit">salvar</button>
-                  </form>
+                  <div className="mt-2">
+                    <p className="mb-1 text-xs font-semibold text-slate-500">Liberação da vitrine</p>
+                    <ConditionEditor
+                      compact
+                      action={setReleaseCondition.bind(null, "vitrine", v.id, "/admin")}
+                      current={v.releaseCondition}
+                      exams={v.examPlacements.map((p) => ({ id: p.id, label: p.exam.title }))}
+                      modulos={[] as CondOption[]}
+                      trilhas={trilhas.map((t) => ({ id: t.id, label: t.title }))}
+                    />
+                  </div>
 
                   {/* Provas da vitrine (avaliação geral da área) */}
                   {v.examPlacements.map((p) => (

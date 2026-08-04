@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
-import { completedTrilhaIds, lockReason } from "@/lib/progress";
+import { loadProgress, isUnlocked } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import ExamRunner from "./exam-runner";
@@ -31,12 +31,14 @@ export default async function ProvaPage({
     where: { id: pid },
     include: {
       exam: { include: { questions: { include: { options: true } } } },
-      trilha: { select: { id: true, title: true, vitrineId: true, prereqTrilhaId: true } },
+      releaseCondition: true,
+      trilha: { select: { id: true, title: true, vitrineId: true, releaseCondition: true } },
       modulo: {
         select: {
           id: true,
           title: true,
-          trilha: { select: { id: true, title: true, vitrineId: true, prereqTrilhaId: true } },
+          releaseCondition: true,
+          trilha: { select: { id: true, title: true, vitrineId: true, releaseCondition: true } },
         },
       },
       vitrine: { select: { id: true, name: true } },
@@ -65,31 +67,21 @@ export default async function ProvaPage({
   if (!canAccessVitrine(allowed, vitrineId)) notFound();
 
   if (user.role === "STUDENT") {
-    // Pré-requisito de liberação do produto (B2).
-    if (trilhaCtx?.prereqTrilhaId) {
-      const completedTrilhas = await completedTrilhaIds(user.id);
-      if (lockReason(trilhaCtx.prereqTrilhaId, null, completedTrilhas)) {
-        redirect(backHref);
-      }
+    const prog = await loadProgress(user.id);
+    const ctx = {
+      moduloId: placement.moduloId,
+      trilhaId: placement.trilhaId ?? placement.modulo?.trilha.id ?? null,
+    };
+    // O produto/módulo que contém a prova precisa estar liberado.
+    const containerCond =
+      placement.modulo?.releaseCondition ?? placement.trilha?.releaseCondition ?? null;
+    if (containerCond) {
+      const r = await isUnlocked(containerCond, { trilhaId: ctx.trilhaId }, prog);
+      if (!r.unlocked) redirect(backHref);
     }
-
-    // Condição simples da colocação: concluir todas as aulas do container.
-    if (placement.requireAllLessons) {
-      const where = placement.moduloId
-        ? { moduloId: placement.moduloId }
-        : placement.trilhaId
-        ? { trilhaId: placement.trilhaId }
-        : null;
-      if (where) {
-        const total = await prisma.aula.count({ where });
-        if (total > 0) {
-          const done = await prisma.aulaProgress.count({
-            where: { userId: user.id, aula: where },
-          });
-          if (done < total) redirect(backHref);
-        }
-      }
-    }
+    // Condição da própria colocação da prova.
+    const own = await isUnlocked(placement.releaseCondition, ctx, prog);
+    if (!own.unlocked) redirect(backHref);
   }
 
   // Prova final do produto: se já tem certificado, não refaz a prova.

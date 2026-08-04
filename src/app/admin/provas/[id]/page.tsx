@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { describeCondition } from "@/lib/release";
 import AppShell from "@/components/AppShell";
 import {
   updateExam,
@@ -41,6 +42,7 @@ export default async function EditExamPage({
           vitrine: { select: { name: true } },
           trilha: { select: { title: true } },
           modulo: { select: { title: true, trilha: { select: { title: true } } } },
+          releaseCondition: true,
         },
       },
     },
@@ -99,8 +101,8 @@ export default async function EditExamPage({
                 {exam.placements.map((p) => (
                   <li key={p.id} className="py-2">
                     {placementLabel(p)}
-                    {p.requireAllLessons && (
-                      <span className="text-amber-600"> · 🔒 após todas as aulas</span>
+                    {p.releaseCondition && (
+                      <span className="text-amber-600"> · 🔒 {describeCondition(p.releaseCondition)}</span>
                     )}
                   </li>
                 ))}

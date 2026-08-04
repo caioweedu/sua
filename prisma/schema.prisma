@@ -52,6 +52,8 @@ model Tenant {
   accessProfiles AccessProfile[]
   // Biblioteca de provas reutilizáveis do tenant.
   exams    Exam[]
+  // Condições de liberação (motor de gating unificado, Fase 2).
+  releaseConditions ReleaseCondition[]
 
   // Banner exibido na entrada (topo do painel do aluno).
   bannerUrl String?
@@ -79,10 +81,10 @@ model Vitrine {
   order       Int     @default(0)
   createdAt   DateTime @default(now())
 
-  // Pré-requisito de liberação (B2): a vitrine só fica acessível depois que o
-  // aluno concluir o produto indicado. Nulo = sem pré-requisito.
-  prereqTrilhaId String?
-  prereqTrilha   Trilha? @relation("VitrinePrereq", fields: [prereqTrilhaId], references: [id])
+  // Condição de liberação (Fase 2): a vitrine só fica acessível quando a
+  // condição é satisfeita. Nulo = sempre liberada.
+  releaseConditionId String?
+  releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
 
   trilhas Trilha[]
   profiles AccessProfile[]
@@ -91,7 +93,7 @@ model Vitrine {
 
   @@unique([tenantId, slug])
   @@index([tenantId])
-  @@index([prereqTrilhaId])
+  @@index([releaseConditionId])
 }
 
 // ---------------------------------------------------------------------------
@@ -167,13 +169,10 @@ model Trilha {
   order       Int     @default(0)
   createdAt   DateTime @default(now())
 
-  // Pré-requisito de liberação (B2): este produto só fica acessível depois que
-  // o aluno concluir o produto indicado. Nulo = sem pré-requisito.
-  prereqTrilhaId String?
-  prereqTrilha   Trilha?  @relation("TrilhaPrereq", fields: [prereqTrilhaId], references: [id])
-  dependentsTrilha Trilha[] @relation("TrilhaPrereq")
-  // Vitrines que dependem da conclusão deste produto para liberar.
-  unlocksVitrines  Vitrine[] @relation("VitrinePrereq")
+  // Condição de liberação (Fase 2): este produto só fica acessível quando a
+  // condição é satisfeita. Nulo = sempre liberado.
+  releaseConditionId String?
+  releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
 
   modulos     Modulo[]
   aulas       Aula[]
@@ -184,7 +183,7 @@ model Trilha {
 
   @@index([tenantId])
   @@index([vitrineId])
-  @@index([prereqTrilhaId])
+  @@index([releaseConditionId])
 }
 
 // Módulo agrupa aulas dentro de um produto.
@@ -195,11 +194,16 @@ model Modulo {
   title     String
   order     Int     @default(0)
 
+  // Condição de liberação (Fase 2): o módulo só abre quando satisfeita.
+  releaseConditionId String?
+  releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
+
   aulas     Aula[]
   // Provas colocadas ao fim deste módulo (checkpoint do módulo).
   examPlacements ExamPlacement[]
 
   @@index([trilhaId])
+  @@index([releaseConditionId])
 }
 
 model Aula {
@@ -288,9 +292,9 @@ model ExamPlacement {
 
   order    Int     @default(0)
   required Boolean @default(true)
-  // Condição simples (Fase 1): só libera a prova depois que o aluno concluir
-  // todas as aulas do container. O motor completo de condições vem na Fase 2.
-  requireAllLessons Boolean @default(false)
+  // Condição de liberação (Fase 2): a prova só abre quando satisfeita.
+  releaseConditionId String?
+  releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
   createdAt DateTime @default(now())
 
   attempts ExamAttempt[]
@@ -299,6 +303,50 @@ model ExamPlacement {
   @@index([vitrineId])
   @@index([trilhaId])
   @@index([moduloId])
+  @@index([releaseConditionId])
+}
+
+// ---------------------------------------------------------------------------
+// MOTOR DE CONDIÇÃO DE LIBERAÇÃO (Fase 2)
+// ---------------------------------------------------------------------------
+// Uma condição é anexada a um item (vitrine, produto, módulo ou colocação de
+// prova) via `releaseConditionId`. O item só fica liberado quando a condição é
+// satisfeita. Os alvos são ids "soltos" (sem FK) para permitir referência
+// cruzada em qualquer lugar da vitrine e para o motor tolerar alvos removidos
+// (nunca travar o aluno permanentemente por um alvo apagado).
+//
+// Tipos (campo `type`):
+//   AFTER_ALL_LESSONS      — concluir todas as aulas do container do item
+//                            (ou de targetModuloId/targetTrilhaId, se informado)
+//   AFTER_EXAM_PASSED      — ser aprovado na prova targetExamPlacementId
+//                            (com nota mínima opcional em minScore)
+//   AFTER_MODULE_COMPLETED — concluir o módulo targetModuloId (aulas + prova)
+//   AFTER_TRILHA_COMPLETED — concluir o produto targetTrilhaId
+//   AFTER_PERCENT          — concluir `percent`% das aulas do produto
+//   AFTER_DAYS             — passar `days` dias desde a matrícula
+model ReleaseCondition {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type     String
+
+  // Alvos (conforme o tipo) — ids soltos, sem chave estrangeira.
+  targetExamPlacementId String?
+  targetModuloId        String?
+  targetTrilhaId        String?
+
+  minScore Int?
+  percent  Int?
+  days     Int?
+  createdAt DateTime @default(now())
+
+  // Itens que usam esta condição (na prática 1:1 por item).
+  vitrines       Vitrine[]
+  trilhas        Trilha[]
+  modulos        Modulo[]
+  examPlacements ExamPlacement[]
+
+  @@index([tenantId])
 }
 
 model Question {

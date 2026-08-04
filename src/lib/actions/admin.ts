@@ -30,20 +30,8 @@ export async function createVitrine(formData: FormData) {
       description: String(formData.get("description") ?? "").trim() || null,
       coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
       bannerUrl: String(formData.get("bannerUrl") ?? "").trim() || null,
-      prereqTrilhaId: String(formData.get("prereqTrilhaId") ?? "").trim() || null,
       order: count,
     },
-  });
-  revalidatePath("/admin");
-}
-
-// Define/limpa o pré-requisito de liberação de uma vitrine (B2).
-export async function setVitrinePrereq(vitrineId: string, formData: FormData) {
-  const user = await requireAdmin();
-  const prereq = String(formData.get("prereqTrilhaId") ?? "").trim() || null;
-  await prisma.vitrine.update({
-    where: { id: vitrineId, tenantId: user.tenantId },
-    data: { prereqTrilhaId: prereq },
   });
   revalidatePath("/admin");
 }
@@ -77,8 +65,6 @@ export async function createTrilha(formData: FormData) {
 // Atualiza metadados do produto (vitrine, capa, título, descrição).
 export async function updateTrilhaMeta(trilhaId: string, formData: FormData) {
   await requireAdmin();
-  // Pré-requisito: nunca pode ser a própria trilha.
-  const prereq = String(formData.get("prereqTrilhaId") ?? "").trim() || null;
   await prisma.trilha.update({
     where: { id: trilhaId },
     data: {
@@ -86,7 +72,6 @@ export async function updateTrilhaMeta(trilhaId: string, formData: FormData) {
       description: String(formData.get("description") ?? "").trim() || null,
       coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
       vitrineId: String(formData.get("vitrineId") ?? "").trim() || null,
-      prereqTrilhaId: prereq === trilhaId ? null : prereq,
     },
   });
   revalidatePath(`/admin/trilhas/${trilhaId}`);
@@ -223,28 +208,20 @@ export async function deleteQuestion(questionId: string, examId: string) {
 
 type Container = { vitrineId?: string; trilhaId?: string; moduloId?: string };
 
-async function attachExam(
-  tenantId: string,
-  examId: string,
-  container: Container,
-  requireAllLessons: boolean
-) {
+async function attachExam(tenantId: string, examId: string, container: Container) {
   if (!examId) return;
   const exam = await prisma.exam.findFirst({
     where: { id: examId, tenantId },
     select: { id: true },
   });
   if (!exam) return;
-  await prisma.examPlacement.create({
-    data: { examId, ...container, requireAllLessons },
-  });
+  await prisma.examPlacement.create({ data: { examId, ...container } });
 }
 
 export async function attachExamToTrilha(trilhaId: string, formData: FormData) {
   const user = await requireAdmin();
   const examId = String(formData.get("examId") ?? "").trim();
-  const requireAllLessons = formData.get("requireAllLessons") != null;
-  await attachExam(user.tenantId, examId, { trilhaId }, requireAllLessons);
+  await attachExam(user.tenantId, examId, { trilhaId });
   revalidatePath(`/admin/trilhas/${trilhaId}`);
 }
 
@@ -255,23 +232,103 @@ export async function attachExamToModulo(
 ) {
   const user = await requireAdmin();
   const examId = String(formData.get("examId") ?? "").trim();
-  const requireAllLessons = formData.get("requireAllLessons") != null;
-  await attachExam(user.tenantId, examId, { moduloId }, requireAllLessons);
+  await attachExam(user.tenantId, examId, { moduloId });
   revalidatePath(`/admin/trilhas/${trilhaId}`);
 }
 
 export async function attachExamToVitrine(vitrineId: string, formData: FormData) {
   const user = await requireAdmin();
   const examId = String(formData.get("examId") ?? "").trim();
-  await attachExam(user.tenantId, examId, { vitrineId }, false);
+  await attachExam(user.tenantId, examId, { vitrineId });
   revalidatePath("/admin");
+}
+
+// --- Condição de liberação (Fase 2) -------------------------------------
+// Define/atualiza/limpa a condição de um item. `kind` diz qual entidade e `id`
+// qual registro. Uma condição vazia (type ausente) limpa a condição.
+
+type CondKind = "vitrine" | "trilha" | "modulo" | "examPlacement";
+
+async function currentConditionId(kind: CondKind, id: string): Promise<string | null> {
+  const sel = { where: { id }, select: { releaseConditionId: true } } as const;
+  const row =
+    kind === "vitrine"
+      ? await prisma.vitrine.findUnique(sel)
+      : kind === "trilha"
+      ? await prisma.trilha.findUnique(sel)
+      : kind === "modulo"
+      ? await prisma.modulo.findUnique(sel)
+      : await prisma.examPlacement.findUnique(sel);
+  return row?.releaseConditionId ?? null;
+}
+
+async function linkCondition(kind: CondKind, id: string, condId: string | null) {
+  const data = { releaseConditionId: condId };
+  if (kind === "vitrine") await prisma.vitrine.update({ where: { id }, data });
+  else if (kind === "trilha") await prisma.trilha.update({ where: { id }, data });
+  else if (kind === "modulo") await prisma.modulo.update({ where: { id }, data });
+  else await prisma.examPlacement.update({ where: { id }, data });
+}
+
+export async function setReleaseCondition(
+  kind: CondKind,
+  id: string,
+  redirectTo: string,
+  formData: FormData
+) {
+  const user = await requireAdmin();
+  const type = String(formData.get("type") ?? "").trim();
+  const existingId = await currentConditionId(kind, id);
+
+  const num = (k: string) => {
+    const v = String(formData.get(k) ?? "").trim();
+    return v === "" ? null : Math.max(0, Number(v));
+  };
+  const str = (k: string) => String(formData.get(k) ?? "").trim() || null;
+
+  // Sem tipo → limpa a condição (e remove a linha órfã).
+  if (!type) {
+    if (existingId) {
+      await linkCondition(kind, id, null);
+      await prisma.releaseCondition.delete({ where: { id: existingId } }).catch(() => {});
+    }
+    revalidatePath(redirectTo);
+    return;
+  }
+
+  // Só preenche os campos relevantes ao tipo escolhido.
+  const data = {
+    tenantId: user.tenantId,
+    type,
+    targetExamPlacementId: type === "AFTER_EXAM_PASSED" ? str("targetExamPlacementId") : null,
+    targetModuloId: type === "AFTER_MODULE_COMPLETED" ? str("targetModuloId") : null,
+    targetTrilhaId: type === "AFTER_TRILHA_COMPLETED" ? str("targetTrilhaId") : null,
+    minScore: type === "AFTER_EXAM_PASSED" ? num("minScore") : null,
+    percent: type === "AFTER_PERCENT" ? num("percent") : null,
+    days: type === "AFTER_DAYS" ? num("days") : null,
+  };
+
+  if (existingId) {
+    await prisma.releaseCondition.update({ where: { id: existingId }, data });
+  } else {
+    const cond = await prisma.releaseCondition.create({ data });
+    await linkCondition(kind, id, cond.id);
+  }
+  revalidatePath(redirectTo);
 }
 
 // Remove uma colocação (não apaga a prova da biblioteca). `redirectTo` diz qual
 // página revalidar após remover.
 export async function detachExamPlacement(placementId: string, redirectTo: string) {
   await requireAdmin();
+  const p = await prisma.examPlacement.findUnique({
+    where: { id: placementId },
+    select: { releaseConditionId: true },
+  });
   await prisma.examPlacement.delete({ where: { id: placementId } });
+  if (p?.releaseConditionId) {
+    await prisma.releaseCondition.delete({ where: { id: p.releaseConditionId } }).catch(() => {});
+  }
   revalidatePath(redirectTo);
 }
 
