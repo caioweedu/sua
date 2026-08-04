@@ -30,8 +30,20 @@ export async function createVitrine(formData: FormData) {
       description: String(formData.get("description") ?? "").trim() || null,
       coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
       bannerUrl: String(formData.get("bannerUrl") ?? "").trim() || null,
+      prereqTrilhaId: String(formData.get("prereqTrilhaId") ?? "").trim() || null,
       order: count,
     },
+  });
+  revalidatePath("/admin");
+}
+
+// Define/limpa o pré-requisito de liberação de uma vitrine (B2).
+export async function setVitrinePrereq(vitrineId: string, formData: FormData) {
+  const user = await requireAdmin();
+  const prereq = String(formData.get("prereqTrilhaId") ?? "").trim() || null;
+  await prisma.vitrine.update({
+    where: { id: vitrineId, tenantId: user.tenantId },
+    data: { prereqTrilhaId: prereq },
   });
   revalidatePath("/admin");
 }
@@ -65,6 +77,8 @@ export async function createTrilha(formData: FormData) {
 // Atualiza metadados do produto (vitrine, capa, título, descrição).
 export async function updateTrilhaMeta(trilhaId: string, formData: FormData) {
   await requireAdmin();
+  // Pré-requisito: nunca pode ser a própria trilha.
+  const prereq = String(formData.get("prereqTrilhaId") ?? "").trim() || null;
   await prisma.trilha.update({
     where: { id: trilhaId },
     data: {
@@ -72,6 +86,7 @@ export async function updateTrilhaMeta(trilhaId: string, formData: FormData) {
       description: String(formData.get("description") ?? "").trim() || null,
       coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
       vitrineId: String(formData.get("vitrineId") ?? "").trim() || null,
+      prereqTrilhaId: prereq === trilhaId ? null : prereq,
     },
   });
   revalidatePath(`/admin/trilhas/${trilhaId}`);
@@ -134,10 +149,11 @@ export async function saveExam(trilhaId: string, formData: FormData) {
   // Checkboxes: presente = "on".
   const shuffleOptions = formData.get("shuffleOptions") != null;
   const showAnswers = formData.get("showAnswers") != null;
+  const requireAllLessons = formData.get("requireAllLessons") != null;
   await prisma.exam.upsert({
     where: { trilhaId },
-    update: { title, questionsToShow, passingScore, shuffleOptions, showAnswers },
-    create: { trilhaId, title, questionsToShow, passingScore, shuffleOptions, showAnswers },
+    update: { title, questionsToShow, passingScore, shuffleOptions, showAnswers, requireAllLessons },
+    create: { trilhaId, title, questionsToShow, passingScore, shuffleOptions, showAnswers, requireAllLessons },
   });
   revalidatePath(`/admin/trilhas/${trilhaId}`);
 }

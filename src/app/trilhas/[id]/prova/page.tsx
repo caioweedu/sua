@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
+import { completedAulaIds, completedTrilhaIds, lockReason } from "@/lib/progress";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import ExamRunner from "./exam-runner";
@@ -27,11 +29,31 @@ export default async function ProvaPage({
     where: { id, tenantId: user.tenantId },
     include: {
       exam: { include: { questions: { include: { options: true } } } },
+      _count: { select: { aulas: true } },
     },
   });
   if (!trilha || !trilha.exam) notFound();
 
+  // Respeita o perfil de acesso do aluno.
+  const allowed = await allowedVitrineIds(user);
+  if (!canAccessVitrine(allowed, trilha.vitrineId)) notFound();
+
   const exam = trilha.exam;
+
+  // Gate de liberação (B2): pré-requisito e conclusão de todas as aulas.
+  if (user.role === "STUDENT") {
+    const completedTrilhas = await completedTrilhaIds(user.id);
+    if (lockReason(trilha.prereqTrilhaId, null, completedTrilhas)) {
+      redirect(`/trilhas/${trilha.id}`);
+    }
+    if (exam.requireAllLessons && trilha._count.aulas > 0) {
+      const done = await completedAulaIds(user.id, trilha.id);
+      if (done.size < trilha._count.aulas) {
+        // Ainda não concluiu todas as aulas — volta para a trilha.
+        redirect(`/trilhas/${trilha.id}`);
+      }
+    }
+  }
 
   // Se já tem certificado, não refaz a prova.
   const cert = await prisma.certificate.findFirst({

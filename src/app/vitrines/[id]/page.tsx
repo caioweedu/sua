@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
+import { completedTrilhaIds, lockReason } from "@/lib/progress";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import CourseCard from "@/components/CourseCard";
@@ -19,6 +20,7 @@ export default async function VitrinePage({
   const vitrine = await prisma.vitrine.findFirst({
     where: { id, tenantId: user.tenantId },
     include: {
+      prereqTrilha: { select: { id: true, title: true } },
       trilhas: {
         where: { published: true },
         orderBy: [{ order: "asc" }, { createdAt: "asc" }],
@@ -34,6 +36,31 @@ export default async function VitrinePage({
 
   const allowed = await allowedVitrineIds(user);
   if (!canAccessVitrine(allowed, vitrine.id)) notFound();
+
+  // Pré-requisito de liberação (B2): admin não é bloqueado.
+  const completedTrilhas =
+    user.role === "STUDENT" ? await completedTrilhaIds(user.id) : new Set<string>();
+  const locked =
+    user.role === "STUDENT"
+      ? lockReason(vitrine.prereqTrilhaId, vitrine.prereqTrilha?.title, completedTrilhas)
+      : null;
+
+  if (locked) {
+    return (
+      <AppShell user={user} tenant={user.tenant}>
+        <div className="card mx-auto mt-6 max-w-lg text-center">
+          <div className="text-5xl">🔒</div>
+          <h1 className="mt-3 text-xl font-bold text-ink">{vitrine.name}</h1>
+          <p className="mt-2 text-slate-500">{locked}</p>
+          {vitrine.prereqTrilha && (
+            <Link href={`/trilhas/${vitrine.prereqTrilha.id}`} className="btn-brand mt-5 inline-flex">
+              Ir para o pré-requisito
+            </Link>
+          )}
+        </div>
+      </AppShell>
+    );
+  }
 
   const { c1, c2 } = coverFor(vitrine.name);
 

@@ -39,6 +39,13 @@ export default async function ManageTrilhaPage({
     select: { id: true, name: true },
   });
 
+  // Outros produtos que podem servir de pré-requisito (exceto o atual).
+  const outrosProdutos = await prisma.trilha.findMany({
+    where: { tenantId: user.tenantId, id: { not: trilha.id } },
+    orderBy: { title: "asc" },
+    select: { id: true, title: true },
+  });
+
   const exam = trilha.exam;
   const bankCount = exam?.questions.length ?? 0;
 
@@ -62,6 +69,15 @@ export default async function ManageTrilhaPage({
           </select>
           <input name="coverUrl" defaultValue={trilha.coverUrl ?? ""} className="input sm:col-span-2" placeholder="URL da capa (opcional)" />
           <textarea name="description" defaultValue={trilha.description ?? ""} className="input sm:col-span-2" rows={2} placeholder="Descrição" />
+          <div className="sm:col-span-2">
+            <label className="label">Liberar só após concluir (pré-requisito)</label>
+            <select name="prereqTrilhaId" defaultValue={trilha.prereqTrilhaId ?? ""} className="input">
+              <option value="">Sem pré-requisito</option>
+              {outrosProdutos.map((o) => (
+                <option key={o.id} value={o.id}>{o.title}</option>
+              ))}
+            </select>
+          </div>
           <div className="sm:col-span-2">
             <button className="btn-brand" type="submit">Salvar dados</button>
           </div>
@@ -156,6 +172,10 @@ export default async function ManageTrilhaPage({
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" name="showAnswers" defaultChecked={exam?.showAnswers ?? false} className="h-4 w-4 rounded border-slate-300" />
                 Mostrar as respostas corretas ao final
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="requireAllLessons" defaultChecked={exam?.requireAllLessons ?? false} className="h-4 w-4 rounded border-slate-300" />
+                Só liberar a prova após concluir todas as aulas
               </label>
               <button className="btn-brand" type="submit">Salvar prova</button>
             </form>

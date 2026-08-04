@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { allowedVitrineIds } from "@/lib/access";
+import { completedTrilhaIds, lockReason } from "@/lib/progress";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import VitrineCard from "@/components/VitrineCard";
@@ -21,8 +22,13 @@ export default async function DashboardPage() {
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     include: {
       _count: { select: { trilhas: { where: { published: true } } } },
+      prereqTrilha: { select: { title: true } },
     },
   });
+
+  // Pré-requisitos de liberação (B2): só afetam alunos.
+  const completedTrilhas =
+    user.role === "STUDENT" ? await completedTrilhaIds(user.id) : new Set<string>();
 
   // Produtos sem vitrine só aparecem para quem tem acesso total (sem perfil).
   const soltos =
@@ -83,6 +89,7 @@ export default async function DashboardPage() {
                       description={v.description}
                       coverUrl={v.coverUrl}
                       produtos={v._count.trilhas}
+                      lockReason={lockReason(v.prereqTrilhaId, v.prereqTrilha?.title, completedTrilhas)}
                     />
                   ))}
                 </div>
