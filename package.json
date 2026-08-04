@@ -5,7 +5,7 @@
   "description": "Plataforma de treinamentos white-label (mãe/filha) da Weedu",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && sh -c 'if [ -z \"$DATABASE_URL\" ]; then export DATABASE_URL=\"$POSTGRES_PRISMA_URL\"; fi; if [ -z \"$DATABASE_URL\" ]; then export DATABASE_URL=\"$POSTGRES_URL\"; fi; if [ -z \"$DIRECT_URL\" ]; then export DIRECT_URL=\"$DATABASE_URL_UNPOOLED\"; fi; if [ -z \"$DIRECT_URL\" ]; then export DIRECT_URL=\"$POSTGRES_URL_NON_POOLING\"; fi; if [ -z \"$DIRECT_URL\" ]; then export DIRECT_URL=\"$DATABASE_URL\"; fi; if [ -n \"$DATABASE_URL\" ]; then prisma migrate deploy; else echo \"[build] nenhuma URL de banco no ambiente - pulando migrate deploy\"; fi' && next build",
+    "build": "prisma generate && sh -c 'if [ -z \"$DATABASE_URL\" ]; then export DATABASE_URL=\"$POSTGRES_PRISMA_URL\"; fi; if [ -z \"$DATABASE_URL\" ]; then export DATABASE_URL=\"$POSTGRES_URL\"; fi; if [ -n \"$DATABASE_URL_UNPOOLED\" ]; then export DIRECT_URL=\"$DATABASE_URL_UNPOOLED\"; elif [ -n \"$POSTGRES_URL_NON_POOLING\" ]; then export DIRECT_URL=\"$POSTGRES_URL_NON_POOLING\"; elif [ -z \"$DIRECT_URL\" ]; then export DIRECT_URL=\"$DATABASE_URL\"; fi; if [ -n \"$DATABASE_URL\" ]; then prisma migrate deploy; else echo \"[build] nenhuma URL de banco no ambiente - pulando migrate deploy\"; fi' && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
