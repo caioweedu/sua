@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import ImportCard from "./import-card";
 import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
+import SubmitButton from "@/components/SubmitButton";
 import { describeCondition } from "@/lib/release";
 import {
   createTrilha,
@@ -143,7 +144,7 @@ export default async function AdminPage() {
                           <option key={e.id} value={e.id}>{e.title}</option>
                         ))}
                       </select>
-                      <button className="btn-outline px-2 py-1.5 text-xs" type="submit">inserir</button>
+                      <SubmitButton className="btn-outline px-2 py-1.5 text-xs" pendingText="…">inserir</SubmitButton>
                     </form>
                   )}
                 </li>
@@ -155,7 +156,7 @@ export default async function AdminPage() {
               <input name="coverUrl" className="input sm:col-span-2" placeholder="URL da imagem/capa (opcional)" />
               <textarea name="description" className="input sm:col-span-2" rows={2} placeholder="Descrição (opcional)" />
               <div className="sm:col-span-2">
-                <button className="btn-brand" type="submit">Criar vitrine</button>
+                <SubmitButton pendingText="Criando…">Criar vitrine</SubmitButton>
               </div>
             </form>
           </div>
@@ -201,7 +202,7 @@ export default async function AdminPage() {
               </select>
               <textarea name="description" className="input" placeholder="Descrição" rows={2} />
               <input name="coverUrl" className="input" placeholder="URL da capa (opcional)" />
-              <button className="btn-brand" type="submit">Criar produto</button>
+              <SubmitButton pendingText="Criando…">Criar produto</SubmitButton>
             </form>
           </div>
 
@@ -252,7 +253,7 @@ export default async function AdminPage() {
                   </div>
                 )}
               </div>
-              <button className="btn-brand" type="submit">Criar perfil</button>
+              <SubmitButton pendingText="Criando…">Criar perfil</SubmitButton>
             </form>
           </div>
 
@@ -306,7 +307,7 @@ export default async function AdminPage() {
                 ))}
               </select>
               <div className="sm:col-span-2">
-                <button className="btn-brand" type="submit">Criar aluno</button>
+                <SubmitButton pendingText="Criando…">Criar aluno</SubmitButton>
               </div>
             </form>
           </div>
@@ -331,7 +332,7 @@ export default async function AdminPage() {
               <input name="bannerUrl" defaultValue={user.tenant.bannerUrl ?? ""} className="input" placeholder="URL do banner de entrada" />
               <input name="certificateBg" defaultValue={user.tenant.certificateBg ?? ""} className="input" placeholder="URL do fundo do certificado" />
               <input name="certificateSignature" defaultValue={user.tenant.certificateSignature ?? ""} className="input" placeholder="Assinatura do certificado" />
-              <button className="btn-brand" type="submit">Salvar aparência</button>
+              <SubmitButton pendingText="Salvando…">Salvar aparência</SubmitButton>
             </form>
           </div>
 
@@ -366,7 +367,7 @@ export default async function AdminPage() {
                   <hr className="border-slate-100" />
                   <input name="adminEmail" type="email" required className="input" placeholder="E-mail do admin da filha" />
                   <input name="adminPassword" type="password" required minLength={6} className="input" placeholder="Senha do admin (mín. 6)" />
-                  <button className="btn-brand" type="submit">Criar filha</button>
+                  <SubmitButton pendingText="Criando…">Criar filha</SubmitButton>
                 </form>
               </div>
             </>

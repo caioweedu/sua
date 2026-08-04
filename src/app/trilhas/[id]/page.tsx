@@ -8,6 +8,7 @@ import { toEmbedUrl } from "@/lib/video";
 import { enroll, toggleAulaComplete } from "@/lib/actions/learning";
 import AppShell from "@/components/AppShell";
 import ProfessorChat from "@/components/ProfessorChat";
+import SubmitButton from "@/components/SubmitButton";
 
 export default async function TrilhaPage({
   params,
@@ -187,7 +188,7 @@ export default async function TrilhaPage({
         </div>
         {!enrolled && (
           <form action={enroll.bind(null, trilha.id)}>
-            <button className="btn-brand" type="submit">Começar trilha</button>
+            <SubmitButton pendingText="Começando…">Começar trilha</SubmitButton>
           </form>
         )}
       </div>
@@ -234,8 +235,8 @@ export default async function TrilhaPage({
                 )}
                 {user.role === "STUDENT" && (
                   <form action={toggleAulaComplete.bind(null, current.id, trilha.id, !currentDone)}>
-                    <button
-                      type="submit"
+                    <SubmitButton
+                      pendingText="Salvando…"
                       className={
                         currentDone
                           ? "inline-flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-4 py-2.5 text-sm font-medium text-green-700 transition hover:bg-green-100"
@@ -243,7 +244,7 @@ export default async function TrilhaPage({
                       }
                     >
                       {currentDone ? "✓ Aula concluída" : "Marcar como concluída"}
-                    </button>
+                    </SubmitButton>
                   </form>
                 )}
               </div>

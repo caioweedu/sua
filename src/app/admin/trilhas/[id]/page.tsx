@@ -4,6 +4,7 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { describeCondition } from "@/lib/release";
 import AppShell from "@/components/AppShell";
+import SubmitButton from "@/components/SubmitButton";
 import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
 import {
   addAula,
@@ -126,7 +127,7 @@ export default async function ManageTrilhaPage({
           <input name="coverUrl" defaultValue={trilha.coverUrl ?? ""} className="input sm:col-span-2" placeholder="URL da capa (opcional)" />
           <textarea name="description" defaultValue={trilha.description ?? ""} className="input sm:col-span-2" rows={2} placeholder="Descrição" />
           <div className="sm:col-span-2">
-            <button className="btn-brand" type="submit">Salvar dados</button>
+            <SubmitButton pendingText="Salvando…">Salvar dados</SubmitButton>
           </div>
         </form>
       </div>
@@ -240,7 +241,7 @@ export default async function ManageTrilhaPage({
                             <option key={e.id} value={e.id}>{e.title}</option>
                           ))}
                         </select>
-                        <button className="btn-outline px-2 py-1.5 text-xs" type="submit">inserir</button>
+                        <SubmitButton className="btn-outline px-2 py-1.5 text-xs" pendingText="…">inserir</SubmitButton>
                       </form>
                     ) : (
                       <p className="text-xs text-slate-400">
@@ -254,7 +255,7 @@ export default async function ManageTrilhaPage({
                     <input name="videoUrl" className="input" placeholder="Link do vídeo (YouTube, Vimeo, Panda...)" />
                     <input name="pdfUrl" className="input" placeholder="Link do PDF (opcional)" />
                     <textarea name="description" className="input" rows={2} placeholder="Descrição (opcional)" />
-                    <button className="btn-outline text-sm" type="submit">+ Adicionar aula</button>
+                    <SubmitButton className="btn-outline text-sm" pendingText="Adicionando…">+ Adicionar aula</SubmitButton>
                   </form>
                 </div>
               ))}
@@ -262,7 +263,7 @@ export default async function ManageTrilhaPage({
 
             <form action={addModulo.bind(null, trilha.id)} className="mt-4 flex gap-2 border-t border-slate-100 pt-4">
               <input name="title" required className="input" placeholder="Nome do novo módulo" />
-              <button className="btn-brand" type="submit">Criar módulo</button>
+              <SubmitButton pendingText="Criando…">Criar módulo</SubmitButton>
             </form>
           </div>
         </section>
@@ -325,7 +326,7 @@ export default async function ManageTrilhaPage({
                     </option>
                   ))}
                 </select>
-                <button className="btn-brand" type="submit">Inserir no produto</button>
+                <SubmitButton pendingText="Inserindo…">Inserir no produto</SubmitButton>
               </form>
             ) : (
               <div className="border-t border-slate-100 pt-4 text-sm text-slate-500">

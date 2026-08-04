@@ -5,7 +5,7 @@
   "description": "Plataforma de treinamentos white-label (mãe/filha) da Weedu",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && sh -c 'if [ -z \"$DIRECT_URL\" ] && [ -n \"$DATABASE_URL\" ]; then export DIRECT_URL=\"$DATABASE_URL\"; fi; prisma migrate deploy' && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",

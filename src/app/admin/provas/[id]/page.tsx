@@ -4,6 +4,7 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { describeCondition } from "@/lib/release";
 import AppShell from "@/components/AppShell";
+import SubmitButton from "@/components/SubmitButton";
 import {
   updateExam,
   deleteExam,
@@ -81,7 +82,7 @@ export default async function EditExamPage({
                 <input type="checkbox" name="showAnswers" defaultChecked={exam.showAnswers} className="h-4 w-4 rounded border-slate-300" />
                 Mostrar as respostas corretas ao final
               </label>
-              <button className="btn-brand" type="submit">Salvar configuração</button>
+              <SubmitButton pendingText="Salvando…">Salvar configuração</SubmitButton>
             </form>
           </div>
 
@@ -117,9 +118,9 @@ export default async function EditExamPage({
               Remove a prova, seu banco de questões e todas as colocações.
             </p>
             <form action={deleteExam.bind(null, exam.id)}>
-              <button className="btn-outline border-red-200 text-sm text-red-600" type="submit">
+              <SubmitButton className="btn-outline border-red-200 text-sm text-red-600" pendingText="Excluindo…">
                 Excluir prova
-              </button>
+              </SubmitButton>
             </form>
           </div>
         </section>
@@ -158,7 +159,7 @@ export default async function EditExamPage({
               </div>
             ))}
             <p className="text-xs text-slate-400">Marque o círculo da alternativa correta.</p>
-            <button className="btn-brand" type="submit">Adicionar questão</button>
+            <SubmitButton pendingText="Adicionando…">Adicionar questão</SubmitButton>
           </form>
         </section>
       </div>

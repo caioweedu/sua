@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import SubmitButton from "./SubmitButton";
 
 export type CondOption = { id: string; label: string };
 export type CondData = {
@@ -121,9 +122,12 @@ export default function ConditionEditor({
         />
       )}
 
-      <button className={compact ? "btn-outline px-2 py-1.5 text-xs" : "btn-brand"} type="submit">
+      <SubmitButton
+        className={compact ? "btn-outline px-2 py-1.5 text-xs" : "btn-brand"}
+        pendingText="Salvando…"
+      >
         Salvar condição
-      </button>
+      </SubmitButton>
     </form>
   );
 }
