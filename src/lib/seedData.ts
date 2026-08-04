@@ -191,6 +191,10 @@ export async function seedDatabase(prisma: PrismaClient) {
   await prisma.accessProfile.deleteMany({ where: { tenantId: mother.id } });
   await prisma.trilha.deleteMany({ where: { tenantId: mother.id } });
   await prisma.vitrine.deleteMany({ where: { tenantId: mother.id } });
+  // Provas e condições vivem no tenant (não são apagadas em cascata pela
+  // trilha); limpa também para o seed não deixar registros órfãos.
+  await prisma.exam.deleteMany({ where: { tenantId: mother.id } });
+  await prisma.releaseCondition.deleteMany({ where: { tenantId: mother.id } });
 
   const vitrineByName = new Map<string, string>();
   const trilhaByTitle = new Map<string, string>();
@@ -247,17 +251,23 @@ export async function seedDatabase(prisma: PrismaClient) {
       }
 
       if (p.exam) {
+        // Prova na biblioteca do tenant, colocada no produto com condição de
+        // liberação "após concluir todas as aulas" (motor da Fase 2).
         const exam = await prisma.exam.create({
           data: {
-            trilhaId: trilha.id,
+            tenantId: mother.id,
             title: `Avaliação final — ${p.title}`,
             questionsToShow: 6,
             passingScore: 70,
             shuffleOptions: true,
             showAnswers: true,
-            // Demonstra o gate: só libera a prova após concluir as aulas.
-            requireAllLessons: true,
           },
+        });
+        const cond = await prisma.releaseCondition.create({
+          data: { tenantId: mother.id, type: "AFTER_ALL_LESSONS" },
+        });
+        await prisma.examPlacement.create({
+          data: { examId: exam.id, trilhaId: trilha.id, releaseConditionId: cond.id },
         });
         for (let i = 0; i < 20; i++) {
           const n = i + 1;
@@ -281,14 +291,17 @@ export async function seedDatabase(prisma: PrismaClient) {
     }
   }
 
-  // Pré-requisito de liberação (B2): "Indicadores e Metas" só abre depois de
+  // Condição de liberação (Fase 2): "Indicadores e Metas" só abre depois de
   // concluir "Gestão de Resultados para PMEs".
   const prereqId = trilhaByTitle.get("Gestão de Resultados para PMEs");
   const dependenteId = trilhaByTitle.get("Indicadores e Metas");
   if (prereqId && dependenteId) {
+    const cond = await prisma.releaseCondition.create({
+      data: { tenantId: mother.id, type: "AFTER_TRILHA_COMPLETED", targetTrilhaId: prereqId },
+    });
     await prisma.trilha.update({
       where: { id: dependenteId },
-      data: { prereqTrilhaId: prereqId },
+      data: { releaseConditionId: cond.id },
     });
   }
 

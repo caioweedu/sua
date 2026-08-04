@@ -2,12 +2,13 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
-import { completedAulaIds, completedTrilhaIds, lockReason } from "@/lib/progress";
+import { loadProgress, isUnlocked, type UnlockResult } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import { toEmbedUrl } from "@/lib/video";
 import { enroll, toggleAulaComplete } from "@/lib/actions/learning";
 import AppShell from "@/components/AppShell";
 import ProfessorChat from "@/components/ProfessorChat";
+import SubmitButton from "@/components/SubmitButton";
 
 export default async function TrilhaPage({
   params,
@@ -25,14 +26,29 @@ export default async function TrilhaPage({
     where: { id, tenantId: user.tenantId },
     include: {
       vitrine: { select: { id: true, name: true } },
-      prereqTrilha: { select: { id: true, title: true } },
+      releaseCondition: true,
       modulos: {
         orderBy: { order: "asc" },
-        include: { aulas: { orderBy: { order: "asc" } } },
+        include: {
+          releaseCondition: true,
+          aulas: { orderBy: { order: "asc" } },
+          examPlacements: {
+            include: {
+              releaseCondition: true,
+              exam: { select: { title: true, _count: { select: { questions: true } } } },
+            },
+          },
+        },
       },
       // Aulas sem módulo (conteúdo antigo/avulso).
       aulas: { where: { moduloId: null }, orderBy: { order: "asc" } },
-      exam: { include: { _count: { select: { questions: true } } } },
+      // Provas do produto (colocação de trilha).
+      examPlacements: {
+        include: {
+          releaseCondition: true,
+          exam: { select: { title: true, passingScore: true, questionsToShow: true, _count: { select: { questions: true } } } },
+        },
+      },
       enrollments: { where: { userId: user.id } },
       certificates: { where: { userId: user.id } },
     },
@@ -42,15 +58,16 @@ export default async function TrilhaPage({
   const allowed = await allowedVitrineIds(user);
   if (!canAccessVitrine(allowed, trilha.vitrineId)) notFound();
 
-  // Pré-requisito de liberação (B2): admin não é bloqueado.
-  const completedTrilhas =
-    user.role === "STUDENT" ? await completedTrilhaIds(user.id) : new Set<string>();
-  const locked =
-    user.role === "STUDENT"
-      ? lockReason(trilha.prereqTrilhaId, trilha.prereqTrilha?.title, completedTrilhas)
-      : null;
+  // Progresso do aluno (para gating e barra de progresso). Admin não é bloqueado.
+  const isStudent = user.role === "STUDENT";
+  const prog = isStudent ? await loadProgress(user.id) : null;
 
-  if (locked) {
+  // Condição de liberação do produto (Fase 2).
+  const produtoLock =
+    prog ? await isUnlocked(trilha.releaseCondition, {}, prog) : ({ unlocked: true, reason: null } as UnlockResult);
+
+  if (!produtoLock.unlocked) {
+    const targetTrilhaId = trilha.releaseCondition?.targetTrilhaId;
     return (
       <AppShell user={user} tenant={user.tenant}>
         <nav className="flex items-center gap-1.5 text-sm text-slate-500">
@@ -61,9 +78,9 @@ export default async function TrilhaPage({
         <div className="card mt-6 mx-auto max-w-lg text-center">
           <div className="text-5xl">🔒</div>
           <h1 className="mt-3 text-xl font-bold text-ink">Conteúdo bloqueado</h1>
-          <p className="mt-2 text-slate-500">{locked}</p>
-          {trilha.prereqTrilha && (
-            <Link href={`/trilhas/${trilha.prereqTrilha.id}`} className="btn-brand mt-5 inline-flex">
+          <p className="mt-2 text-slate-500">{produtoLock.reason}</p>
+          {targetTrilhaId && (
+            <Link href={`/trilhas/${targetTrilhaId}`} className="btn-brand mt-5 inline-flex">
               Ir para o pré-requisito
             </Link>
           )}
@@ -72,33 +89,65 @@ export default async function TrilhaPage({
     );
   }
 
-  // Aulas concluídas pelo aluno (para progresso e liberação da prova).
-  const doneAulas =
-    user.role === "STUDENT" ? await completedAulaIds(user.id, trilha.id) : new Set<string>();
+  // Conjunto de aulas concluídas (todas as do aluno; usamos .has por id).
+  const doneAulas = prog ? prog.doneAulas : new Set<string>();
+
+  // Liberação por módulo (Fase 2): um módulo bloqueado não tem aulas jogáveis.
+  const moduloLock = new Map<string, UnlockResult>();
+  for (const m of trilha.modulos) {
+    moduloLock.set(
+      m.id,
+      prog ? await isUnlocked(m.releaseCondition, { trilhaId: trilha.id }, prog) : { unlocked: true, reason: null }
+    );
+  }
 
   const enrolled = trilha.enrollments.length > 0;
   const cert = trilha.certificates[0];
-  const hasExam = !!trilha.exam && trilha.exam._count.questions > 0;
+  // Provas finais do produto (só as que têm banco de questões).
+  const produtoProvas = trilha.examPlacements.filter((p) => p.exam._count.questions > 0);
+  const hasExam = produtoProvas.length > 0;
+
+  // Avalia a liberação de cada prova (produto e módulos).
+  const provaLock = new Map<string, UnlockResult>();
+  for (const p of trilha.examPlacements) {
+    provaLock.set(p.id, prog ? await isUnlocked(p.releaseCondition, { trilhaId: trilha.id }, prog) : { unlocked: true, reason: null });
+  }
+  for (const m of trilha.modulos) {
+    for (const p of m.examPlacements) {
+      provaLock.set(p.id, prog ? await isUnlocked(p.releaseCondition, { trilhaId: trilha.id, moduloId: m.id }, prog) : { unlocked: true, reason: null });
+    }
+  }
 
   // Monta os grupos da trilha lateral (módulos + eventuais aulas avulsas).
+  // Cada módulo carrega id, estado de liberação e suas provas (checkpoints).
   const grupos = [
-    ...trilha.modulos.map((m) => ({ title: m.title, aulas: m.aulas })),
-    ...(trilha.aulas.length > 0 ? [{ title: "Aulas", aulas: trilha.aulas }] : []),
+    ...trilha.modulos.map((m) => ({
+      moduloId: m.id,
+      title: m.title,
+      aulas: m.aulas,
+      provas: m.examPlacements.filter((p) => p.exam._count.questions > 0),
+      lock: moduloLock.get(m.id) ?? { unlocked: true, reason: null },
+    })),
+    ...(trilha.aulas.length > 0
+      ? [{
+          moduloId: null as string | null,
+          title: "Aulas",
+          aulas: trilha.aulas,
+          provas: [] as typeof trilha.modulos[number]["examPlacements"],
+          lock: { unlocked: true, reason: null } as UnlockResult,
+        }]
+      : []),
   ];
-  const flat = grupos.flatMap((g) => g.aulas);
+  // Só contam/são jogáveis as aulas de módulos liberados.
+  const flat = grupos.filter((g) => g.lock.unlocked).flatMap((g) => g.aulas);
   const totalAulas = flat.length;
   const doneCount = flat.filter((x) => doneAulas.has(x.id)).length;
   const progressPct = totalAulas > 0 ? Math.round((doneCount / totalAulas) * 100) : 0;
-  const allAulasDone = totalAulas > 0 && doneCount === totalAulas;
 
   const current = flat.find((x) => x.id === a) ?? flat[0] ?? null;
   const currentIndex = current ? flat.findIndex((x) => x.id === current.id) : -1;
   const currentDone = current ? doneAulas.has(current.id) : false;
   const embed = current?.videoUrl ? toEmbedUrl(current.videoUrl) : null;
-
-  // Prova só libera após todas as aulas quando o admin exigir (B2).
-  const requireAll = trilha.exam?.requireAllLessons ?? false;
-  const examLockedByLessons = hasExam && requireAll && !allAulasDone;
 
   return (
     <AppShell user={user} tenant={user.tenant}>
@@ -139,7 +188,7 @@ export default async function TrilhaPage({
         </div>
         {!enrolled && (
           <form action={enroll.bind(null, trilha.id)}>
-            <button className="btn-brand" type="submit">Começar trilha</button>
+            <SubmitButton pendingText="Começando…">Começar trilha</SubmitButton>
           </form>
         )}
       </div>
@@ -186,8 +235,8 @@ export default async function TrilhaPage({
                 )}
                 {user.role === "STUDENT" && (
                   <form action={toggleAulaComplete.bind(null, current.id, trilha.id, !currentDone)}>
-                    <button
-                      type="submit"
+                    <SubmitButton
+                      pendingText="Salvando…"
                       className={
                         currentDone
                           ? "inline-flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-4 py-2.5 text-sm font-medium text-green-700 transition hover:bg-green-100"
@@ -195,7 +244,7 @@ export default async function TrilhaPage({
                       }
                     >
                       {currentDone ? "✓ Aula concluída" : "Marcar como concluída"}
-                    </button>
+                    </SubmitButton>
                   </form>
                 )}
               </div>
@@ -215,79 +264,128 @@ export default async function TrilhaPage({
             <div className="max-h-[55vh] overflow-y-auto">
               {grupos.map((g, gi) => (
                 <div key={gi}>
-                  <div className="bg-slate-50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                    {g.title}
+                  <div className="flex items-center justify-between bg-slate-50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    <span>{g.title}</span>
+                    {!g.lock.unlocked && <span title={g.lock.reason ?? ""}>🔒</span>}
                   </div>
-                  <ol>
-                    {g.aulas.map((aula) => {
-                      const active = current?.id === aula.id;
-                      const done = doneAulas.has(aula.id);
-                      const pos = flat.findIndex((x) => x.id === aula.id) + 1;
-                      return (
-                        <li key={aula.id}>
-                          <Link
-                            href={`/trilhas/${trilha.id}?a=${aula.id}`}
-                            className={`flex items-center gap-3 px-4 py-3 text-sm transition ${
-                              active ? "bg-brand/5" : "hover:bg-slate-50"
-                            }`}
-                          >
-                            <span
-                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                                done
-                                  ? "bg-green-100 text-green-700"
-                                  : active
-                                  ? "text-brand-fg"
-                                  : "bg-slate-100 text-slate-500"
-                              }`}
-                              style={active && !done ? { background: "var(--brand-color)" } : undefined}
-                            >
-                              {done ? "✓" : pos}
-                            </span>
-                            <span className={active ? "font-semibold text-ink" : "text-slate-600"}>
-                              {aula.title}
-                            </span>
-                            <span className="ml-auto text-slate-300">
-                              {aula.videoUrl ? "🎬" : aula.pdfUrl ? "📎" : ""}
-                            </span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ol>
+
+                  {g.lock.unlocked ? (
+                    <>
+                      <ol>
+                        {g.aulas.map((aula) => {
+                          const active = current?.id === aula.id;
+                          const done = doneAulas.has(aula.id);
+                          const pos = flat.findIndex((x) => x.id === aula.id) + 1;
+                          return (
+                            <li key={aula.id}>
+                              <Link
+                                href={`/trilhas/${trilha.id}?a=${aula.id}`}
+                                className={`flex items-center gap-3 px-4 py-3 text-sm transition ${
+                                  active ? "bg-brand/5" : "hover:bg-slate-50"
+                                }`}
+                              >
+                                <span
+                                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                                    done
+                                      ? "bg-green-100 text-green-700"
+                                      : active
+                                      ? "text-brand-fg"
+                                      : "bg-slate-100 text-slate-500"
+                                  }`}
+                                  style={active && !done ? { background: "var(--brand-color)" } : undefined}
+                                >
+                                  {done ? "✓" : pos}
+                                </span>
+                                <span className={active ? "font-semibold text-ink" : "text-slate-600"}>
+                                  {aula.title}
+                                </span>
+                                <span className="ml-auto text-slate-300">
+                                  {aula.videoUrl ? "🎬" : aula.pdfUrl ? "📎" : ""}
+                                </span>
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                      {/* Provas do módulo (checkpoints) */}
+                      {g.provas.map((p) => {
+                        const lock = provaLock.get(p.id) ?? { unlocked: true, reason: null };
+                        return (
+                          <div key={p.id} className="border-t border-slate-100 px-4 py-3">
+                            {!lock.unlocked ? (
+                              <div className="flex items-center gap-3 text-sm text-slate-400">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs">
+                                  🔒
+                                </span>
+                                <span>
+                                  {p.exam.title}
+                                  <span className="block text-xs">{lock.reason}</span>
+                                </span>
+                              </div>
+                            ) : (
+                              <Link
+                                href={`/prova/${p.id}`}
+                                className="flex items-center gap-3 text-sm text-brand hover:underline"
+                              >
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs">
+                                  📝
+                                </span>
+                                <span className="font-medium">{p.exam.title}</span>
+                              </Link>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </>
+                  ) : (
+                    <p className="px-4 py-3 text-xs text-slate-400">{g.lock.reason}</p>
+                  )}
                 </div>
               ))}
             </div>
           </div>
 
-          {hasExam && (
+          {cert ? (
             <div className="card mt-4">
-              <h3 className="font-bold text-ink">{trilha.exam!.title}</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                {trilha.exam!.questionsToShow} questões sorteadas ·{" "}
-                {trilha.exam!.passingScore}% para aprovação
-              </p>
-              {cert ? (
-                <Link href={`/certificados/${cert.code}`} className="btn-brand mt-4 w-full">
-                  🏆 Ver certificado
-                </Link>
-              ) : examLockedByLessons ? (
-                <>
-                  <button
-                    disabled
-                    className="btn-brand mt-4 w-full cursor-not-allowed opacity-50"
-                  >
-                    🔒 Fazer avaliação
-                  </button>
-                  <p className="mt-2 text-center text-xs text-slate-500">
-                    Conclua todas as aulas ({doneCount}/{totalAulas}) para liberar a prova.
-                  </p>
-                </>
-              ) : (
-                <Link href={`/trilhas/${trilha.id}/prova`} className="btn-brand mt-4 w-full">
-                  Fazer avaliação
-                </Link>
-              )}
+              <h3 className="font-bold text-ink">Certificado disponível</h3>
+              <Link href={`/certificados/${cert.code}`} className="btn-brand mt-4 w-full">
+                🏆 Ver certificado
+              </Link>
             </div>
+          ) : (
+            hasExam && (
+              <div className="card mt-4 space-y-4">
+                {produtoProvas.map((p) => {
+                  const lock = provaLock.get(p.id) ?? { unlocked: true, reason: null };
+                  return (
+                    <div key={p.id}>
+                      <h3 className="font-bold text-ink">{p.exam.title}</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {p.exam.questionsToShow} questões sorteadas ·{" "}
+                        {p.exam.passingScore}% para aprovação
+                      </p>
+                      {!lock.unlocked ? (
+                        <>
+                          <button
+                            disabled
+                            className="btn-brand mt-4 w-full cursor-not-allowed opacity-50"
+                          >
+                            🔒 Fazer avaliação
+                          </button>
+                          <p className="mt-2 text-center text-xs text-slate-500">
+                            {lock.reason}
+                          </p>
+                        </>
+                      ) : (
+                        <Link href={`/prova/${p.id}`} className="btn-brand mt-4 w-full">
+                          Fazer avaliação
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </aside>
       </div>

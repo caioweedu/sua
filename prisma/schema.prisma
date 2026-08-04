@@ -50,6 +50,10 @@ model Tenant {
   trilhas  Trilha[]
   vitrines Vitrine[]
   accessProfiles AccessProfile[]
+  // Biblioteca de provas reutilizáveis do tenant.
+  exams    Exam[]
+  // Condições de liberação (motor de gating unificado, Fase 2).
+  releaseConditions ReleaseCondition[]
 
   // Banner exibido na entrada (topo do painel do aluno).
   bannerUrl String?
@@ -77,17 +81,19 @@ model Vitrine {
   order       Int     @default(0)
   createdAt   DateTime @default(now())
 
-  // Pré-requisito de liberação (B2): a vitrine só fica acessível depois que o
-  // aluno concluir o produto indicado. Nulo = sem pré-requisito.
-  prereqTrilhaId String?
-  prereqTrilha   Trilha? @relation("VitrinePrereq", fields: [prereqTrilhaId], references: [id])
+  // Condição de liberação (Fase 2): a vitrine só fica acessível quando a
+  // condição é satisfeita. Nulo = sempre liberada.
+  releaseConditionId String?
+  releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
 
   trilhas Trilha[]
   profiles AccessProfile[]
+  // Provas colocadas diretamente na vitrine (avaliação geral da área).
+  examPlacements ExamPlacement[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
-  @@index([prereqTrilhaId])
+  @@index([releaseConditionId])
 }
 
 // ---------------------------------------------------------------------------
@@ -163,23 +169,21 @@ model Trilha {
   order       Int     @default(0)
   createdAt   DateTime @default(now())
 
-  // Pré-requisito de liberação (B2): este produto só fica acessível depois que
-  // o aluno concluir o produto indicado. Nulo = sem pré-requisito.
-  prereqTrilhaId String?
-  prereqTrilha   Trilha?  @relation("TrilhaPrereq", fields: [prereqTrilhaId], references: [id])
-  dependentsTrilha Trilha[] @relation("TrilhaPrereq")
-  // Vitrines que dependem da conclusão deste produto para liberar.
-  unlocksVitrines  Vitrine[] @relation("VitrinePrereq")
+  // Condição de liberação (Fase 2): este produto só fica acessível quando a
+  // condição é satisfeita. Nulo = sempre liberado.
+  releaseConditionId String?
+  releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
 
   modulos     Modulo[]
   aulas       Aula[]
-  exam        Exam?
+  // Provas colocadas neste produto (prova final do produto).
+  examPlacements ExamPlacement[]
   enrollments Enrollment[]
   certificates Certificate[]
 
   @@index([tenantId])
   @@index([vitrineId])
-  @@index([prereqTrilhaId])
+  @@index([releaseConditionId])
 }
 
 // Módulo agrupa aulas dentro de um produto.
@@ -190,9 +194,16 @@ model Modulo {
   title     String
   order     Int     @default(0)
 
+  // Condição de liberação (Fase 2): o módulo só abre quando satisfeita.
+  releaseConditionId String?
+  releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
+
   aulas     Aula[]
+  // Provas colocadas ao fim deste módulo (checkpoint do módulo).
+  examPlacements ExamPlacement[]
 
   @@index([trilhaId])
+  @@index([releaseConditionId])
 }
 
 model Aula {
@@ -232,26 +243,110 @@ model AulaProgress {
 }
 
 // ---------------------------------------------------------------------------
-// PROVA COM BANCO DE QUESTÕES E SORTEIO
+// BIBLIOTECA DE PROVAS + COLOCAÇÃO (Fase 1)
 // ---------------------------------------------------------------------------
-// Cadastra-se um banco de N questões na prova; a cada tentativa o sistema
-// sorteia `questionsToShow` questões (ex.: 20 cadastradas, mostra 6).
+// A prova (`Exam`) é um item da BIBLIOTECA do tenant: banco de questões +
+// regras de correção, neutro (não sabe onde é usado). Uma `ExamPlacement`
+// insere essa prova num container (vitrine, produto ou módulo) — a mesma prova
+// pode ser reutilizada em vários lugares, e cada colocação tem a sua ordem e
+// condição de liberação. Na Fase 2 a condição vira um motor genérico
+// (ReleaseCondition); por ora a colocação carrega `requireAllLessons`.
+//
+// A cada tentativa o sistema sorteia `questionsToShow` do banco (ex.: 20
+// cadastradas, mostra 6).
 
 model Exam {
   id             String @id @default(cuid())
-  trilhaId       String @unique
-  trilha         Trilha @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  // Tenant dono da prova (a prova vive na biblioteca do tenant).
+  tenantId       String
+  tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title          String @default("Avaliação final")
   questionsToShow Int   @default(6)  // quantas questões sortear por tentativa
   passingScore   Int    @default(70) // % mínimo para aprovação
   maxAttempts    Int    @default(0)  // 0 = ilimitado
   shuffleOptions Boolean @default(true)  // embaralhar as alternativas
   showAnswers    Boolean @default(false) // mostrar o gabarito ao final
-  // Exige que o aluno conclua todas as aulas antes de liberar a prova (B2).
-  requireAllLessons Boolean @default(false)
+  createdAt      DateTime @default(now())
 
-  questions Question[]
-  attempts  ExamAttempt[]
+  questions  Question[]
+  attempts   ExamAttempt[]
+  placements ExamPlacement[]
+
+  @@index([tenantId])
+}
+
+// Colocação de uma prova num container. Exatamente UM de vitrineId/trilhaId/
+// moduloId é preenchido — é onde a prova aparece para o aluno.
+model ExamPlacement {
+  id       String  @id @default(cuid())
+  examId   String
+  exam     Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  // Container (exatamente um):
+  vitrineId String?
+  vitrine   Vitrine? @relation(fields: [vitrineId], references: [id], onDelete: Cascade)
+  trilhaId  String?
+  trilha    Trilha?  @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  moduloId  String?
+  modulo    Modulo?  @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+
+  order    Int     @default(0)
+  required Boolean @default(true)
+  // Condição de liberação (Fase 2): a prova só abre quando satisfeita.
+  releaseConditionId String?
+  releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
+  createdAt DateTime @default(now())
+
+  attempts ExamAttempt[]
+
+  @@index([examId])
+  @@index([vitrineId])
+  @@index([trilhaId])
+  @@index([moduloId])
+  @@index([releaseConditionId])
+}
+
+// ---------------------------------------------------------------------------
+// MOTOR DE CONDIÇÃO DE LIBERAÇÃO (Fase 2)
+// ---------------------------------------------------------------------------
+// Uma condição é anexada a um item (vitrine, produto, módulo ou colocação de
+// prova) via `releaseConditionId`. O item só fica liberado quando a condição é
+// satisfeita. Os alvos são ids "soltos" (sem FK) para permitir referência
+// cruzada em qualquer lugar da vitrine e para o motor tolerar alvos removidos
+// (nunca travar o aluno permanentemente por um alvo apagado).
+//
+// Tipos (campo `type`):
+//   AFTER_ALL_LESSONS      — concluir todas as aulas do container do item
+//                            (ou de targetModuloId/targetTrilhaId, se informado)
+//   AFTER_EXAM_PASSED      — ser aprovado na prova targetExamPlacementId
+//                            (com nota mínima opcional em minScore)
+//   AFTER_MODULE_COMPLETED — concluir o módulo targetModuloId (aulas + prova)
+//   AFTER_TRILHA_COMPLETED — concluir o produto targetTrilhaId
+//   AFTER_PERCENT          — concluir `percent`% das aulas do produto
+//   AFTER_DAYS             — passar `days` dias desde a matrícula
+model ReleaseCondition {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type     String
+
+  // Alvos (conforme o tipo) — ids soltos, sem chave estrangeira.
+  targetExamPlacementId String?
+  targetModuloId        String?
+  targetTrilhaId        String?
+
+  minScore Int?
+  percent  Int?
+  days     Int?
+  createdAt DateTime @default(now())
+
+  // Itens que usam esta condição (na prática 1:1 por item).
+  vitrines       Vitrine[]
+  trilhas        Trilha[]
+  modulos        Modulo[]
+  examPlacements ExamPlacement[]
+
+  @@index([tenantId])
 }
 
 model Question {
@@ -298,6 +393,10 @@ model ExamAttempt {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   examId    String
   exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  // Colocação em que a tentativa foi feita (define o contexto: produto/módulo/
+  // vitrine). Nulo apenas para tentativas antigas anteriores à Fase 1.
+  placementId String?
+  placement   ExamPlacement? @relation(fields: [placementId], references: [id], onDelete: SetNull)
   score     Int      // percentual acertado (0-100)
   passed    Boolean
   // Respostas do aluno em JSON (stringificado para compatibilidade com SQLite).
@@ -306,6 +405,7 @@ model ExamAttempt {
 
   @@index([userId])
   @@index([examId])
+  @@index([placementId])
 }
 
 model Certificate {

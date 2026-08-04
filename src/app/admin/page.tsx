@@ -4,6 +4,9 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import ImportCard from "./import-card";
+import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
+import SubmitButton from "@/components/SubmitButton";
+import { describeCondition } from "@/lib/release";
 import {
   createTrilha,
   togglePublish,
@@ -11,7 +14,9 @@ import {
   createDaughter,
   createVitrine,
   deleteVitrine,
-  setVitrinePrereq,
+  setReleaseCondition,
+  attachExamToVitrine,
+  detachExamPlacement,
   createAccessProfile,
   deleteAccessProfile,
   createUser,
@@ -29,8 +34,18 @@ export default async function AdminPage() {
     orderBy: { order: "asc" },
     include: {
       _count: { select: { trilhas: true } },
-      prereqTrilha: { select: { title: true } },
+      releaseCondition: true,
+      examPlacements: {
+        include: { exam: { select: { title: true, _count: { select: { questions: true } } } } },
+      },
     },
+  });
+
+  // Biblioteca de provas do tenant (para inserir em vitrines).
+  const bibliotecaProvas = await prisma.exam.findMany({
+    where: { tenantId: user.tenantId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, title: true, _count: { select: { questions: true } } },
   });
 
   const trilhas = await prisma.trilha.findMany({
@@ -65,7 +80,12 @@ export default async function AdminPage() {
 
   return (
     <AppShell user={user} tenant={user.tenant}>
-      <h1 className="mb-6 text-2xl font-bold">Administração</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Administração</h1>
+        <Link href="/admin/provas" className="btn-outline text-sm">
+          📝 Biblioteca de provas
+        </Link>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="lg:col-span-2 space-y-4">
@@ -84,8 +104,8 @@ export default async function AdminPage() {
                       <span className="font-medium">{v.name}</span>
                       <p className="text-xs text-slate-500">
                         {v._count.trilhas} produto(s) · /{v.slug}
-                        {v.prereqTrilha && (
-                          <span className="text-amber-600"> · 🔒 libera após “{v.prereqTrilha.title}”</span>
+                        {v.releaseCondition && (
+                          <span className="text-amber-600"> · 🔒 {describeCondition(v.releaseCondition)}</span>
                         )}
                       </p>
                     </div>
@@ -95,19 +115,38 @@ export default async function AdminPage() {
                       </button>
                     </form>
                   </div>
-                  <form action={setVitrinePrereq.bind(null, v.id)} className="mt-2 flex items-center gap-1">
-                    <select
-                      name="prereqTrilhaId"
-                      defaultValue={v.prereqTrilhaId ?? ""}
-                      className="input py-1.5 text-xs"
-                    >
-                      <option value="">Sem pré-requisito de liberação</option>
-                      {trilhas.map((t) => (
-                        <option key={t.id} value={t.id}>{t.title}</option>
-                      ))}
-                    </select>
-                    <button className="btn-outline px-2 py-1.5 text-xs" type="submit">salvar</button>
-                  </form>
+                  <div className="mt-2">
+                    <p className="mb-1 text-xs font-semibold text-slate-500">Liberação da vitrine</p>
+                    <ConditionEditor
+                      compact
+                      action={setReleaseCondition.bind(null, "vitrine", v.id, "/admin")}
+                      current={v.releaseCondition}
+                      exams={v.examPlacements.map((p) => ({ id: p.id, label: p.exam.title }))}
+                      modulos={[] as CondOption[]}
+                      trilhas={trilhas.map((t) => ({ id: t.id, label: t.title }))}
+                    />
+                  </div>
+
+                  {/* Provas da vitrine (avaliação geral da área) */}
+                  {v.examPlacements.map((p) => (
+                    <div key={p.id} className="mt-1.5 flex items-center justify-between text-xs">
+                      <span className="text-slate-600">📝 {p.exam.title} ({p.exam._count.questions} q.)</span>
+                      <form action={detachExamPlacement.bind(null, p.id, "/admin")}>
+                        <button className="text-red-500 hover:underline" type="submit">remover</button>
+                      </form>
+                    </div>
+                  ))}
+                  {bibliotecaProvas.length > 0 && (
+                    <form action={attachExamToVitrine.bind(null, v.id)} className="mt-1.5 flex items-center gap-1">
+                      <select name="examId" required className="input py-1.5 text-xs" defaultValue="">
+                        <option value="" disabled>Inserir prova na vitrine…</option>
+                        {bibliotecaProvas.map((e) => (
+                          <option key={e.id} value={e.id}>{e.title}</option>
+                        ))}
+                      </select>
+                      <SubmitButton className="btn-outline px-2 py-1.5 text-xs" pendingText="…">inserir</SubmitButton>
+                    </form>
+                  )}
                 </li>
               ))}
             </ul>
@@ -117,7 +156,7 @@ export default async function AdminPage() {
               <input name="coverUrl" className="input sm:col-span-2" placeholder="URL da imagem/capa (opcional)" />
               <textarea name="description" className="input sm:col-span-2" rows={2} placeholder="Descrição (opcional)" />
               <div className="sm:col-span-2">
-                <button className="btn-brand" type="submit">Criar vitrine</button>
+                <SubmitButton pendingText="Criando…">Criar vitrine</SubmitButton>
               </div>
             </form>
           </div>
@@ -163,7 +202,7 @@ export default async function AdminPage() {
               </select>
               <textarea name="description" className="input" placeholder="Descrição" rows={2} />
               <input name="coverUrl" className="input" placeholder="URL da capa (opcional)" />
-              <button className="btn-brand" type="submit">Criar produto</button>
+              <SubmitButton pendingText="Criando…">Criar produto</SubmitButton>
             </form>
           </div>
 
@@ -214,7 +253,7 @@ export default async function AdminPage() {
                   </div>
                 )}
               </div>
-              <button className="btn-brand" type="submit">Criar perfil</button>
+              <SubmitButton pendingText="Criando…">Criar perfil</SubmitButton>
             </form>
           </div>
 
@@ -268,7 +307,7 @@ export default async function AdminPage() {
                 ))}
               </select>
               <div className="sm:col-span-2">
-                <button className="btn-brand" type="submit">Criar aluno</button>
+                <SubmitButton pendingText="Criando…">Criar aluno</SubmitButton>
               </div>
             </form>
           </div>
@@ -293,7 +332,7 @@ export default async function AdminPage() {
               <input name="bannerUrl" defaultValue={user.tenant.bannerUrl ?? ""} className="input" placeholder="URL do banner de entrada" />
               <input name="certificateBg" defaultValue={user.tenant.certificateBg ?? ""} className="input" placeholder="URL do fundo do certificado" />
               <input name="certificateSignature" defaultValue={user.tenant.certificateSignature ?? ""} className="input" placeholder="Assinatura do certificado" />
-              <button className="btn-brand" type="submit">Salvar aparência</button>
+              <SubmitButton pendingText="Salvando…">Salvar aparência</SubmitButton>
             </form>
           </div>
 
@@ -328,7 +367,7 @@ export default async function AdminPage() {
                   <hr className="border-slate-100" />
                   <input name="adminEmail" type="email" required className="input" placeholder="E-mail do admin da filha" />
                   <input name="adminPassword" type="password" required minLength={6} className="input" placeholder="Senha do admin (mín. 6)" />
-                  <button className="btn-brand" type="submit">Criar filha</button>
+                  <SubmitButton pendingText="Criando…">Criar filha</SubmitButton>
                 </form>
               </div>
             </>

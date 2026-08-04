@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { allowedVitrineIds } from "@/lib/access";
-import { completedTrilhaIds, lockReason } from "@/lib/progress";
+import { loadProgress, isUnlocked } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import VitrineCard from "@/components/VitrineCard";
@@ -22,13 +22,17 @@ export default async function DashboardPage() {
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     include: {
       _count: { select: { trilhas: { where: { published: true } } } },
-      prereqTrilha: { select: { title: true } },
+      releaseCondition: true,
     },
   });
 
-  // Pré-requisitos de liberação (B2): só afetam alunos.
-  const completedTrilhas =
-    user.role === "STUDENT" ? await completedTrilhaIds(user.id) : new Set<string>();
+  // Condição de liberação (Fase 2): só afeta alunos.
+  const prog = user.role === "STUDENT" ? await loadProgress(user.id) : null;
+  const vitrineLock = new Map<string, string | null>();
+  for (const v of vitrines) {
+    const r = prog ? await isUnlocked(v.releaseCondition, {}, prog) : { unlocked: true, reason: null };
+    vitrineLock.set(v.id, r.unlocked ? null : r.reason);
+  }
 
   // Produtos sem vitrine só aparecem para quem tem acesso total (sem perfil).
   const soltos =
@@ -89,7 +93,7 @@ export default async function DashboardPage() {
                       description={v.description}
                       coverUrl={v.coverUrl}
                       produtos={v._count.trilhas}
-                      lockReason={lockReason(v.prereqTrilhaId, v.prereqTrilha?.title, completedTrilhas)}
+                      lockReason={vitrineLock.get(v.id) ?? null}
                     />
                   ))}
                 </div>
