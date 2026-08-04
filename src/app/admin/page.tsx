@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
+import ImportCard from "./import-card";
 import {
   createTrilha,
   togglePublish,
@@ -251,8 +252,10 @@ export default async function AdminPage() {
           </div>
         </section>
 
-        {/* Aparência + filhas */}
+        {/* Importação + Aparência + filhas */}
         <section className="space-y-4">
+          <ImportCard />
+
           <div className="card">
             <h2 className="mb-4 font-semibold">Aparência</h2>
             <form action={updateBranding} className="space-y-3">
