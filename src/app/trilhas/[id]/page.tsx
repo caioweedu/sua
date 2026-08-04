@@ -5,7 +5,7 @@ import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
 import { loadProgress, isUnlocked, type UnlockResult } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import { toEmbedUrl } from "@/lib/video";
-import { enroll, toggleAulaComplete } from "@/lib/actions/learning";
+import { enroll, toggleAulaComplete, claimCertificate } from "@/lib/actions/learning";
 import AppShell from "@/components/AppShell";
 import ProfessorChat from "@/components/ProfessorChat";
 import SubmitButton from "@/components/SubmitButton";
@@ -48,6 +48,10 @@ export default async function TrilhaPage({
           releaseCondition: true,
           exam: { select: { title: true, passingScore: true, questionsToShow: true, _count: { select: { questions: true } } } },
         },
+      },
+      // Certificados colocados no produto (Fase 3).
+      certificatePlacements: {
+        include: { template: { select: { name: true } }, releaseCondition: true },
       },
       enrollments: { where: { userId: user.id } },
       certificates: { where: { userId: user.id } },
@@ -117,6 +121,13 @@ export default async function TrilhaPage({
       provaLock.set(p.id, prog ? await isUnlocked(p.releaseCondition, { trilhaId: trilha.id, moduloId: m.id }, prog) : { unlocked: true, reason: null });
     }
   }
+
+  // Certificado do produto (Fase 3): mostra emitir/ver quando aplicável.
+  const certPlacement = trilha.certificatePlacements[0] ?? null;
+  const certUnlock =
+    certPlacement && prog
+      ? await isUnlocked(certPlacement.releaseCondition, { trilhaId: trilha.id }, prog)
+      : null;
 
   // Monta os grupos da trilha lateral (módulos + eventuais aulas avulsas).
   // Cada módulo carrega id, estado de liberação e suas provas (checkpoints).
@@ -353,39 +364,59 @@ export default async function TrilhaPage({
               </Link>
             </div>
           ) : (
-            hasExam && (
-              <div className="card mt-4 space-y-4">
-                {produtoProvas.map((p) => {
-                  const lock = provaLock.get(p.id) ?? { unlocked: true, reason: null };
-                  return (
-                    <div key={p.id}>
-                      <h3 className="font-bold text-ink">{p.exam.title}</h3>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {p.exam.questionsToShow} questões sorteadas ·{" "}
-                        {p.exam.passingScore}% para aprovação
-                      </p>
-                      {!lock.unlocked ? (
-                        <>
-                          <button
-                            disabled
-                            className="btn-brand mt-4 w-full cursor-not-allowed opacity-50"
-                          >
-                            🔒 Fazer avaliação
-                          </button>
-                          <p className="mt-2 text-center text-xs text-slate-500">
-                            {lock.reason}
-                          </p>
-                        </>
-                      ) : (
-                        <Link href={`/prova/${p.id}`} className="btn-brand mt-4 w-full">
-                          Fazer avaliação
-                        </Link>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )
+            <>
+              {hasExam && (
+                <div className="card mt-4 space-y-4">
+                  {produtoProvas.map((p) => {
+                    const lock = provaLock.get(p.id) ?? { unlocked: true, reason: null };
+                    return (
+                      <div key={p.id}>
+                        <h3 className="font-bold text-ink">{p.exam.title}</h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {p.exam.questionsToShow} questões sorteadas ·{" "}
+                          {p.exam.passingScore}% para aprovação
+                        </p>
+                        {!lock.unlocked ? (
+                          <>
+                            <button
+                              disabled
+                              className="btn-brand mt-4 w-full cursor-not-allowed opacity-50"
+                            >
+                              🔒 Fazer avaliação
+                            </button>
+                            <p className="mt-2 text-center text-xs text-slate-500">
+                              {lock.reason}
+                            </p>
+                          </>
+                        ) : (
+                          <Link href={`/prova/${p.id}`} className="btn-brand mt-4 w-full">
+                            Fazer avaliação
+                          </Link>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Emissão de certificado (Fase 3) */}
+              {user.role === "STUDENT" && certPlacement && (
+                <div className="card mt-4">
+                  <h3 className="font-bold text-ink">🏆 {certPlacement.template.name}</h3>
+                  {certUnlock?.unlocked ? (
+                    <form action={claimCertificate.bind(null, certPlacement.id, trilha.id)}>
+                      <SubmitButton className="btn-brand mt-3 w-full" pendingText="Emitindo…">
+                        Emitir certificado
+                      </SubmitButton>
+                    </form>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-500">
+                      🔒 {certUnlock?.reason ?? "Disponível após concluir os requisitos."}
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </aside>
       </div>

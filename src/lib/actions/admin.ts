@@ -247,7 +247,7 @@ export async function attachExamToVitrine(vitrineId: string, formData: FormData)
 // Define/atualiza/limpa a condição de um item. `kind` diz qual entidade e `id`
 // qual registro. Uma condição vazia (type ausente) limpa a condição.
 
-type CondKind = "vitrine" | "trilha" | "modulo" | "examPlacement";
+type CondKind = "vitrine" | "trilha" | "modulo" | "examPlacement" | "certificatePlacement";
 
 async function currentConditionId(kind: CondKind, id: string): Promise<string | null> {
   const sel = { where: { id }, select: { releaseConditionId: true } } as const;
@@ -258,6 +258,8 @@ async function currentConditionId(kind: CondKind, id: string): Promise<string | 
       ? await prisma.trilha.findUnique(sel)
       : kind === "modulo"
       ? await prisma.modulo.findUnique(sel)
+      : kind === "certificatePlacement"
+      ? await prisma.certificatePlacement.findUnique(sel)
       : await prisma.examPlacement.findUnique(sel);
   return row?.releaseConditionId ?? null;
 }
@@ -267,6 +269,7 @@ async function linkCondition(kind: CondKind, id: string, condId: string | null) 
   if (kind === "vitrine") await prisma.vitrine.update({ where: { id }, data });
   else if (kind === "trilha") await prisma.trilha.update({ where: { id }, data });
   else if (kind === "modulo") await prisma.modulo.update({ where: { id }, data });
+  else if (kind === "certificatePlacement") await prisma.certificatePlacement.update({ where: { id }, data });
   else await prisma.examPlacement.update({ where: { id }, data });
 }
 
@@ -326,6 +329,93 @@ export async function detachExamPlacement(placementId: string, redirectTo: strin
     select: { releaseConditionId: true },
   });
   await prisma.examPlacement.delete({ where: { id: placementId } });
+  if (p?.releaseConditionId) {
+    await prisma.releaseCondition.delete({ where: { id: p.releaseConditionId } }).catch(() => {});
+  }
+  revalidatePath(redirectTo);
+}
+
+// --- Certificados: biblioteca de modelos (Fase 3) -----------------------
+export async function createCertificateTemplate(formData: FormData) {
+  const user = await requireAdmin();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return;
+  await prisma.certificateTemplate.create({
+    data: {
+      tenantId: user.tenantId,
+      name,
+      backgroundUrl: String(formData.get("backgroundUrl") ?? "").trim() || null,
+    },
+  });
+  revalidatePath("/admin/certificados");
+}
+
+export async function updateCertificateTemplate(templateId: string, formData: FormData) {
+  const user = await requireAdmin();
+  await prisma.certificateTemplate.updateMany({
+    where: { id: templateId, tenantId: user.tenantId },
+    data: {
+      name: String(formData.get("name") ?? "").trim() || undefined,
+      backgroundUrl: String(formData.get("backgroundUrl") ?? "").trim() || null,
+    },
+  });
+  revalidatePath("/admin/certificados");
+}
+
+export async function deleteCertificateTemplate(templateId: string) {
+  const user = await requireAdmin();
+  await prisma.certificateTemplate.deleteMany({
+    where: { id: templateId, tenantId: user.tenantId },
+  });
+  revalidatePath("/admin/certificados");
+}
+
+// --- Certificados: colocação no produto ---------------------------------
+function readCertFields(formData: FormData) {
+  return {
+    professor: String(formData.get("professor") ?? "").trim() || null,
+    cargaHoraria: String(formData.get("cargaHoraria") ?? "").trim() || null,
+    assinatura: String(formData.get("assinatura") ?? "").trim() || null,
+    conteudoProgramatico: String(formData.get("conteudoProgramatico") ?? "").trim() || null,
+  };
+}
+
+export async function attachCertificateToTrilha(trilhaId: string, formData: FormData) {
+  const user = await requireAdmin();
+  const templateId = String(formData.get("templateId") ?? "").trim();
+  if (!templateId) return;
+  // Confere que o modelo é do tenant.
+  const tpl = await prisma.certificateTemplate.findFirst({
+    where: { id: templateId, tenantId: user.tenantId },
+    select: { id: true },
+  });
+  if (!tpl) return;
+  await prisma.certificatePlacement.create({
+    data: { templateId, trilhaId, ...readCertFields(formData) },
+  });
+  revalidatePath(`/admin/trilhas/${trilhaId}`);
+}
+
+export async function updateCertificatePlacement(
+  placementId: string,
+  trilhaId: string,
+  formData: FormData
+) {
+  await requireAdmin();
+  await prisma.certificatePlacement.update({
+    where: { id: placementId },
+    data: readCertFields(formData),
+  });
+  revalidatePath(`/admin/trilhas/${trilhaId}`);
+}
+
+export async function detachCertificatePlacement(placementId: string, redirectTo: string) {
+  await requireAdmin();
+  const p = await prisma.certificatePlacement.findUnique({
+    where: { id: placementId },
+    select: { releaseConditionId: true },
+  });
+  await prisma.certificatePlacement.delete({ where: { id: placementId } });
   if (p?.releaseConditionId) {
     await prisma.releaseCondition.delete({ where: { id: p.releaseConditionId } }).catch(() => {});
   }

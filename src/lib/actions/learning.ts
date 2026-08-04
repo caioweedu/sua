@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { issueCertificateForPlacement } from "@/lib/certificate";
 
 // Matricula o aluno na trilha (idempotente).
 export async function enroll(trilhaId: string) {
@@ -13,6 +15,19 @@ export async function enroll(trilhaId: string) {
     update: {},
     create: { userId: user.id, trilhaId, status: "IN_PROGRESS" },
   });
+  revalidatePath(`/trilhas/${trilhaId}`);
+}
+
+// Emite o certificado de uma colocação para o aluno (Fase 3), se a condição de
+// liberação estiver satisfeita, e leva à página do certificado.
+export async function claimCertificate(placementId: string, trilhaId: string) {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const res = await issueCertificateForPlacement(user.id, placementId);
+  if ("code" in res) {
+    redirect(`/certificados/${res.code}`);
+  }
+  // Não elegível (condição não satisfeita): apenas atualiza a trilha.
   revalidatePath(`/trilhas/${trilhaId}`);
 }
 

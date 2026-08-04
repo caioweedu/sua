@@ -16,6 +16,9 @@ import {
   attachExamToModulo,
   detachExamPlacement,
   setReleaseCondition,
+  attachCertificateToTrilha,
+  updateCertificatePlacement,
+  detachCertificatePlacement,
 } from "@/lib/actions/admin";
 
 export default async function ManageTrilhaPage({
@@ -48,6 +51,9 @@ export default async function ManageTrilhaPage({
         },
       },
       examPlacements: examInc,
+      certificatePlacements: {
+        include: { template: { select: { name: true } }, releaseCondition: true },
+      },
     },
   });
   if (!trilha) notFound();
@@ -101,6 +107,13 @@ export default async function ManageTrilhaPage({
     where: { tenantId: user.tenantId },
     orderBy: { createdAt: "desc" },
     select: { id: true, title: true, _count: { select: { questions: true } } },
+  });
+
+  // Biblioteca de modelos de certificado disponível para inserir.
+  const bibliotecaCertificados = await prisma.certificateTemplate.findMany({
+    where: { tenantId: user.tenantId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, name: true },
   });
 
   const backPath = `/admin/trilhas/${trilha.id}`;
@@ -333,6 +346,92 @@ export default async function ManageTrilhaPage({
                 Você ainda não tem provas.{" "}
                 <Link href="/admin/provas" className="text-brand underline">
                   Crie uma na biblioteca
+                </Link>{" "}
+                para inserir aqui.
+              </div>
+            )}
+          </div>
+
+          {/* Certificado do produto */}
+          <div className="card">
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="font-semibold">Certificado do produto</h2>
+              <Link href="/admin/certificados" className="text-xs text-brand hover:underline">
+                Modelos de certificado →
+              </Link>
+            </div>
+            <p className="mb-4 text-xs text-slate-500">
+              Insira um certificado e defina quando ele é liberado. Nome do aluno,
+              curso e data entram automáticos.
+            </p>
+
+            {trilha.certificatePlacements.length === 0 && (
+              <p className="mb-4 text-sm text-slate-500">Nenhum certificado inserido.</p>
+            )}
+            <ul className="mb-4 space-y-3">
+              {trilha.certificatePlacements.map((c) => (
+                <li key={c.id} className="rounded-lg bg-slate-50 px-3 py-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm font-medium">{c.template.name}</span>
+                      <p className="text-xs text-slate-500">
+                        Liberação: {describeCondition(c.releaseCondition)}
+                      </p>
+                    </div>
+                    <form action={detachCertificatePlacement.bind(null, c.id, backPath)}>
+                      <button className="text-xs text-red-500 hover:underline" type="submit">remover</button>
+                    </form>
+                  </div>
+
+                  {/* Campos por produto */}
+                  <form action={updateCertificatePlacement.bind(null, c.id, trilha.id)} className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <input name="professor" defaultValue={c.professor ?? ""} className="input py-1.5 text-xs" placeholder="Ministrado por (professor/instituição)" />
+                    <input name="cargaHoraria" defaultValue={c.cargaHoraria ?? ""} className="input py-1.5 text-xs" placeholder="Carga horária" />
+                    <input name="assinatura" defaultValue={c.assinatura ?? ""} className="input py-1.5 text-xs sm:col-span-2" placeholder="Assinatura (nome/cargo)" />
+                    <textarea name="conteudoProgramatico" defaultValue={c.conteudoProgramatico ?? ""} rows={2} className="input py-1.5 text-xs sm:col-span-2" placeholder="Conteúdo programático (vazio = gera dos módulos/aulas)" />
+                    <div className="sm:col-span-2">
+                      <SubmitButton className="btn-outline text-xs" pendingText="Salvando…">Salvar campos</SubmitButton>
+                    </div>
+                  </form>
+
+                  {/* Condição de liberação */}
+                  <div className="mt-2 border-t border-slate-100 pt-2">
+                    <p className="mb-1 text-xs font-semibold text-slate-500">Condição de liberação</p>
+                    <ConditionEditor
+                      compact
+                      action={setReleaseCondition.bind(null, "certificatePlacement", c.id, backPath)}
+                      current={c.releaseCondition}
+                      exams={examOptions}
+                      modulos={moduloOptions}
+                      trilhas={trilhaOptions}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {bibliotecaCertificados.length > 0 ? (
+              <form action={attachCertificateToTrilha.bind(null, trilha.id)} className="space-y-2 border-t border-slate-100 pt-4">
+                <label className="label">Inserir certificado</label>
+                <select name="templateId" required className="input" defaultValue="">
+                  <option value="" disabled>Selecione um modelo…</option>
+                  {bibliotecaCertificados.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+                <input name="professor" className="input" placeholder="Ministrado por (opcional)" />
+                <input name="cargaHoraria" className="input" placeholder="Carga horária (opcional)" />
+                <input name="assinatura" className="input" placeholder="Assinatura (opcional)" />
+                <SubmitButton pendingText="Inserindo…">Inserir no produto</SubmitButton>
+                <p className="text-xs text-slate-400">
+                  Após inserir, defina a condição de liberação (ex.: após aprovação na prova).
+                </p>
+              </form>
+            ) : (
+              <div className="border-t border-slate-100 pt-4 text-sm text-slate-500">
+                Nenhum modelo de certificado.{" "}
+                <Link href="/admin/certificados" className="text-brand underline">
+                  Crie um modelo
                 </Link>{" "}
                 para inserir aqui.
               </div>

@@ -82,9 +82,14 @@ export default async function AdminPage() {
     <AppShell user={user} tenant={user.tenant}>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Administração</h1>
-        <Link href="/admin/provas" className="btn-outline text-sm">
-          📝 Biblioteca de provas
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/provas" className="btn-outline text-sm">
+            📝 Biblioteca de provas
+          </Link>
+          <Link href="/admin/certificados" className="btn-outline text-sm">
+            🏆 Modelos de certificado
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
