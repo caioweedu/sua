@@ -193,6 +193,7 @@ export async function seedDatabase(prisma: PrismaClient) {
   await prisma.vitrine.deleteMany({ where: { tenantId: mother.id } });
 
   const vitrineByName = new Map<string, string>();
+  const trilhaByTitle = new Map<string, string>();
   let vOrder = 0;
   let produtoCount = 0;
   for (const v of vitrines) {
@@ -222,6 +223,7 @@ export async function seedDatabase(prisma: PrismaClient) {
           order: pOrder++,
         },
       });
+      trilhaByTitle.set(p.title, trilha.id);
 
       let mOrder = 0;
       for (const m of p.modulos) {
@@ -253,6 +255,8 @@ export async function seedDatabase(prisma: PrismaClient) {
             passingScore: 70,
             shuffleOptions: true,
             showAnswers: true,
+            // Demonstra o gate: só libera a prova após concluir as aulas.
+            requireAllLessons: true,
           },
         });
         for (let i = 0; i < 20; i++) {
@@ -275,6 +279,17 @@ export async function seedDatabase(prisma: PrismaClient) {
         }
       }
     }
+  }
+
+  // Pré-requisito de liberação (B2): "Indicadores e Metas" só abre depois de
+  // concluir "Gestão de Resultados para PMEs".
+  const prereqId = trilhaByTitle.get("Gestão de Resultados para PMEs");
+  const dependenteId = trilhaByTitle.get("Indicadores e Metas");
+  if (prereqId && dependenteId) {
+    await prisma.trilha.update({
+      where: { id: dependenteId },
+      data: { prereqTrilhaId: prereqId },
+    });
   }
 
   // Perfis de acesso: um libera só Operações, outro libera tudo.

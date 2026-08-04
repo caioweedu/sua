@@ -77,11 +77,17 @@ model Vitrine {
   order       Int     @default(0)
   createdAt   DateTime @default(now())
 
+  // Pré-requisito de liberação (B2): a vitrine só fica acessível depois que o
+  // aluno concluir o produto indicado. Nulo = sem pré-requisito.
+  prereqTrilhaId String?
+  prereqTrilha   Trilha? @relation("VitrinePrereq", fields: [prereqTrilhaId], references: [id])
+
   trilhas Trilha[]
   profiles AccessProfile[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
+  @@index([prereqTrilhaId])
 }
 
 // ---------------------------------------------------------------------------
@@ -129,6 +135,7 @@ model User {
   enrollments  Enrollment[]
   attempts     ExamAttempt[]
   certificates Certificate[]
+  aulaProgress AulaProgress[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -156,6 +163,14 @@ model Trilha {
   order       Int     @default(0)
   createdAt   DateTime @default(now())
 
+  // Pré-requisito de liberação (B2): este produto só fica acessível depois que
+  // o aluno concluir o produto indicado. Nulo = sem pré-requisito.
+  prereqTrilhaId String?
+  prereqTrilha   Trilha?  @relation("TrilhaPrereq", fields: [prereqTrilhaId], references: [id])
+  dependentsTrilha Trilha[] @relation("TrilhaPrereq")
+  // Vitrines que dependem da conclusão deste produto para liberar.
+  unlocksVitrines  Vitrine[] @relation("VitrinePrereq")
+
   modulos     Modulo[]
   aulas       Aula[]
   exam        Exam?
@@ -164,6 +179,7 @@ model Trilha {
 
   @@index([tenantId])
   @@index([vitrineId])
+  @@index([prereqTrilhaId])
 }
 
 // Módulo agrupa aulas dentro de um produto.
@@ -194,8 +210,25 @@ model Aula {
   pdfUrl      String?
   order       Int     @default(0)
 
+  progress    AulaProgress[]
+
   @@index([trilhaId])
   @@index([moduloId])
+}
+
+// Conclusão de aula por aluno (B2). Serve para calcular o progresso da trilha
+// e para liberar a prova só depois que todas as aulas forem concluídas.
+model AulaProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  aulaId      String
+  aula        Aula     @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+
+  @@unique([userId, aulaId])
+  @@index([userId])
+  @@index([aulaId])
 }
 
 // ---------------------------------------------------------------------------
@@ -214,6 +247,8 @@ model Exam {
   maxAttempts    Int    @default(0)  // 0 = ilimitado
   shuffleOptions Boolean @default(true)  // embaralhar as alternativas
   showAnswers    Boolean @default(false) // mostrar o gabarito ao final
+  // Exige que o aluno conclua todas as aulas antes de liberar a prova (B2).
+  requireAllLessons Boolean @default(false)
 
   questions Question[]
   attempts  ExamAttempt[]

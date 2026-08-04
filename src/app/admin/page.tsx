@@ -11,6 +11,7 @@ import {
   createDaughter,
   createVitrine,
   deleteVitrine,
+  setVitrinePrereq,
   createAccessProfile,
   deleteAccessProfile,
   createUser,
@@ -26,7 +27,10 @@ export default async function AdminPage() {
   const vitrines = await prisma.vitrine.findMany({
     where: { tenantId: user.tenantId },
     orderBy: { order: "asc" },
-    include: { _count: { select: { trilhas: true } } },
+    include: {
+      _count: { select: { trilhas: true } },
+      prereqTrilha: { select: { title: true } },
+    },
   });
 
   const trilhas = await prisma.trilha.findMany({
@@ -74,17 +78,35 @@ export default async function AdminPage() {
             )}
             <ul className="mb-4 divide-y divide-slate-100">
               {vitrines.map((v) => (
-                <li key={v.id} className="flex items-center justify-between py-2.5">
-                  <div>
-                    <span className="font-medium">{v.name}</span>
-                    <p className="text-xs text-slate-500">
-                      {v._count.trilhas} produto(s) · /{v.slug}
-                    </p>
+                <li key={v.id} className="py-2.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium">{v.name}</span>
+                      <p className="text-xs text-slate-500">
+                        {v._count.trilhas} produto(s) · /{v.slug}
+                        {v.prereqTrilha && (
+                          <span className="text-amber-600"> · 🔒 libera após “{v.prereqTrilha.title}”</span>
+                        )}
+                      </p>
+                    </div>
+                    <form action={deleteVitrine.bind(null, v.id)}>
+                      <button className="text-xs text-red-500 hover:underline" type="submit">
+                        remover
+                      </button>
+                    </form>
                   </div>
-                  <form action={deleteVitrine.bind(null, v.id)}>
-                    <button className="text-xs text-red-500 hover:underline" type="submit">
-                      remover
-                    </button>
+                  <form action={setVitrinePrereq.bind(null, v.id)} className="mt-2 flex items-center gap-1">
+                    <select
+                      name="prereqTrilhaId"
+                      defaultValue={v.prereqTrilhaId ?? ""}
+                      className="input py-1.5 text-xs"
+                    >
+                      <option value="">Sem pré-requisito de liberação</option>
+                      {trilhas.map((t) => (
+                        <option key={t.id} value={t.id}>{t.title}</option>
+                      ))}
+                    </select>
+                    <button className="btn-outline px-2 py-1.5 text-xs" type="submit">salvar</button>
                   </form>
                 </li>
               ))}
