@@ -12,6 +12,8 @@ import {
   createVitrine,
   deleteVitrine,
   setVitrinePrereq,
+  attachExamToVitrine,
+  detachExamPlacement,
   createAccessProfile,
   deleteAccessProfile,
   createUser,
@@ -30,7 +32,17 @@ export default async function AdminPage() {
     include: {
       _count: { select: { trilhas: true } },
       prereqTrilha: { select: { title: true } },
+      examPlacements: {
+        include: { exam: { select: { title: true, _count: { select: { questions: true } } } } },
+      },
     },
+  });
+
+  // Biblioteca de provas do tenant (para inserir em vitrines).
+  const bibliotecaProvas = await prisma.exam.findMany({
+    where: { tenantId: user.tenantId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, title: true, _count: { select: { questions: true } } },
   });
 
   const trilhas = await prisma.trilha.findMany({
@@ -65,7 +77,12 @@ export default async function AdminPage() {
 
   return (
     <AppShell user={user} tenant={user.tenant}>
-      <h1 className="mb-6 text-2xl font-bold">Administração</h1>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Administração</h1>
+        <Link href="/admin/provas" className="btn-outline text-sm">
+          📝 Biblioteca de provas
+        </Link>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="lg:col-span-2 space-y-4">
@@ -108,6 +125,27 @@ export default async function AdminPage() {
                     </select>
                     <button className="btn-outline px-2 py-1.5 text-xs" type="submit">salvar</button>
                   </form>
+
+                  {/* Provas da vitrine (avaliação geral da área) */}
+                  {v.examPlacements.map((p) => (
+                    <div key={p.id} className="mt-1.5 flex items-center justify-between text-xs">
+                      <span className="text-slate-600">📝 {p.exam.title} ({p.exam._count.questions} q.)</span>
+                      <form action={detachExamPlacement.bind(null, p.id, "/admin")}>
+                        <button className="text-red-500 hover:underline" type="submit">remover</button>
+                      </form>
+                    </div>
+                  ))}
+                  {bibliotecaProvas.length > 0 && (
+                    <form action={attachExamToVitrine.bind(null, v.id)} className="mt-1.5 flex items-center gap-1">
+                      <select name="examId" required className="input py-1.5 text-xs" defaultValue="">
+                        <option value="" disabled>Inserir prova na vitrine…</option>
+                        {bibliotecaProvas.map((e) => (
+                          <option key={e.id} value={e.id}>{e.title}</option>
+                        ))}
+                      </select>
+                      <button className="btn-outline px-2 py-1.5 text-xs" type="submit">inserir</button>
+                    </form>
+                  )}
                 </li>
               ))}
             </ul>

@@ -6,12 +6,12 @@ import AppShell from "@/components/AppShell";
 import {
   addAula,
   deleteAula,
-  saveExam,
-  addQuestion,
-  deleteQuestion,
   addModulo,
   deleteModulo,
   updateTrilhaMeta,
+  attachExamToTrilha,
+  attachExamToModulo,
+  detachExamPlacement,
 } from "@/lib/actions/admin";
 
 export default async function ManageTrilhaPage({
@@ -24,11 +24,22 @@ export default async function ManageTrilhaPage({
   if (!user) redirect("/login");
   if (!isAdmin(user.role)) redirect("/dashboard");
 
+  const examSelect = {
+    include: { exam: { select: { title: true, _count: { select: { questions: true } } } } },
+  } as const;
+
   const trilha = await prisma.trilha.findFirst({
     where: { id, tenantId: user.tenantId },
     include: {
-      modulos: { orderBy: { order: "asc" }, include: { aulas: { orderBy: { order: "asc" } } } },
-      exam: { include: { questions: { include: { options: true }, orderBy: { order: "asc" } } } },
+      modulos: {
+        orderBy: { order: "asc" },
+        include: {
+          aulas: { orderBy: { order: "asc" } },
+          examPlacements: examSelect,
+        },
+      },
+      // Provas colocadas no produto (não em módulos).
+      examPlacements: examSelect,
     },
   });
   if (!trilha) notFound();
@@ -46,8 +57,15 @@ export default async function ManageTrilhaPage({
     select: { id: true, title: true },
   });
 
-  const exam = trilha.exam;
-  const bankCount = exam?.questions.length ?? 0;
+  // Biblioteca de provas disponível para inserir.
+  const bibliotecaProvas = await prisma.exam.findMany({
+    where: { tenantId: user.tenantId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, title: true, _count: { select: { questions: true } } },
+  });
+
+  const backPath = `/admin/trilhas/${trilha.id}`;
+  const hasBiblioteca = bibliotecaProvas.length > 0;
 
   return (
     <AppShell user={user} tenant={user.tenant}>
@@ -90,7 +108,8 @@ export default async function ManageTrilhaPage({
           <div className="card">
             <h2 className="mb-1 font-semibold">Módulos e aulas</h2>
             <p className="mb-4 text-xs text-slate-500">
-              Organize as aulas em módulos.
+              Organize as aulas em módulos. Você pode inserir uma prova ao fim de
+              cada módulo.
             </p>
 
             {trilha.modulos.length === 0 && (
@@ -127,6 +146,41 @@ export default async function ManageTrilhaPage({
                       <li className="px-3 py-2 text-xs text-slate-400">Sem aulas neste módulo.</li>
                     )}
                   </ul>
+
+                  {/* Prova do módulo */}
+                  <div className="border-t border-slate-100 bg-slate-50/50 px-3 py-2">
+                    {m.examPlacements.map((p) => (
+                      <div key={p.id} className="mb-2 flex items-center justify-between text-xs">
+                        <span className="text-slate-600">
+                          📝 {p.exam.title} ({p.exam._count.questions} q.)
+                          {p.requireAllLessons && <span className="text-amber-600"> · após todas as aulas</span>}
+                        </span>
+                        <form action={detachExamPlacement.bind(null, p.id, backPath)}>
+                          <button className="text-red-500 hover:underline" type="submit">remover</button>
+                        </form>
+                      </div>
+                    ))}
+                    {hasBiblioteca ? (
+                      <form action={attachExamToModulo.bind(null, m.id, trilha.id)} className="flex flex-wrap items-center gap-1.5">
+                        <select name="examId" required className="input py-1.5 text-xs" defaultValue="">
+                          <option value="" disabled>Inserir prova no módulo…</option>
+                          {bibliotecaProvas.map((e) => (
+                            <option key={e.id} value={e.id}>{e.title}</option>
+                          ))}
+                        </select>
+                        <label className="flex items-center gap-1 text-xs text-slate-500">
+                          <input type="checkbox" name="requireAllLessons" className="h-3.5 w-3.5" />
+                          após aulas
+                        </label>
+                        <button className="btn-outline px-2 py-1.5 text-xs" type="submit">inserir</button>
+                      </form>
+                    ) : (
+                      <p className="text-xs text-slate-400">
+                        Crie provas na <Link href="/admin/provas" className="underline">biblioteca</Link> para inserir aqui.
+                      </p>
+                    )}
+                  </div>
+
                   <form action={addAula.bind(null, m.id, trilha.id)} className="space-y-2 border-t border-slate-100 p-3">
                     <input name="title" required className="input" placeholder="Título da aula" />
                     <input name="videoUrl" className="input" placeholder="Link do vídeo (YouTube, Vimeo, Panda...)" />
@@ -145,76 +199,69 @@ export default async function ManageTrilhaPage({
           </div>
         </section>
 
-        {/* Prova */}
+        {/* Prova do produto */}
         <section className="space-y-4">
           <div className="card">
-            <h2 className="mb-2 font-semibold">Configuração da prova</h2>
-            <p className="mb-4 text-xs text-slate-500">
-              Banco atual: {bankCount} questão(ões). O sistema sorteia a
-              quantidade definida abaixo a cada tentativa.
-            </p>
-            <form action={saveExam.bind(null, trilha.id)} className="space-y-2">
-              <input name="title" defaultValue={exam?.title ?? "Avaliação final"} className="input" placeholder="Título da prova" />
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="label">Questões por prova</label>
-                  <input name="questionsToShow" type="number" min={1} defaultValue={exam?.questionsToShow ?? 6} className="input" />
-                </div>
-                <div className="flex-1">
-                  <label className="label">Nota mínima (%)</label>
-                  <input name="passingScore" type="number" min={0} max={100} defaultValue={exam?.passingScore ?? 70} className="input" />
-                </div>
-              </div>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="shuffleOptions" defaultChecked={exam?.shuffleOptions ?? true} className="h-4 w-4 rounded border-slate-300" />
-                Embaralhar a ordem das alternativas
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="showAnswers" defaultChecked={exam?.showAnswers ?? false} className="h-4 w-4 rounded border-slate-300" />
-                Mostrar as respostas corretas ao final
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="requireAllLessons" defaultChecked={exam?.requireAllLessons ?? false} className="h-4 w-4 rounded border-slate-300" />
-                Só liberar a prova após concluir todas as aulas
-              </label>
-              <button className="btn-brand" type="submit">Salvar prova</button>
-            </form>
-          </div>
-
-          {exam && (
-            <div className="card">
-              <h2 className="mb-4 font-semibold">Banco de questões</h2>
-              <ul className="mb-4 space-y-2">
-                {exam.questions.map((q, i) => (
-                  <li key={q.id} className="rounded-lg bg-slate-50 px-3 py-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm">{i + 1}. {q.statement}</span>
-                      <form action={deleteQuestion.bind(null, q.id, trilha.id)}>
-                        <button className="text-xs text-red-500 hover:underline" type="submit">
-                          remover
-                        </button>
-                      </form>
-                    </div>
-                    <p className="mt-1 text-xs text-green-600">
-                      ✓ {q.options.find((o) => o.isCorrect)?.text}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-
-              <form action={addQuestion.bind(null, exam.id, trilha.id)} className="space-y-2 border-t border-slate-100 pt-4">
-                <textarea name="statement" required className="input" rows={2} placeholder="Enunciado da questão" />
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input type="radio" name="correct" value={i} defaultChecked={i === 0} title="Marcar como correta" />
-                    <input name={`option${i}`} className="input" placeholder={`Alternativa ${i + 1}${i < 2 ? " (obrigatória)" : " (opcional)"}`} />
-                  </div>
-                ))}
-                <p className="text-xs text-slate-400">Marque o círculo da alternativa correta.</p>
-                <button className="btn-brand" type="submit">Adicionar questão</button>
-              </form>
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="font-semibold">Prova do produto</h2>
+              <Link href="/admin/provas" className="text-xs text-brand hover:underline">
+                Biblioteca de provas →
+              </Link>
             </div>
-          )}
+            <p className="mb-4 text-xs text-slate-500">
+              Insira a prova final do produto. É ela que emite o certificado ao ser
+              aprovada.
+            </p>
+
+            {trilha.examPlacements.length === 0 && (
+              <p className="mb-4 text-sm text-slate-500">Nenhuma prova inserida no produto.</p>
+            )}
+            <ul className="mb-4 space-y-2">
+              {trilha.examPlacements.map((p) => (
+                <li key={p.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
+                  <div>
+                    <Link href={`/admin/provas/${p.examId}`} className="text-sm font-medium hover:underline">
+                      {p.exam.title}
+                    </Link>
+                    <p className="text-xs text-slate-500">
+                      {p.exam._count.questions} questão(ões)
+                      {p.requireAllLessons && <span className="text-amber-600"> · 🔒 após todas as aulas</span>}
+                    </p>
+                  </div>
+                  <form action={detachExamPlacement.bind(null, p.id, backPath)}>
+                    <button className="text-xs text-red-500 hover:underline" type="submit">remover</button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+
+            {hasBiblioteca ? (
+              <form action={attachExamToTrilha.bind(null, trilha.id)} className="space-y-2 border-t border-slate-100 pt-4">
+                <label className="label">Inserir prova da biblioteca</label>
+                <select name="examId" required className="input" defaultValue="">
+                  <option value="" disabled>Selecione uma prova…</option>
+                  {bibliotecaProvas.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.title} ({e._count.questions} q.)
+                    </option>
+                  ))}
+                </select>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" name="requireAllLessons" className="h-4 w-4 rounded border-slate-300" />
+                  Só liberar a prova após concluir todas as aulas
+                </label>
+                <button className="btn-brand" type="submit">Inserir no produto</button>
+              </form>
+            ) : (
+              <div className="border-t border-slate-100 pt-4 text-sm text-slate-500">
+                Você ainda não tem provas.{" "}
+                <Link href="/admin/provas" className="text-brand underline">
+                  Crie uma na biblioteca
+                </Link>{" "}
+                para inserir aqui.
+              </div>
+            )}
+          </div>
         </section>
       </div>
     </AppShell>

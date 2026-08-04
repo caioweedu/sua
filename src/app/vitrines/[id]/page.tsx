@@ -30,6 +30,12 @@ export default async function VitrinePage({
           certificates: { where: { userId: user.id } },
         },
       },
+      // Provas colocadas na vitrine (avaliação geral da área).
+      examPlacements: {
+        include: {
+          exam: { select: { title: true, passingScore: true, questionsToShow: true, _count: { select: { questions: true } } } },
+        },
+      },
     },
   });
   if (!vitrine) notFound();
@@ -106,6 +112,28 @@ export default async function VitrinePage({
                 progress={t.enrollments.length > 0 ? 45 : 0}
               />
             ))}
+          </div>
+        )}
+
+        {/* Provas da vitrine (avaliação geral da área) */}
+        {vitrine.examPlacements.filter((p) => p.exam._count.questions > 0).length > 0 && (
+          <div className="mt-10">
+            <h2 className="mb-4 text-lg font-bold text-ink">Avaliações da vitrine</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {vitrine.examPlacements
+                .filter((p) => p.exam._count.questions > 0)
+                .map((p) => (
+                  <div key={p.id} className="card flex flex-col">
+                    <h3 className="font-bold text-ink">{p.exam.title}</h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {p.exam.questionsToShow} questões · {p.exam.passingScore}% para aprovação
+                    </p>
+                    <Link href={`/prova/${p.id}`} className="btn-brand mt-4 w-full">
+                      Fazer avaliação
+                    </Link>
+                  </div>
+                ))}
+            </div>
           </div>
         )}
       </div>

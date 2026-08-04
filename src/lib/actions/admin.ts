@@ -140,32 +140,58 @@ export async function deleteAula(aulaId: string, trilhaId: string) {
   revalidatePath(`/admin/trilhas/${trilhaId}`);
 }
 
-// --- Prova / banco de questões ------------------------------------------
-export async function saveExam(trilhaId: string, formData: FormData) {
-  await requireAdmin();
-  const title = String(formData.get("title") ?? "Avaliação final").trim();
-  const questionsToShow = Math.max(1, Number(formData.get("questionsToShow") ?? 6));
-  const passingScore = Math.min(100, Math.max(0, Number(formData.get("passingScore") ?? 70)));
-  // Checkboxes: presente = "on".
-  const shuffleOptions = formData.get("shuffleOptions") != null;
-  const showAnswers = formData.get("showAnswers") != null;
-  const requireAllLessons = formData.get("requireAllLessons") != null;
-  await prisma.exam.upsert({
-    where: { trilhaId },
-    update: { title, questionsToShow, passingScore, shuffleOptions, showAnswers, requireAllLessons },
-    create: { trilhaId, title, questionsToShow, passingScore, shuffleOptions, showAnswers, requireAllLessons },
-  });
-  revalidatePath(`/admin/trilhas/${trilhaId}`);
+// --- Biblioteca de provas (Fase 1) --------------------------------------
+// A prova agora é um item reutilizável da biblioteca do tenant. Ela é criada e
+// editada de forma independente e depois "colocada" em vitrines/produtos/
+// módulos via ExamPlacement.
+
+// Lê os campos de configuração da prova a partir do formulário.
+function readExamFields(formData: FormData) {
+  return {
+    title: String(formData.get("title") ?? "Avaliação final").trim() || "Avaliação final",
+    questionsToShow: Math.max(1, Number(formData.get("questionsToShow") ?? 6)),
+    passingScore: Math.min(100, Math.max(0, Number(formData.get("passingScore") ?? 70))),
+    // Checkboxes: presente = "on".
+    shuffleOptions: formData.get("shuffleOptions") != null,
+    showAnswers: formData.get("showAnswers") != null,
+  };
 }
 
-// Adiciona uma questão de múltipla escolha. As alternativas vêm como
-// option0..option3 e o índice correto em `correct`.
-export async function addQuestion(
-  examId: string,
-  trilhaId: string,
-  formData: FormData
-) {
-  await requireAdmin();
+export async function createExam(formData: FormData) {
+  const user = await requireAdmin();
+  const exam = await prisma.exam.create({
+    data: { tenantId: user.tenantId, ...readExamFields(formData) },
+  });
+  redirect(`/admin/provas/${exam.id}`);
+}
+
+export async function updateExam(examId: string, formData: FormData) {
+  const user = await requireAdmin();
+  await prisma.exam.update({
+    where: { id: examId, tenantId: user.tenantId },
+    data: readExamFields(formData),
+  });
+  revalidatePath(`/admin/provas/${examId}`);
+}
+
+export async function deleteExam(examId: string) {
+  const user = await requireAdmin();
+  // Cascade remove colocações e questões.
+  await prisma.exam.deleteMany({ where: { id: examId, tenantId: user.tenantId } });
+  redirect("/admin/provas");
+}
+
+// Adiciona uma questão de múltipla escolha ao banco da prova. As alternativas
+// vêm como option0..option3 e o índice correto em `correct`.
+export async function addQuestion(examId: string, formData: FormData) {
+  const user = await requireAdmin();
+  // Garante que a prova é do tenant.
+  const exam = await prisma.exam.findFirst({
+    where: { id: examId, tenantId: user.tenantId },
+    select: { id: true },
+  });
+  if (!exam) return;
+
   const statement = String(formData.get("statement") ?? "").trim();
   if (!statement) return;
   const correct = Number(formData.get("correct") ?? 0);
@@ -180,20 +206,73 @@ export async function addQuestion(
 
   const count = await prisma.question.count({ where: { examId } });
   await prisma.question.create({
-    data: {
-      examId,
-      statement,
-      order: count,
-      options: { create: options },
-    },
+    data: { examId, statement, order: count, options: { create: options } },
   });
+  revalidatePath(`/admin/provas/${examId}`);
+}
+
+export async function deleteQuestion(questionId: string, examId: string) {
+  await requireAdmin();
+  await prisma.question.delete({ where: { id: questionId } });
+  revalidatePath(`/admin/provas/${examId}`);
+}
+
+// --- Colocação de provas (ExamPlacement) --------------------------------
+// Insere uma prova da biblioteca num container. Exatamente um dos ids de
+// container é preenchido. Confere que prova e container são do mesmo tenant.
+
+type Container = { vitrineId?: string; trilhaId?: string; moduloId?: string };
+
+async function attachExam(
+  tenantId: string,
+  examId: string,
+  container: Container,
+  requireAllLessons: boolean
+) {
+  if (!examId) return;
+  const exam = await prisma.exam.findFirst({
+    where: { id: examId, tenantId },
+    select: { id: true },
+  });
+  if (!exam) return;
+  await prisma.examPlacement.create({
+    data: { examId, ...container, requireAllLessons },
+  });
+}
+
+export async function attachExamToTrilha(trilhaId: string, formData: FormData) {
+  const user = await requireAdmin();
+  const examId = String(formData.get("examId") ?? "").trim();
+  const requireAllLessons = formData.get("requireAllLessons") != null;
+  await attachExam(user.tenantId, examId, { trilhaId }, requireAllLessons);
   revalidatePath(`/admin/trilhas/${trilhaId}`);
 }
 
-export async function deleteQuestion(questionId: string, trilhaId: string) {
-  await requireAdmin();
-  await prisma.question.delete({ where: { id: questionId } });
+export async function attachExamToModulo(
+  moduloId: string,
+  trilhaId: string,
+  formData: FormData
+) {
+  const user = await requireAdmin();
+  const examId = String(formData.get("examId") ?? "").trim();
+  const requireAllLessons = formData.get("requireAllLessons") != null;
+  await attachExam(user.tenantId, examId, { moduloId }, requireAllLessons);
   revalidatePath(`/admin/trilhas/${trilhaId}`);
+}
+
+export async function attachExamToVitrine(vitrineId: string, formData: FormData) {
+  const user = await requireAdmin();
+  const examId = String(formData.get("examId") ?? "").trim();
+  await attachExam(user.tenantId, examId, { vitrineId }, false);
+  revalidatePath("/admin");
+}
+
+// Remove uma colocação (não apaga a prova da biblioteca). `redirectTo` diz qual
+// página revalidar após remover.
+export async function detachExamPlacement(placementId: string, redirectTo: string) {
+  await requireAdmin();
+  await prisma.examPlacement.delete({ where: { id: placementId } });
+  revalidatePath(redirectTo);
 }
 
 // --- Perfis de acesso ----------------------------------------------------

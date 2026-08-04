@@ -21,23 +21,29 @@ export type GradeResult = {
   error?: string;
 };
 
-// Corrige a prova. Recebe os IDs das questões que foram sorteadas/apresentadas
-// e a alternativa escolhida em cada uma. A correção usa sempre o gabarito do
-// banco — o cliente nunca decide o que é certo.
+// Corrige a prova de uma COLOCAÇÃO (placement). Recebe os IDs das questões
+// sorteadas/apresentadas e a alternativa escolhida em cada uma. A correção usa
+// sempre o gabarito do banco — o cliente nunca decide o que é certo.
+//
+// Fase 1: o certificado é emitido apenas quando a prova está colocada no
+// produto (placement.trilhaId, sem módulo/vitrine). Provas de módulo e de
+// vitrine registram a tentativa/aprovação, mas a emissão condicionada de
+// certificado é tratada na Fase 3 (certificado como colocação).
 export async function gradeExam(
-  examId: string,
+  placementId: string,
   answers: { questionId: string; optionId: string }[]
 ): Promise<GradeResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, score: 0, passed: false, passingScore: 0, error: "Sessão expirada." };
 
-  const exam = await prisma.exam.findUnique({
-    where: { id: examId },
-    include: { trilha: true },
+  const placement = await prisma.examPlacement.findUnique({
+    where: { id: placementId },
+    include: { exam: true, trilha: { select: { id: true, title: true } } },
   });
-  if (!exam || exam.trilha.tenantId !== user.tenantId) {
+  if (!placement || placement.exam.tenantId !== user.tenantId) {
     return { ok: false, score: 0, passed: false, passingScore: 0, error: "Prova não encontrada." };
   }
+  const exam = placement.exam;
 
   const questionIds = answers.map((a) => a.questionId);
   const correctOptions = await prisma.questionOption.findMany({
@@ -57,6 +63,7 @@ export async function gradeExam(
     data: {
       userId: user.id,
       examId: exam.id,
+      placementId: placement.id,
       score,
       passed,
       answers: JSON.stringify(answers),
@@ -65,17 +72,21 @@ export async function gradeExam(
 
   let certificateCode: string | undefined;
 
-  if (passed) {
+  // Emissão de certificado só para prova final do produto (Fase 1).
+  const isProdutoExam = !!placement.trilha && !placement.moduloId && !placement.vitrineId;
+
+  if (passed && isProdutoExam && placement.trilha) {
+    const trilhaId = placement.trilha.id;
     // Marca a trilha como concluída.
     await prisma.enrollment.upsert({
-      where: { userId_trilhaId: { userId: user.id, trilhaId: exam.trilhaId } },
+      where: { userId_trilhaId: { userId: user.id, trilhaId } },
       update: { status: "COMPLETED" },
-      create: { userId: user.id, trilhaId: exam.trilhaId, status: "COMPLETED" },
+      create: { userId: user.id, trilhaId, status: "COMPLETED" },
     });
 
     // Emite certificado (uma vez por aluno/trilha).
     const existing = await prisma.certificate.findFirst({
-      where: { userId: user.id, trilhaId: exam.trilhaId },
+      where: { userId: user.id, trilhaId },
     });
     if (existing) {
       certificateCode = existing.code;
@@ -85,9 +96,9 @@ export async function gradeExam(
         data: {
           code,
           userId: user.id,
-          trilhaId: exam.trilhaId,
+          trilhaId,
           studentName: user.name,
-          trilhaTitle: exam.trilha.title,
+          trilhaTitle: placement.trilha.title,
         },
       });
       certificateCode = cert.code;

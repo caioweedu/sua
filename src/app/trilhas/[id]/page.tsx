@@ -28,11 +28,21 @@ export default async function TrilhaPage({
       prereqTrilha: { select: { id: true, title: true } },
       modulos: {
         orderBy: { order: "asc" },
-        include: { aulas: { orderBy: { order: "asc" } } },
+        include: {
+          aulas: { orderBy: { order: "asc" } },
+          examPlacements: {
+            include: { exam: { select: { title: true, _count: { select: { questions: true } } } } },
+          },
+        },
       },
       // Aulas sem módulo (conteúdo antigo/avulso).
       aulas: { where: { moduloId: null }, orderBy: { order: "asc" } },
-      exam: { include: { _count: { select: { questions: true } } } },
+      // Provas do produto (colocação de trilha).
+      examPlacements: {
+        include: {
+          exam: { select: { title: true, passingScore: true, questionsToShow: true, _count: { select: { questions: true } } } },
+        },
+      },
       enrollments: { where: { userId: user.id } },
       certificates: { where: { userId: user.id } },
     },
@@ -78,12 +88,21 @@ export default async function TrilhaPage({
 
   const enrolled = trilha.enrollments.length > 0;
   const cert = trilha.certificates[0];
-  const hasExam = !!trilha.exam && trilha.exam._count.questions > 0;
+  // Provas finais do produto (só as que têm banco de questões).
+  const produtoProvas = trilha.examPlacements.filter((p) => p.exam._count.questions > 0);
+  const hasExam = produtoProvas.length > 0;
 
   // Monta os grupos da trilha lateral (módulos + eventuais aulas avulsas).
+  // Cada módulo carrega também suas provas (checkpoints do módulo).
   const grupos = [
-    ...trilha.modulos.map((m) => ({ title: m.title, aulas: m.aulas })),
-    ...(trilha.aulas.length > 0 ? [{ title: "Aulas", aulas: trilha.aulas }] : []),
+    ...trilha.modulos.map((m) => ({
+      title: m.title,
+      aulas: m.aulas,
+      provas: m.examPlacements.filter((p) => p.exam._count.questions > 0),
+    })),
+    ...(trilha.aulas.length > 0
+      ? [{ title: "Aulas", aulas: trilha.aulas, provas: [] as typeof trilha.modulos[number]["examPlacements"] }]
+      : []),
   ];
   const flat = grupos.flatMap((g) => g.aulas);
   const totalAulas = flat.length;
@@ -95,10 +114,6 @@ export default async function TrilhaPage({
   const currentIndex = current ? flat.findIndex((x) => x.id === current.id) : -1;
   const currentDone = current ? doneAulas.has(current.id) : false;
   const embed = current?.videoUrl ? toEmbedUrl(current.videoUrl) : null;
-
-  // Prova só libera após todas as aulas quando o admin exigir (B2).
-  const requireAll = trilha.exam?.requireAllLessons ?? false;
-  const examLockedByLessons = hasExam && requireAll && !allAulasDone;
 
   return (
     <AppShell user={user} tenant={user.tenant}>
@@ -254,40 +269,89 @@ export default async function TrilhaPage({
                       );
                     })}
                   </ol>
+                  {/* Provas do módulo (checkpoints) */}
+                  {g.provas.map((p) => {
+                    const modAulaIds = g.aulas.map((x) => x.id);
+                    const modDone =
+                      modAulaIds.length > 0 && modAulaIds.every((mid) => doneAulas.has(mid));
+                    const gated =
+                      user.role === "STUDENT" &&
+                      p.requireAllLessons &&
+                      modAulaIds.length > 0 &&
+                      !modDone;
+                    return (
+                      <div key={p.id} className="border-t border-slate-100 px-4 py-3">
+                        {gated ? (
+                          <div className="flex items-center gap-3 text-sm text-slate-400">
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs">
+                              🔒
+                            </span>
+                            <span>
+                              {p.exam.title}
+                              <span className="block text-xs">Conclua as aulas do módulo</span>
+                            </span>
+                          </div>
+                        ) : (
+                          <Link
+                            href={`/prova/${p.id}`}
+                            className="flex items-center gap-3 text-sm text-brand hover:underline"
+                          >
+                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs">
+                              📝
+                            </span>
+                            <span className="font-medium">{p.exam.title}</span>
+                          </Link>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
           </div>
 
-          {hasExam && (
+          {cert ? (
             <div className="card mt-4">
-              <h3 className="font-bold text-ink">{trilha.exam!.title}</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                {trilha.exam!.questionsToShow} questões sorteadas ·{" "}
-                {trilha.exam!.passingScore}% para aprovação
-              </p>
-              {cert ? (
-                <Link href={`/certificados/${cert.code}`} className="btn-brand mt-4 w-full">
-                  🏆 Ver certificado
-                </Link>
-              ) : examLockedByLessons ? (
-                <>
-                  <button
-                    disabled
-                    className="btn-brand mt-4 w-full cursor-not-allowed opacity-50"
-                  >
-                    🔒 Fazer avaliação
-                  </button>
-                  <p className="mt-2 text-center text-xs text-slate-500">
-                    Conclua todas as aulas ({doneCount}/{totalAulas}) para liberar a prova.
-                  </p>
-                </>
-              ) : (
-                <Link href={`/trilhas/${trilha.id}/prova`} className="btn-brand mt-4 w-full">
-                  Fazer avaliação
-                </Link>
-              )}
+              <h3 className="font-bold text-ink">Certificado disponível</h3>
+              <Link href={`/certificados/${cert.code}`} className="btn-brand mt-4 w-full">
+                🏆 Ver certificado
+              </Link>
             </div>
+          ) : (
+            hasExam && (
+              <div className="card mt-4 space-y-4">
+                {produtoProvas.map((p) => {
+                  const lockedByLessons =
+                    user.role === "STUDENT" && p.requireAllLessons && !allAulasDone;
+                  return (
+                    <div key={p.id}>
+                      <h3 className="font-bold text-ink">{p.exam.title}</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {p.exam.questionsToShow} questões sorteadas ·{" "}
+                        {p.exam.passingScore}% para aprovação
+                      </p>
+                      {lockedByLessons ? (
+                        <>
+                          <button
+                            disabled
+                            className="btn-brand mt-4 w-full cursor-not-allowed opacity-50"
+                          >
+                            🔒 Fazer avaliação
+                          </button>
+                          <p className="mt-2 text-center text-xs text-slate-500">
+                            Conclua todas as aulas ({doneCount}/{totalAulas}) para liberar a prova.
+                          </p>
+                        </>
+                      ) : (
+                        <Link href={`/prova/${p.id}`} className="btn-brand mt-4 w-full">
+                          Fazer avaliação
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </aside>
       </div>

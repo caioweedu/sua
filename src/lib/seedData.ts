@@ -191,6 +191,9 @@ export async function seedDatabase(prisma: PrismaClient) {
   await prisma.accessProfile.deleteMany({ where: { tenantId: mother.id } });
   await prisma.trilha.deleteMany({ where: { tenantId: mother.id } });
   await prisma.vitrine.deleteMany({ where: { tenantId: mother.id } });
+  // Provas vivem na biblioteca do tenant (não são apagadas em cascata pela
+  // trilha); limpa também para o seed não deixar provas órfãs.
+  await prisma.exam.deleteMany({ where: { tenantId: mother.id } });
 
   const vitrineByName = new Map<string, string>();
   const trilhaByTitle = new Map<string, string>();
@@ -247,16 +250,19 @@ export async function seedDatabase(prisma: PrismaClient) {
       }
 
       if (p.exam) {
+        // Prova na biblioteca do tenant, colocada no produto. A colocação
+        // demonstra o gate: só libera a prova após concluir as aulas.
         const exam = await prisma.exam.create({
           data: {
-            trilhaId: trilha.id,
+            tenantId: mother.id,
             title: `Avaliação final — ${p.title}`,
             questionsToShow: 6,
             passingScore: 70,
             shuffleOptions: true,
             showAnswers: true,
-            // Demonstra o gate: só libera a prova após concluir as aulas.
-            requireAllLessons: true,
+            placements: {
+              create: { trilhaId: trilha.id, requireAllLessons: true },
+            },
           },
         });
         for (let i = 0; i < 20; i++) {

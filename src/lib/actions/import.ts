@@ -229,18 +229,24 @@ export async function importContent(
           continue;
         }
 
-        // Garante a prova da trilha (conta como criada só quando não existia).
+        // Garante a prova do produto: procura uma prova já colocada no produto
+        // (placement de trilha). Se não houver, cria a prova na biblioteca e a
+        // coloca no produto. Conta como criada só quando não existia.
         let examId = examCache.get(trilha.id);
         if (!examId) {
-          const existingExam = await prisma.exam.findUnique({
-            where: { trilhaId: trilha.id },
-            select: { id: true },
+          const existingPlacement = await prisma.examPlacement.findFirst({
+            where: { trilhaId: trilha.id, moduloId: null, vitrineId: null },
+            select: { examId: true },
           });
-          if (existingExam) {
-            examId = existingExam.id;
+          if (existingPlacement) {
+            examId = existingPlacement.examId;
           } else {
             const created = await prisma.exam.create({
-              data: { trilhaId: trilha.id, title: "Avaliação final" },
+              data: {
+                tenantId,
+                title: "Avaliação final",
+                placements: { create: { trilhaId: trilha.id } },
+              },
               select: { id: true },
             });
             examId = created.id;

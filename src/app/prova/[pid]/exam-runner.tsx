@@ -11,11 +11,13 @@ type Q = {
 };
 
 export default function ExamRunner({
-  examId,
+  placementId,
   questions,
+  backHref = "/dashboard",
 }: {
-  examId: string;
+  placementId: string;
   questions: Q[];
+  backHref?: string;
 }) {
   const router = useRouter();
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -30,7 +32,7 @@ export default function ExamRunner({
       optionId: answers[q.id],
     }));
     startTransition(async () => {
-      const res = await gradeExam(examId, payload);
+      const res = await gradeExam(placementId, payload);
       setResult(res);
     });
   }
@@ -55,13 +57,17 @@ export default function ExamRunner({
               <a href={`/certificados/${result.certificateCode}`} className="btn-brand">
                 🏆 Ver certificado
               </a>
+            ) : result.passed ? (
+              <a href={backHref} className="btn-brand">
+                Concluir
+              </a>
             ) : (
               <button className="btn-brand" onClick={() => router.refresh()}>
                 Tentar novamente
               </button>
             )}
-            <a href="/dashboard" className="btn-outline">
-              Voltar ao painel
+            <a href={backHref} className="btn-outline">
+              Voltar
             </a>
           </div>
         </div>
