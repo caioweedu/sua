@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { getCurrentUser } from "@/lib/auth";
+import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
 import { buildTrilhaContext, professorSystemPrompt } from "@/lib/professor";
 
 export const runtime = "nodejs";
@@ -34,6 +35,12 @@ export async function POST(req: NextRequest) {
   // o cliente nunca injeta o conteúdo da trilha.
   const ctx = await buildTrilhaContext(trilhaId, user.tenantId);
   if (!ctx) return new Response("Trilha não encontrada", { status: 404 });
+
+  // Aluno só conversa sobre trilhas de vitrines liberadas ao seu perfil.
+  const allowed = await allowedVitrineIds(user);
+  if (!canAccessVitrine(allowed, ctx.trilha.vitrineId)) {
+    return new Response("Sem acesso a esta trilha", { status: 403 });
+  }
 
   // Sanitiza e limita o histórico enviado ao modelo.
   const history = messages

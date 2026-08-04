@@ -49,6 +49,7 @@ model Tenant {
   users    User[]
   trilhas  Trilha[]
   vitrines Vitrine[]
+  accessProfiles AccessProfile[]
 
   // Banner exibido na entrada (topo do painel do aluno).
   bannerUrl String?
@@ -77,8 +78,30 @@ model Vitrine {
   createdAt   DateTime @default(now())
 
   trilhas Trilha[]
+  profiles AccessProfile[]
 
   @@unique([tenantId, slug])
+  @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// PERFIS DE ACESSO
+// ---------------------------------------------------------------------------
+// Um perfil libera um conjunto de vitrines. O usuário vinculado ao perfil só
+// enxerga as vitrines liberadas. Usuário sem perfil vê todas as vitrines
+// publicadas (aberto por padrão).
+
+model AccessProfile {
+  id          String  @id @default(cuid())
+  tenantId    String
+  tenant      Tenant  @relation(fields: [tenantId], references: [id])
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  vitrines Vitrine[]
+  users    User[]
+
   @@index([tenantId])
 }
 
@@ -98,6 +121,10 @@ model User {
   role         String   @default("STUDENT") // SUPER_ADMIN | TENANT_ADMIN | STUDENT
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
+
+  // Perfil de acesso (define quais vitrines o aluno enxerga). Nulo = todas.
+  accessProfileId String?
+  accessProfile   AccessProfile? @relation(fields: [accessProfileId], references: [id])
 
   enrollments  Enrollment[]
   attempts     ExamAttempt[]
@@ -185,6 +212,8 @@ model Exam {
   questionsToShow Int   @default(6)  // quantas questões sortear por tentativa
   passingScore   Int    @default(70) // % mínimo para aprovação
   maxAttempts    Int    @default(0)  // 0 = ilimitado
+  shuffleOptions Boolean @default(true)  // embaralhar as alternativas
+  showAnswers    Boolean @default(false) // mostrar o gabarito ao final
 
   questions Question[]
   attempts  ExamAttempt[]

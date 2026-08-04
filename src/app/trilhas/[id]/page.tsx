@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { toEmbedUrl } from "@/lib/video";
 import { enroll } from "@/lib/actions/learning";
@@ -35,6 +36,9 @@ export default async function TrilhaPage({
     },
   });
   if (!trilha) notFound();
+
+  const allowed = await allowedVitrineIds(user);
+  if (!canAccessVitrine(allowed, trilha.vitrineId)) notFound();
 
   const enrolled = trilha.enrollments.length > 0;
   const cert = trilha.certificates[0];

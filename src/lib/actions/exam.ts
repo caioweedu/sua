@@ -10,6 +10,14 @@ export type GradeResult = {
   passed: boolean;
   passingScore: number;
   certificateCode?: string;
+  // Quando a prova permite mostrar o gabarito, devolvemos o detalhamento
+  // (correta x escolhida) para a revisão ao final.
+  showAnswers?: boolean;
+  details?: {
+    questionId: string;
+    correctOptionId: string;
+    selectedOptionId: string;
+  }[];
   error?: string;
 };
 
@@ -92,5 +100,13 @@ export async function gradeExam(
     passed,
     passingScore: exam.passingScore,
     certificateCode,
+    showAnswers: exam.showAnswers,
+    details: exam.showAnswers
+      ? answers.map((a) => ({
+          questionId: a.questionId,
+          correctOptionId: correctByQuestion.get(a.questionId) ?? "",
+          selectedOptionId: a.optionId,
+        }))
+      : undefined,
   };
 }

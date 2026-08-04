@@ -131,10 +131,13 @@ export async function saveExam(trilhaId: string, formData: FormData) {
   const title = String(formData.get("title") ?? "Avaliação final").trim();
   const questionsToShow = Math.max(1, Number(formData.get("questionsToShow") ?? 6));
   const passingScore = Math.min(100, Math.max(0, Number(formData.get("passingScore") ?? 70)));
+  // Checkboxes: presente = "on".
+  const shuffleOptions = formData.get("shuffleOptions") != null;
+  const showAnswers = formData.get("showAnswers") != null;
   await prisma.exam.upsert({
     where: { trilhaId },
-    update: { title, questionsToShow, passingScore },
-    create: { trilhaId, title, questionsToShow, passingScore },
+    update: { title, questionsToShow, passingScore, shuffleOptions, showAnswers },
+    create: { trilhaId, title, questionsToShow, passingScore, shuffleOptions, showAnswers },
   });
   revalidatePath(`/admin/trilhas/${trilhaId}`);
 }
@@ -175,6 +178,104 @@ export async function deleteQuestion(questionId: string, trilhaId: string) {
   await requireAdmin();
   await prisma.question.delete({ where: { id: questionId } });
   revalidatePath(`/admin/trilhas/${trilhaId}`);
+}
+
+// --- Perfis de acesso ----------------------------------------------------
+// Um perfil libera um conjunto de vitrines para os usuários vinculados.
+export async function createAccessProfile(formData: FormData) {
+  const user = await requireAdmin();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return;
+  // As vitrines liberadas chegam como múltiplos campos "vitrineIds".
+  const vitrineIds = formData
+    .getAll("vitrineIds")
+    .map((v) => String(v))
+    .filter(Boolean);
+  await prisma.accessProfile.create({
+    data: {
+      tenantId: user.tenantId,
+      name,
+      description: String(formData.get("description") ?? "").trim() || null,
+      vitrines: { connect: vitrineIds.map((id) => ({ id })) },
+    },
+  });
+  revalidatePath("/admin");
+}
+
+export async function updateAccessProfile(profileId: string, formData: FormData) {
+  const user = await requireAdmin();
+  const name = String(formData.get("name") ?? "").trim();
+  const vitrineIds = formData
+    .getAll("vitrineIds")
+    .map((v) => String(v))
+    .filter(Boolean);
+  await prisma.accessProfile.update({
+    where: { id: profileId, tenantId: user.tenantId },
+    data: {
+      ...(name ? { name } : {}),
+      description: String(formData.get("description") ?? "").trim() || null,
+      // `set` substitui totalmente as vitrines liberadas do perfil.
+      vitrines: { set: vitrineIds.map((id) => ({ id })) },
+    },
+  });
+  revalidatePath("/admin");
+}
+
+export async function deleteAccessProfile(profileId: string) {
+  const user = await requireAdmin();
+  // Desvincula usuários antes de remover o perfil.
+  await prisma.user.updateMany({
+    where: { accessProfileId: profileId, tenantId: user.tenantId },
+    data: { accessProfileId: null },
+  });
+  await prisma.accessProfile.delete({ where: { id: profileId } });
+  revalidatePath("/admin");
+}
+
+// --- Usuários ------------------------------------------------------------
+export async function createUser(formData: FormData) {
+  const user = await requireAdmin();
+  const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  if (!name || !email || password.length < 6) return;
+  const accessProfileId = String(formData.get("accessProfileId") ?? "").trim() || null;
+
+  const exists = await prisma.user.findFirst({
+    where: { tenantId: user.tenantId, email },
+    select: { id: true },
+  });
+  if (exists) return;
+
+  await prisma.user.create({
+    data: {
+      tenantId: user.tenantId,
+      name,
+      email,
+      passwordHash: await hashPassword(password),
+      role: "STUDENT",
+      accessProfileId,
+    },
+  });
+  revalidatePath("/admin");
+}
+
+export async function assignProfile(userId: string, formData: FormData) {
+  const admin = await requireAdmin();
+  const accessProfileId = String(formData.get("accessProfileId") ?? "").trim() || null;
+  await prisma.user.update({
+    where: { id: userId, tenantId: admin.tenantId },
+    data: { accessProfileId },
+  });
+  revalidatePath("/admin");
+}
+
+export async function deleteUser(userId: string) {
+  const admin = await requireAdmin();
+  // Não permite excluir a si mesmo.
+  if (userId === admin.id) return;
+  await prisma.user.delete({ where: { id: userId } });
+  revalidatePath("/admin");
 }
 
 // --- Filhas (white-label) — apenas SUPER_ADMIN ---------------------------

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import CourseCard from "@/components/CourseCard";
@@ -30,6 +31,9 @@ export default async function VitrinePage({
     },
   });
   if (!vitrine) notFound();
+
+  const allowed = await allowedVitrineIds(user);
+  if (!canAccessVitrine(allowed, vitrine.id)) notFound();
 
   const { c1, c2 } = coverFor(vitrine.name);
 

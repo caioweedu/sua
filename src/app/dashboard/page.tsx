@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { allowedVitrineIds } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import VitrineCard from "@/components/VitrineCard";
@@ -9,24 +10,33 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  const allowed = await allowedVitrineIds(user);
+
   const vitrines = await prisma.vitrine.findMany({
-    where: { tenantId: user.tenantId, published: true },
+    where: {
+      tenantId: user.tenantId,
+      published: true,
+      ...(allowed ? { id: { in: allowed } } : {}),
+    },
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     include: {
       _count: { select: { trilhas: { where: { published: true } } } },
     },
   });
 
-  // Produtos ainda sem vitrine (para não sumirem da vista).
-  const soltos = await prisma.trilha.findMany({
-    where: { tenantId: user.tenantId, published: true, vitrineId: null },
-    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-    include: {
-      _count: { select: { aulas: true } },
-      enrollments: { where: { userId: user.id } },
-      certificates: { where: { userId: user.id } },
-    },
-  });
+  // Produtos sem vitrine só aparecem para quem tem acesso total (sem perfil).
+  const soltos =
+    allowed === null
+      ? await prisma.trilha.findMany({
+          where: { tenantId: user.tenantId, published: true, vitrineId: null },
+          orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+          include: {
+            _count: { select: { aulas: true } },
+            enrollments: { where: { userId: user.id } },
+            certificates: { where: { userId: user.id } },
+          },
+        })
+      : [];
 
   const banner = user.tenant.bannerUrl;
 
@@ -55,7 +65,9 @@ export default async function DashboardPage() {
       <div className="mx-auto max-w-6xl px-4 py-10">
         {vitrines.length === 0 && soltos.length === 0 ? (
           <div className="card text-center text-slate-500">
-            Nenhum conteúdo publicado ainda.
+            {allowed && allowed.length === 0
+              ? "Nenhum conteúdo liberado para o seu perfil ainda. Fale com o administrador."
+              : "Nenhum conteúdo publicado ainda."}
           </div>
         ) : (
           <div className="space-y-10">

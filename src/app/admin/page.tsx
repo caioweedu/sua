@@ -10,6 +10,11 @@ import {
   createDaughter,
   createVitrine,
   deleteVitrine,
+  createAccessProfile,
+  deleteAccessProfile,
+  createUser,
+  assignProfile,
+  deleteUser,
 } from "@/lib/actions/admin";
 
 export default async function AdminPage() {
@@ -27,6 +32,21 @@ export default async function AdminPage() {
     where: { tenantId: user.tenantId },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { aulas: true } }, vitrine: { select: { name: true } } },
+  });
+
+  const profiles = await prisma.accessProfile.findMany({
+    where: { tenantId: user.tenantId },
+    orderBy: { createdAt: "asc" },
+    include: {
+      vitrines: { select: { id: true, name: true } },
+      _count: { select: { users: true } },
+    },
+  });
+
+  const students = await prisma.user.findMany({
+    where: { tenantId: user.tenantId, role: "STUDENT" },
+    orderBy: { createdAt: "asc" },
+    include: { accessProfile: { select: { id: true, name: true } } },
   });
 
   const isSuper = user.role === "SUPER_ADMIN";
@@ -121,6 +141,112 @@ export default async function AdminPage() {
               <textarea name="description" className="input" placeholder="Descrição" rows={2} />
               <input name="coverUrl" className="input" placeholder="URL da capa (opcional)" />
               <button className="btn-brand" type="submit">Criar produto</button>
+            </form>
+          </div>
+
+          {/* Perfis de acesso */}
+          <div className="card">
+            <h2 className="mb-1 font-semibold">Perfis de acesso</h2>
+            <p className="mb-4 text-xs text-slate-500">
+              Cada perfil libera um conjunto de vitrines para os alunos vinculados a ele.
+            </p>
+            {profiles.length === 0 && (
+              <p className="mb-4 text-sm text-slate-500">Nenhum perfil ainda.</p>
+            )}
+            <ul className="mb-4 divide-y divide-slate-100">
+              {profiles.map((p) => (
+                <li key={p.id} className="flex items-start justify-between gap-3 py-2.5">
+                  <div>
+                    <span className="font-medium">{p.name}</span>
+                    <p className="text-xs text-slate-500">
+                      {p._count.users} usuário(s) ·{" "}
+                      {p.vitrines.length === 0
+                        ? "nenhuma vitrine liberada"
+                        : p.vitrines.map((v) => v.name).join(", ")}
+                    </p>
+                  </div>
+                  <form action={deleteAccessProfile.bind(null, p.id)}>
+                    <button className="text-xs text-red-500 hover:underline" type="submit">
+                      remover
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+            <form action={createAccessProfile} className="space-y-3 border-t border-slate-100 pt-4">
+              <input name="name" required className="input" placeholder="Nome do perfil (ex: Time Operacional)" />
+              <textarea name="description" className="input" rows={2} placeholder="Descrição (opcional)" />
+              <div>
+                <label className="label">Vitrines liberadas</label>
+                {vitrines.length === 0 ? (
+                  <p className="text-xs text-slate-500">Crie uma vitrine primeiro.</p>
+                ) : (
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    {vitrines.map((v) => (
+                      <label key={v.id} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="vitrineIds" value={v.id} className="h-4 w-4 rounded border-slate-300" />
+                        {v.name}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button className="btn-brand" type="submit">Criar perfil</button>
+            </form>
+          </div>
+
+          {/* Usuários */}
+          <div className="card">
+            <h2 className="mb-1 font-semibold">Usuários (alunos)</h2>
+            <p className="mb-4 text-xs text-slate-500">
+              Vincule cada aluno a um perfil para controlar o que ele acessa.
+            </p>
+            {students.length === 0 && (
+              <p className="mb-4 text-sm text-slate-500">Nenhum aluno ainda.</p>
+            )}
+            <ul className="mb-4 divide-y divide-slate-100">
+              {students.map((s) => (
+                <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                  <div className="min-w-0">
+                    <span className="font-medium">{s.name}</span>
+                    <p className="truncate text-xs text-slate-500">{s.email}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <form action={assignProfile.bind(null, s.id)} className="flex items-center gap-1">
+                      <select
+                        name="accessProfileId"
+                        defaultValue={s.accessProfile?.id ?? ""}
+                        className="input py-1.5 text-sm"
+                      >
+                        <option value="">Acesso total</option>
+                        {profiles.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                      <button className="btn-outline px-2 py-1.5 text-xs" type="submit">salvar</button>
+                    </form>
+                    <form action={deleteUser.bind(null, s.id)}>
+                      <button className="text-xs text-red-500 hover:underline" type="submit">
+                        remover
+                      </button>
+                    </form>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <form action={createUser} className="grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
+              <input name="name" required className="input" placeholder="Nome do aluno" />
+              <input name="email" type="email" required className="input" placeholder="E-mail" />
+              <input name="password" type="password" required minLength={6} className="input" placeholder="Senha (mín. 6)" />
+              <select name="accessProfileId" className="input" defaultValue="">
+                <option value="">Acesso total (sem perfil)</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <div className="sm:col-span-2">
+                <button className="btn-brand" type="submit">Criar aluno</button>
+              </div>
             </form>
           </div>
         </section>
