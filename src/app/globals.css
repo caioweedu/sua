@@ -92,6 +92,48 @@
   }
 }
 
+/* --- Skeleton loaders ---------------------------------------------------
+   Placeholders com brilho (shimmer) usados nos loading.tsx. O contêiner
+   `.sk` fica invisível nos primeiros ~0.8s e só então aparece, para não
+   "piscar" em cargas rápidas — o esqueleto só surge em loads mais lentos. */
+.sk {
+  opacity: 0;
+  animation: sk-appear 0.25s ease-out 0.8s forwards;
+}
+@keyframes sk-appear {
+  to {
+    opacity: 1;
+  }
+}
+.sk-box {
+  background: linear-gradient(
+    90deg,
+    rgb(238 241 245) 25%,
+    rgb(226 232 240) 37%,
+    rgb(238 241 245) 63%
+  );
+  background-size: 400% 100%;
+  animation: sk-shimmer 1.4s ease infinite;
+  border-radius: 10px;
+}
+@keyframes sk-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk {
+    animation: none;
+    opacity: 1;
+  }
+  .sk-box {
+    animation: none;
+  }
+}
+
 /* Scrollbar discreta para os carrosséis */
 .row-scroll {
   scrollbar-width: thin;
