@@ -22,7 +22,7 @@ export default async function DashboardPage() {
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     include: {
       _count: { select: { trilhas: { where: { published: true } } } },
-      releaseCondition: true,
+      releaseCondition: { include: { clauses: true } },
     },
   });
 

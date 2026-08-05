@@ -26,15 +26,15 @@ export default async function TrilhaPage({
     where: { id, tenantId: user.tenantId },
     include: {
       vitrine: { select: { id: true, name: true } },
-      releaseCondition: true,
+      releaseCondition: { include: { clauses: true } },
       modulos: {
         orderBy: { order: "asc" },
         include: {
-          releaseCondition: true,
+          releaseCondition: { include: { clauses: true } },
           aulas: { orderBy: { order: "asc" } },
           examPlacements: {
             include: {
-              releaseCondition: true,
+              releaseCondition: { include: { clauses: true } },
               exam: { select: { title: true, _count: { select: { questions: true } } } },
             },
           },
@@ -45,13 +45,13 @@ export default async function TrilhaPage({
       // Provas do produto (colocação de trilha).
       examPlacements: {
         include: {
-          releaseCondition: true,
+          releaseCondition: { include: { clauses: true } },
           exam: { select: { title: true, passingScore: true, questionsToShow: true, _count: { select: { questions: true } } } },
         },
       },
       // Certificados colocados no produto (Fase 3).
       certificatePlacements: {
-        include: { template: { select: { name: true } }, releaseCondition: true },
+        include: { template: { select: { name: true } }, releaseCondition: { include: { clauses: true } } },
       },
       enrollments: { where: { userId: user.id } },
       certificates: { where: { userId: user.id } },
@@ -71,7 +71,8 @@ export default async function TrilhaPage({
     prog ? await isUnlocked(trilha.releaseCondition, {}, prog) : ({ unlocked: true, reason: null } as UnlockResult);
 
   if (!produtoLock.unlocked) {
-    const targetTrilhaId = trilha.releaseCondition?.targetTrilhaId;
+    const targetTrilhaId =
+      trilha.releaseCondition?.clauses.find((c) => c.targetTrilhaId)?.targetTrilhaId ?? null;
     return (
       <AppShell user={user} tenant={user.tenant}>
         <nav className="flex items-center gap-1.5 text-sm text-slate-500">

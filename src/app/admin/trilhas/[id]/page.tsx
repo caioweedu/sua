@@ -34,25 +34,25 @@ export default async function ManageTrilhaPage({
   const examInc = {
     include: {
       exam: { select: { title: true, _count: { select: { questions: true } } } },
-      releaseCondition: true,
+      releaseCondition: { include: { clauses: true } },
     },
   } as const;
 
   const trilha = await prisma.trilha.findFirst({
     where: { id, tenantId: user.tenantId },
     include: {
-      releaseCondition: true,
+      releaseCondition: { include: { clauses: true } },
       modulos: {
         orderBy: { order: "asc" },
         include: {
           aulas: { orderBy: { order: "asc" } },
           examPlacements: examInc,
-          releaseCondition: true,
+          releaseCondition: { include: { clauses: true } },
         },
       },
       examPlacements: examInc,
       certificatePlacements: {
-        include: { template: { select: { name: true } }, releaseCondition: true },
+        include: { template: { select: { name: true } }, releaseCondition: { include: { clauses: true } } },
       },
     },
   });
@@ -72,6 +72,9 @@ export default async function ManageTrilhaPage({
   });
   const trilhaOptions: CondOption[] = outrosProdutos.map((t) => ({ id: t.id, label: t.title }));
   const moduloOptions: CondOption[] = trilha.modulos.map((m) => ({ id: m.id, label: m.title }));
+  const aulaOptions: CondOption[] = trilha.modulos.flatMap((m) =>
+    m.aulas.map((a) => ({ id: a.id, label: `${m.title} · ${a.title}` }))
+  );
 
   // Provas candidatas: colocações dentro da mesma vitrine (referência cruzada).
   const scopeVitrineId = trilha.vitrineId;
@@ -158,6 +161,7 @@ export default async function ManageTrilhaPage({
             exams={examOptions}
             modulos={moduloOptions}
             trilhas={trilhaOptions}
+                      aulas={aulaOptions}
           />
         </div>
       </div>
@@ -219,6 +223,7 @@ export default async function ManageTrilhaPage({
                       exams={examOptions}
                       modulos={moduloOptions.filter((o) => o.id !== m.id)}
                       trilhas={trilhaOptions}
+                      aulas={aulaOptions}
                     />
                   </div>
 
@@ -242,6 +247,7 @@ export default async function ManageTrilhaPage({
                             exams={examOptions.filter((o) => o.id !== p.id)}
                             modulos={moduloOptions}
                             trilhas={trilhaOptions}
+                      aulas={aulaOptions}
                           />
                         </div>
                       </div>
@@ -322,6 +328,7 @@ export default async function ManageTrilhaPage({
                       exams={examOptions.filter((o) => o.id !== p.id)}
                       modulos={moduloOptions}
                       trilhas={trilhaOptions}
+                      aulas={aulaOptions}
                     />
                   </div>
                 </li>
@@ -404,6 +411,7 @@ export default async function ManageTrilhaPage({
                       exams={examOptions}
                       modulos={moduloOptions}
                       trilhas={trilhaOptions}
+                      aulas={aulaOptions}
                     />
                   </div>
                 </li>

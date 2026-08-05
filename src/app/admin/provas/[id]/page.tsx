@@ -43,7 +43,7 @@ export default async function EditExamPage({
           vitrine: { select: { name: true } },
           trilha: { select: { title: true } },
           modulo: { select: { title: true, trilha: { select: { title: true } } } },
-          releaseCondition: true,
+          releaseCondition: { include: { clauses: true } },
         },
       },
     },

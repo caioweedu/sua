@@ -20,7 +20,7 @@ export default async function VitrinePage({
   const vitrine = await prisma.vitrine.findFirst({
     where: { id, tenantId: user.tenantId },
     include: {
-      releaseCondition: true,
+      releaseCondition: { include: { clauses: true } },
       trilhas: {
         where: { published: true },
         orderBy: [{ order: "asc" }, { createdAt: "asc" }],
@@ -50,7 +50,8 @@ export default async function VitrinePage({
       : { unlocked: true, reason: null };
 
   if (!locked.unlocked) {
-    const targetTrilhaId = vitrine.releaseCondition?.targetTrilhaId;
+    const targetTrilhaId =
+      vitrine.releaseCondition?.clauses.find((c) => c.targetTrilhaId)?.targetTrilhaId ?? null;
     return (
       <AppShell user={user} tenant={user.tenant}>
         <div className="card mx-auto mt-6 max-w-lg text-center">

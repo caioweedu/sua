@@ -41,7 +41,7 @@ export async function issueCertificateForPlacement(
     include: {
       template: true,
       trilha: { select: { id: true, title: true, tenantId: true } },
-      releaseCondition: true,
+      releaseCondition: { include: { clauses: true } },
     },
   });
   if (!placement) return { error: "Certificado não encontrado." };
