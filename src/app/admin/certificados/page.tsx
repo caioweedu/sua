@@ -4,6 +4,7 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import SubmitButton from "@/components/SubmitButton";
+import ImageUpload from "@/components/ImageUpload";
 import {
   createCertificateTemplate,
   updateCertificateTemplate,
@@ -59,19 +60,14 @@ export default async function CertificadosBibliotecaPage() {
               </div>
               <form action={updateCertificateTemplate.bind(null, t.id)} className="space-y-2">
                 <input name="name" defaultValue={t.name} className="input" placeholder="Nome do modelo" />
-                <input name="backgroundUrl" defaultValue={t.backgroundUrl ?? ""} className="input" placeholder="URL da imagem de fundo (opcional)" />
-                <p className="text-xs text-slate-400">
-                  Fundo recomendado: 3508×2480px (A4 paisagem, 300dpi). Sem URL, usa o
-                  fundo padrão do tenant.
-                </p>
-                {t.backgroundUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={t.backgroundUrl}
-                    alt={t.name}
-                    className="mt-1 max-h-40 w-full rounded-lg border border-slate-200 object-contain"
-                  />
-                )}
+                <ImageUpload
+                  name="backgroundUrl"
+                  label="Fundo do certificado"
+                  hint="A4 paisagem · 3508×2480px (300dpi) · PNG/JPG. Sem imagem, usa o fundo padrão do tenant."
+                  defaultValue={t.backgroundUrl ?? ""}
+                  slot="certificado"
+                  aspect="1.414 / 1"
+                />
                 <SubmitButton pendingText="Salvando…">Salvar modelo</SubmitButton>
               </form>
             </div>
@@ -82,11 +78,13 @@ export default async function CertificadosBibliotecaPage() {
           <h2 className="mb-4 font-semibold">Novo modelo</h2>
           <form action={createCertificateTemplate} className="space-y-2">
             <input name="name" required className="input" placeholder="Nome do modelo (ex.: Certificado Weedu)" />
-            <input name="backgroundUrl" className="input" placeholder="URL da imagem de fundo (opcional)" />
-            <p className="text-xs text-slate-400">
-              A imagem é a frente do certificado (fundo). Os textos são sobrepostos
-              automaticamente.
-            </p>
+            <ImageUpload
+              name="backgroundUrl"
+              label="Fundo do certificado"
+              hint="A4 paisagem · 3508×2480px (300dpi) · PNG/JPG. A imagem é a frente; os textos são sobrepostos automaticamente."
+              slot="certificado"
+              aspect="1.414 / 1"
+            />
             <SubmitButton pendingText="Criando…">Criar modelo</SubmitButton>
           </form>
         </section>

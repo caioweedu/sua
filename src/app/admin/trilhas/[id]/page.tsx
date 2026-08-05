@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { describeCondition } from "@/lib/release";
 import AppShell from "@/components/AppShell";
 import SubmitButton from "@/components/SubmitButton";
+import ImageUpload from "@/components/ImageUpload";
 import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
 import {
   addAula,
@@ -140,7 +141,16 @@ export default async function ManageTrilhaPage({
               <option key={v.id} value={v.id}>{v.name}</option>
             ))}
           </select>
-          <input name="coverUrl" defaultValue={trilha.coverUrl ?? ""} className="input sm:col-span-2" placeholder="URL da capa (opcional)" />
+          <div className="sm:col-span-2">
+            <ImageUpload
+              name="coverUrl"
+              label="Capa do produto (pôster)"
+              hint="Retrato 2:3 · recomendado 600×900px · JPG/WebP. Aparece como pôster na home."
+              defaultValue={trilha.coverUrl ?? ""}
+              slot="produto"
+              aspect="2 / 3"
+            />
+          </div>
           <textarea name="description" defaultValue={trilha.description ?? ""} className="input sm:col-span-2" rows={2} placeholder="Descrição" />
           <div className="sm:col-span-2">
             <SubmitButton pendingText="Salvando…">Salvar dados</SubmitButton>

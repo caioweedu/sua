@@ -49,15 +49,17 @@ export default async function VitrinePage({
       ? await isUnlocked(vitrine.releaseCondition, {}, await loadProgress(user.id))
       : { unlocked: true, reason: null };
 
+  const light = user.tenant.theme === "light";
+
   if (!locked.unlocked) {
     const targetTrilhaId =
       vitrine.releaseCondition?.clauses.find((c) => c.targetTrilhaId)?.targetTrilhaId ?? null;
     return (
-      <AppShell user={user} tenant={user.tenant} dark>
-        <div className="mx-auto mt-10 max-w-lg rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+      <AppShell user={user} tenant={user.tenant} dark light={light}>
+        <div className="s-card mx-auto mt-10 max-w-lg rounded-2xl p-8 text-center">
           <div className="text-5xl">🔒</div>
-          <h1 className="mt-3 text-xl font-bold text-white">{vitrine.name}</h1>
-          <p className="mt-2 text-white/60">{locked.reason}</p>
+          <h1 className="s-fg mt-3 text-xl font-bold">{vitrine.name}</h1>
+          <p className="s-muted mt-2">{locked.reason}</p>
           {targetTrilhaId && (
             <Link href={`/trilhas/${targetTrilhaId}`} className="btn-brand mt-5 inline-flex">
               Ir para o pré-requisito
@@ -71,7 +73,7 @@ export default async function VitrinePage({
   const { c1, c2 } = coverFor(vitrine.name);
 
   return (
-    <AppShell user={user} tenant={user.tenant} fluid dark>
+    <AppShell user={user} tenant={user.tenant} fluid dark light={light}>
       <section
         className="relative flex min-h-[260px] items-end text-white"
         style={
@@ -80,7 +82,7 @@ export default async function VitrinePage({
             : ({ ["--c1" as string]: c1, ["--c2" as string]: c2, backgroundImage: `linear-gradient(135deg, var(--c1), var(--c2))` } as React.CSSProperties)
         }
       >
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b12] via-[#0b0b12]/50 to-transparent" />
+        <div className="s-fade-bottom absolute inset-0" />
         <div className="relative mx-auto w-full max-w-6xl px-4 pb-10 pt-6">
           <Link href="/dashboard" className="text-sm text-white/70 hover:text-white">
             ← Voltar
@@ -95,7 +97,7 @@ export default async function VitrinePage({
 
       <div className="mx-auto max-w-6xl px-4 py-8">
         {vitrine.trilhas.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/60">
+          <div className="s-card s-muted rounded-2xl p-8 text-center">
             Nenhum treinamento publicado nesta vitrine ainda.
           </div>
         ) : (
@@ -119,14 +121,14 @@ export default async function VitrinePage({
         {/* Provas da vitrine (avaliação geral da área) */}
         {vitrine.examPlacements.filter((p) => p.exam._count.questions > 0).length > 0 && (
           <div className="mt-10">
-            <h2 className="mb-4 text-lg font-bold text-white">Avaliações da vitrine</h2>
+            <h2 className="s-fg mb-4 text-lg font-bold">Avaliações da vitrine</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {vitrine.examPlacements
                 .filter((p) => p.exam._count.questions > 0)
                 .map((p) => (
-                  <div key={p.id} className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-5">
-                    <h3 className="font-bold text-white">{p.exam.title}</h3>
-                    <p className="mt-1 text-sm text-white/60">
+                  <div key={p.id} className="s-card flex flex-col rounded-2xl p-5">
+                    <h3 className="s-fg font-bold">{p.exam.title}</h3>
+                    <p className="s-muted mt-1 text-sm">
                       {p.exam.questionsToShow} questões · {p.exam.passingScore}% para aprovação
                     </p>
                     <Link href={`/prova/${p.id}`} className="btn-brand mt-4 w-full">

@@ -6,6 +6,7 @@ import AppShell from "@/components/AppShell";
 import ImportCard from "./import-card";
 import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
 import SubmitButton from "@/components/SubmitButton";
+import ImageUpload from "@/components/ImageUpload";
 import { describeCondition } from "@/lib/release";
 import {
   createTrilha,
@@ -239,7 +240,15 @@ export default async function AdminPage() {
             <form action={createVitrine} className="mt-4 grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
               <input name="name" required className="input" placeholder="Nome da nova vitrine" />
               <input name="slug" className="input" placeholder="slug (opcional)" />
-              <input name="coverUrl" className="input sm:col-span-2" placeholder="URL da imagem/capa (opcional)" />
+              <div className="sm:col-span-2">
+                <ImageUpload
+                  name="coverUrl"
+                  label="Capa/banner da vitrine"
+                  hint="16:9 · recomendado 1600×900px · JPG/WebP."
+                  slot="vitrine"
+                  aspect="16 / 9"
+                />
+              </div>
               <textarea name="description" className="input sm:col-span-2" rows={2} placeholder="Descrição (opcional)" />
               <div className="sm:col-span-2">
                 <SubmitButton pendingText="Criando…">Criar vitrine</SubmitButton>
@@ -369,9 +378,58 @@ export default async function AdminPage() {
                 <label className="label">Cor do texto sobre a cor principal</label>
                 <input name="brandFgColor" type="color" defaultValue={user.tenant.brandFgColor} className="h-10 w-full rounded-lg border border-slate-300" />
               </div>
-              <input name="logoUrl" defaultValue={user.tenant.logoUrl ?? ""} className="input" placeholder="URL do logo" />
-              <input name="bannerUrl" defaultValue={user.tenant.bannerUrl ?? ""} className="input" placeholder="URL do banner de entrada" />
-              <input name="certificateBg" defaultValue={user.tenant.certificateBg ?? ""} className="input" placeholder="URL do fundo do certificado" />
+              <div>
+                <label className="label">Tema da área do aluno</label>
+                <p className="-mt-1 mb-2 text-xs text-slate-500">
+                  Escuro = imersivo estilo streaming. Claro = fundo branco.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { v: "dark", t: "Escuro", desc: "Netflix/Prime" },
+                    { v: "light", t: "Claro", desc: "Fundo branco" },
+                  ].map((o) => (
+                    <label
+                      key={o.v}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50"
+                    >
+                      <input
+                        type="radio"
+                        name="theme"
+                        value={o.v}
+                        defaultChecked={(user.tenant.theme ?? "dark") === o.v}
+                      />
+                      <span>
+                        <span className="font-medium">{o.t}</span>
+                        <span className="block text-xs text-slate-400">{o.desc}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <ImageUpload
+                name="logoUrl"
+                label="Logo"
+                hint="PNG com fundo transparente · altura ~64px · até 400×120px."
+                defaultValue={user.tenant.logoUrl ?? ""}
+                slot="logo"
+                aspect="3 / 1"
+              />
+              <ImageUpload
+                name="bannerUrl"
+                label="Banner de entrada (home)"
+                hint="16:9 · recomendado 1600×900px (mín. 1280×720) · JPG/WebP."
+                defaultValue={user.tenant.bannerUrl ?? ""}
+                slot="banner"
+                aspect="16 / 9"
+              />
+              <ImageUpload
+                name="certificateBg"
+                label="Fundo do certificado"
+                hint="A4 paisagem · 3508×2480px (300dpi) · PNG/JPG."
+                defaultValue={user.tenant.certificateBg ?? ""}
+                slot="certificado"
+                aspect="1.414 / 1"
+              />
               <input name="certificateSignature" defaultValue={user.tenant.certificateSignature ?? ""} className="input" placeholder="Assinatura do certificado" />
               <SubmitButton pendingText="Salvando…">Salvar aparência</SubmitButton>
             </form>

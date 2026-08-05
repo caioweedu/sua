@@ -7,8 +7,10 @@ type Props = {
   user: { name: string; role: string };
   tenant: { name: string; logoUrl: string | null };
   fluid?: boolean;
-  /** Tema escuro imersivo (área do aluno, estilo streaming). */
+  /** Área do aluno imersiva (estilo streaming). Combinada com `light` decide o tema. */
   dark?: boolean;
+  /** Quando `dark`, usa a variante clara (fundo branco) da área do aluno. */
+  light?: boolean;
 };
 
 function Brand({ tenant }: { tenant: { name: string; logoUrl: string | null } }) {
@@ -30,7 +32,7 @@ function Brand({ tenant }: { tenant: { name: string; logoUrl: string | null } })
   );
 }
 
-export default function AppShell({ children, user, tenant, fluid, dark }: Props) {
+export default function AppShell({ children, user, tenant, fluid, dark, light }: Props) {
   const initials = user.name
     .split(" ")
     .slice(0, 2)
@@ -38,15 +40,23 @@ export default function AppShell({ children, user, tenant, fluid, dark }: Props)
     .join("")
     .toUpperCase();
 
-  const headerCls = dark
+  // Área do aluno em tema escuro imersivo: só quando `dark` e não `light`.
+  const immersiveDark = !!dark && !light;
+
+  const headerCls = immersiveDark
     ? "sticky top-0 z-30 border-b border-white/10 bg-[#0b0b12]/80 backdrop-blur"
     : "sticky top-0 z-30 border-b border-slate-200 bg-white/85 backdrop-blur";
-  const ghostCls = dark
+  const ghostCls = immersiveDark
     ? "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
     : "btn-ghost";
 
+  // Raiz da área do aluno: publica as variáveis de tema (.stage / .stage.light).
+  const rootCls = dark
+    ? `stage min-h-screen${light ? " light" : ""}`
+    : "min-h-screen";
+
   return (
-    <div className={dark ? "min-h-screen bg-[#0b0b12] text-white" : "min-h-screen"}>
+    <div className={rootCls} style={dark ? { background: "var(--page-bg)", color: "var(--s-fg)" } : undefined}>
       <header className={headerCls}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-8">
@@ -62,7 +72,7 @@ export default function AppShell({ children, user, tenant, fluid, dark }: Props)
                   {tenant.name.charAt(0)}
                 </div>
               )}
-              <span className={`text-[15px] font-bold ${dark ? "text-white" : "text-ink"}`}>{tenant.name}</span>
+              <span className={`text-[15px] font-bold ${immersiveDark ? "text-white" : "text-ink"}`}>{tenant.name}</span>
             </Link>
             <nav className="hidden items-center gap-1 md:flex">
               <Link href="/dashboard" className={ghostCls}>
@@ -78,19 +88,19 @@ export default function AppShell({ children, user, tenant, fluid, dark }: Props)
 
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
-              <div className={`text-sm font-semibold leading-tight ${dark ? "text-white" : "text-ink"}`}>{user.name}</div>
-              <div className={dark ? "text-xs text-white/50" : "text-xs text-slate-400"}>
+              <div className={`text-sm font-semibold leading-tight ${immersiveDark ? "text-white" : "text-ink"}`}>{user.name}</div>
+              <div className={immersiveDark ? "text-xs text-white/50" : "text-xs text-slate-400"}>
                 {user.role === "STUDENT" ? "Aluno" : "Administrador"}
               </div>
             </div>
             <div
               className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
-              style={{ background: "rgb(var(--brand-rgb) / 0.18)", color: dark ? "var(--brand-fg)" : "var(--brand-color)" }}
+              style={{ background: "rgb(var(--brand-rgb) / 0.18)", color: immersiveDark ? "var(--brand-fg)" : "var(--brand-color)" }}
             >
               {initials}
             </div>
             <form action={logoutAction}>
-              <button className={`${ghostCls} ${dark ? "hover:text-red-400" : "text-slate-400 hover:text-red-600"}`} type="submit">
+              <button className={`${ghostCls} ${immersiveDark ? "hover:text-red-400" : "text-slate-400 hover:text-red-600"}`} type="submit">
                 Sair
               </button>
             </form>
