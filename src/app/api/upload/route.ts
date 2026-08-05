@@ -1,60 +1,62 @@
 import { NextResponse } from "next/server";
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { put } from "@vercel/blob";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-// Upload de imagens (capas/banners) via Vercel Blob no modelo *client upload*:
-// o arquivo vai direto do navegador para o Blob, e esta rota apenas assina o
-// token. Isso evita o limite de ~4,5 MB de corpo das funções serverless.
+// Upload simples via servidor: o cliente já envia a imagem OTIMIZADA (redim.
+// no navegador), então o arquivo é pequeno e cabe folgado no limite de corpo
+// das funções. Sem client-upload/webhook — só um put() direto no Blob.
+const MAX_BYTES = 4 * 1024 * 1024; // 4 MB (após otimização isso sobra)
+const ALLOWED = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
+
 export async function POST(request: Request): Promise<NextResponse> {
-  // Sem token configurado: 4xx (falha rápida; evita retentativas do cliente que
-  // parecem "travar"). A UI cai no campo de URL.
+  const user = await getCurrentUser();
+  if (!user || !isAdmin(user.role)) {
+    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  }
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json(
       {
         error:
-          "Upload não configurado: falta BLOB_READ_WRITE_TOKEN no projeto (e um redeploy para aplicar). Cole a URL da imagem enquanto isso.",
+          "Upload não configurado: falta BLOB_READ_WRITE_TOKEN no projeto (e um redeploy). Cole a URL da imagem enquanto isso.",
       },
       { status: 400 }
     );
   }
 
-  const body = (await request.json()) as HandleUploadBody;
+  const form = await request.formData();
+  const file = form.get("file");
+  if (!(file instanceof File)) {
+    return NextResponse.json({ error: "Arquivo não enviado." }, { status: 400 });
+  }
+  if (file.type && !ALLOWED.includes(file.type)) {
+    return NextResponse.json(
+      { error: "Formato inválido. Use PNG, JPG, WebP ou SVG." },
+      { status: 400 }
+    );
+  }
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json(
+      { error: "Imagem muito grande mesmo após otimização. Tente uma menor." },
+      { status: 400 }
+    );
+  }
+
+  const slot = String(form.get("slot") ?? "img").replace(/[^a-z0-9_-]/gi, "");
+  const ext = (file.type.split("/")[1] ?? "png").replace("+xml", "");
+  const key = `${user.tenantId}/${slot}/${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}.${ext}`;
 
   try {
-    const result = await handleUpload({
-      body,
-      request,
-      // A autenticação é validada aqui: só roda na geração do token (requisição
-      // do navegador, com cookie). O evento de conclusão (webhook do Blob, sem
-      // cookie) não passa por aqui e portanto não é bloqueado.
-      onBeforeGenerateToken: async () => {
-        const user = await getCurrentUser();
-        if (!user || !isAdmin(user.role)) {
-          throw new Error("Não autorizado a enviar imagens.");
-        }
-        return {
-          allowedContentTypes: [
-            "image/png",
-            "image/jpeg",
-            "image/webp",
-            "image/svg+xml",
-          ],
-          addRandomSuffix: true,
-          maximumSizeInBytes: 10 * 1024 * 1024, // 10 MB
-          tokenPayload: JSON.stringify({ tenantId: user.tenantId }),
-        };
-      },
-      // Sem pós-processamento: a URL já volta ao cliente pelo fluxo padrão.
-      onUploadCompleted: async () => {},
-    });
-    return NextResponse.json(result);
+    const blob = await put(key, file, { access: "public" });
+    return NextResponse.json({ url: blob.url });
   } catch (e) {
     console.error("[upload] falha", e);
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Falha no upload." },
-      { status: 400 }
+      { error: e instanceof Error ? e.message : "Falha ao subir a imagem." },
+      { status: 500 }
     );
   }
 }
