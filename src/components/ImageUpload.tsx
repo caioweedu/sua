@@ -42,7 +42,13 @@ export default function ImageUpload({
       });
       setUrl(blob.url);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Falha no upload.");
+      const msg = e instanceof Error ? e.message : "Falha no upload.";
+      // Erro genérico do cliente quando o servidor não tem o token do Blob.
+      setErr(
+        /client token/i.test(msg)
+          ? "Upload não configurado: falta a variável BLOB_READ_WRITE_TOKEN no projeto (Vercel → Storage → Blob → copiar o token → Settings → Environment Variables). Enquanto isso, cole a URL da imagem."
+          : msg
+      );
     } finally {
       setBusy(false);
     }
