@@ -1,62 +1,55 @@
-import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { NextResponse } from "next/server";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-// Limites por segurança básica. Imagens de capa/banner ficam bem abaixo disso.
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
-const ALLOWED = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
-
-// POST /api/upload — recebe um arquivo de imagem (campo "file") e devolve a URL
-// pública no Vercel Blob. Só admin pode subir. Se o Blob não estiver configurado
-// (BLOB_READ_WRITE_TOKEN ausente), devolve 501 e a UI cai no campo de URL.
-export async function POST(req: NextRequest) {
-  const user = await getCurrentUser();
-  if (!user || !isAdmin(user.role)) {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-  }
-
+// Upload de imagens (capas/banners) via Vercel Blob no modelo *client upload*:
+// o arquivo vai direto do navegador para o Blob, e esta rota apenas assina o
+// token. Isso evita o limite de ~4,5 MB de corpo das funções serverless.
+export async function POST(request: Request): Promise<NextResponse> {
+  // Sem token configurado: devolve aviso amigável (a UI cai no campo de URL).
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json(
       {
         error:
-          "Upload de imagens ainda não configurado. Ative o Vercel Blob no projeto ou cole a URL da imagem.",
+          "Upload de imagens ainda não configurado. Conecte um Blob Store do Vercel ao projeto (variável BLOB_READ_WRITE_TOKEN) ou cole a URL da imagem.",
       },
       { status: 501 }
     );
   }
 
-  const form = await req.formData();
-  const file = form.get("file");
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Arquivo não enviado." }, { status: 400 });
-  }
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "Imagem acima de 8 MB." }, { status: 400 });
-  }
-  if (file.type && !ALLOWED.includes(file.type)) {
-    return NextResponse.json(
-      { error: "Formato inválido. Use PNG, JPG, WebP ou SVG." },
-      { status: 400 }
-    );
-  }
+  const body = (await request.json()) as HandleUploadBody;
 
-  // Prefixo por tenant + slot para organização; nome aleatório evita colisão.
-  const slot = String(form.get("slot") ?? "img").replace(/[^a-z0-9_-]/gi, "");
-  const ext = (file.name.split(".").pop() ?? "png").toLowerCase();
-  const key = `${user.tenantId}/${slot}/${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}.${ext}`;
+  const user = await getCurrentUser();
+  if (!user || !isAdmin(user.role)) {
+    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  }
 
   try {
-    const blob = await put(key, file, { access: "public" });
-    return NextResponse.json({ url: blob.url });
+    const result = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async () => ({
+        allowedContentTypes: [
+          "image/png",
+          "image/jpeg",
+          "image/webp",
+          "image/svg+xml",
+        ],
+        addRandomSuffix: true,
+        maximumSizeInBytes: 10 * 1024 * 1024, // 10 MB
+        tokenPayload: JSON.stringify({ tenantId: user.tenantId }),
+      }),
+      // Sem pós-processamento: a URL já volta para o cliente pelo fluxo padrão.
+      onUploadCompleted: async () => {},
+    });
+    return NextResponse.json(result);
   } catch (e) {
     console.error("[upload] falha", e);
     return NextResponse.json(
-      { error: "Falha ao subir a imagem. Tente novamente ou cole a URL." },
-      { status: 500 }
+      { error: e instanceof Error ? e.message : "Falha no upload." },
+      { status: 400 }
     );
   }
 }
