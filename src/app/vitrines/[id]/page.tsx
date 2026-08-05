@@ -5,7 +5,7 @@ import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
 import { loadProgress, isUnlocked } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
-import CourseCard from "@/components/CourseCard";
+import PosterCard from "@/components/PosterCard";
 import { coverFor } from "@/lib/cover";
 
 export default async function VitrinePage({
@@ -53,11 +53,11 @@ export default async function VitrinePage({
     const targetTrilhaId =
       vitrine.releaseCondition?.clauses.find((c) => c.targetTrilhaId)?.targetTrilhaId ?? null;
     return (
-      <AppShell user={user} tenant={user.tenant}>
-        <div className="card mx-auto mt-6 max-w-lg text-center">
+      <AppShell user={user} tenant={user.tenant} dark>
+        <div className="mx-auto mt-10 max-w-lg rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
           <div className="text-5xl">🔒</div>
-          <h1 className="mt-3 text-xl font-bold text-ink">{vitrine.name}</h1>
-          <p className="mt-2 text-slate-500">{locked.reason}</p>
+          <h1 className="mt-3 text-xl font-bold text-white">{vitrine.name}</h1>
+          <p className="mt-2 text-white/60">{locked.reason}</p>
           {targetTrilhaId && (
             <Link href={`/trilhas/${targetTrilhaId}`} className="btn-brand mt-5 inline-flex">
               Ir para o pré-requisito
@@ -71,42 +71,43 @@ export default async function VitrinePage({
   const { c1, c2 } = coverFor(vitrine.name);
 
   return (
-    <AppShell user={user} tenant={user.tenant} fluid>
+    <AppShell user={user} tenant={user.tenant} fluid dark>
       <section
-        className="relative text-white"
+        className="relative flex min-h-[260px] items-end text-white"
         style={
           vitrine.bannerUrl || vitrine.coverUrl
-            ? { background: `linear-gradient(0deg, rgba(11,17,32,.75), rgba(11,17,32,.35)), url(${vitrine.bannerUrl || vitrine.coverUrl}) center/cover` }
+            ? { background: `url(${vitrine.bannerUrl || vitrine.coverUrl}) center/cover` }
             : ({ ["--c1" as string]: c1, ["--c2" as string]: c2, backgroundImage: `linear-gradient(135deg, var(--c1), var(--c2))` } as React.CSSProperties)
         }
       >
-        <div className="mx-auto max-w-6xl px-4 py-12">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b12] via-[#0b0b12]/50 to-transparent" />
+        <div className="relative mx-auto w-full max-w-6xl px-4 pb-10 pt-6">
           <Link href="/dashboard" className="text-sm text-white/70 hover:text-white">
             ← Voltar
           </Link>
-          <p className="eyebrow mt-3 text-white/60">Vitrine</p>
-          <h1 className="mt-1 text-3xl font-black sm:text-4xl">{vitrine.name}</h1>
+          <p className="eyebrow mt-3 text-white/50">Vitrine</p>
+          <h1 className="mt-1 text-3xl font-black drop-shadow sm:text-4xl">{vitrine.name}</h1>
           {vitrine.description && (
             <p className="mt-2 max-w-2xl text-white/80">{vitrine.description}</p>
           )}
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl px-4 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-8">
         {vitrine.trilhas.length === 0 ? (
-          <div className="card text-center text-slate-500">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/60">
             Nenhum treinamento publicado nesta vitrine ainda.
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {vitrine.trilhas.map((t) => (
-              <CourseCard
+              <PosterCard
                 key={t.id}
-                id={t.id}
                 title={t.title}
-                description={t.description}
+                seed={t.title}
                 coverUrl={t.coverUrl}
-                aulas={t._count.aulas}
+                href={`/trilhas/${t.id}`}
+                subtitle={`${t._count.aulas} aula(s)`}
                 done={t.enrollments[0]?.status === "COMPLETED"}
                 hasCert={t.certificates.length > 0}
                 progress={t.enrollments.length > 0 ? 45 : 0}
@@ -118,14 +119,14 @@ export default async function VitrinePage({
         {/* Provas da vitrine (avaliação geral da área) */}
         {vitrine.examPlacements.filter((p) => p.exam._count.questions > 0).length > 0 && (
           <div className="mt-10">
-            <h2 className="mb-4 text-lg font-bold text-ink">Avaliações da vitrine</h2>
+            <h2 className="mb-4 text-lg font-bold text-white">Avaliações da vitrine</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {vitrine.examPlacements
                 .filter((p) => p.exam._count.questions > 0)
                 .map((p) => (
-                  <div key={p.id} className="card flex flex-col">
-                    <h3 className="font-bold text-ink">{p.exam.title}</h3>
-                    <p className="mt-1 text-sm text-slate-500">
+                  <div key={p.id} className="flex flex-col rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <h3 className="font-bold text-white">{p.exam.title}</h3>
+                    <p className="mt-1 text-sm text-white/60">
                       {p.exam.questionsToShow} questões · {p.exam.passingScore}% para aprovação
                     </p>
                     <Link href={`/prova/${p.id}`} className="btn-brand mt-4 w-full">
