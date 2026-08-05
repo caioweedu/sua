@@ -1,11 +1,12 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { allowedVitrineIds } from "@/lib/access";
 import { loadProgress, isUnlocked } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
-import VitrineCard from "@/components/VitrineCard";
-import CourseCard from "@/components/CourseCard";
+import Row from "@/components/Row";
+import PosterCard from "@/components/PosterCard";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -21,12 +22,20 @@ export default async function DashboardPage() {
     },
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     include: {
-      _count: { select: { trilhas: { where: { published: true } } } },
       releaseCondition: { include: { clauses: true } },
+      trilhas: {
+        where: { published: true },
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        include: {
+          _count: { select: { aulas: true } },
+          enrollments: { where: { userId: user.id } },
+          certificates: { where: { userId: user.id } },
+        },
+      },
     },
   });
 
-  // Condição de liberação (Fase 2): só afeta alunos.
+  // Condição de liberação (só afeta alunos).
   const prog = user.role === "STUDENT" ? await loadProgress(user.id) : null;
   const vitrineLock = new Map<string, string | null>();
   for (const v of vitrines) {
@@ -34,7 +43,7 @@ export default async function DashboardPage() {
     vitrineLock.set(v.id, r.unlocked ? null : r.reason);
   }
 
-  // Produtos sem vitrine só aparecem para quem tem acesso total (sem perfil).
+  // Produtos sem vitrine (só para acesso total).
   const soltos =
     allowed === null
       ? await prisma.trilha.findMany({
@@ -49,79 +58,93 @@ export default async function DashboardPage() {
       : [];
 
   const banner = user.tenant.bannerUrl;
+  const nome = user.name.split(" ")[0];
+  const vitrinesComConteudo = vitrines.filter((v) => v.trilhas.length > 0);
+  const vazio = vitrinesComConteudo.length === 0 && soltos.length === 0;
 
   return (
-    <AppShell user={user} tenant={user.tenant} fluid>
-      {/* Banner / hero */}
+    <AppShell user={user} tenant={user.tenant} fluid dark>
+      {/* Hero de topo (banner do tenant ou gradiente da marca) */}
       <section
-        className="brand-immersive text-white"
+        className="relative flex min-h-[280px] items-end sm:min-h-[380px]"
         style={
           banner
-            ? { background: `linear-gradient(0deg, rgba(11,17,32,.75), rgba(11,17,32,.35)), url(${banner}) center/cover` }
+            ? { background: `url(${banner}) center/cover` }
             : undefined
         }
       >
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
-          <p className="eyebrow text-white/50">{user.tenant.name}</p>
-          <h1 className="mt-2 text-3xl font-black sm:text-4xl">
-            Olá, {user.name.split(" ")[0]}. Bora aprender? 👋
+        {!banner && <div className="brand-immersive absolute inset-0" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b12] via-[#0b0b12]/50 to-transparent" />
+        <div className="relative mx-auto w-full max-w-6xl px-4 pb-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/60">
+            {user.tenant.name}
+          </p>
+          <h1 className="mt-2 max-w-2xl text-3xl font-black leading-tight text-white drop-shadow sm:text-5xl">
+            Olá, {nome}. Bora aprender? 👋
           </h1>
-          <p className="mt-2 max-w-xl text-white/70">
-            Escolha uma vitrine para explorar os treinamentos.
+          <p className="mt-2 max-w-xl text-white/75">
+            Continue de onde parou ou explore uma nova trilha abaixo.
           </p>
         </div>
       </section>
 
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        {vitrines.length === 0 && soltos.length === 0 ? (
-          <div className="card text-center text-slate-500">
+      <div className="mx-auto max-w-6xl pb-16">
+        {vazio ? (
+          <div className="mx-4 mt-8 rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/60">
             {allowed && allowed.length === 0
               ? "Nenhum conteúdo liberado para o seu perfil ainda. Fale com o administrador."
               : "Nenhum conteúdo publicado ainda."}
           </div>
         ) : (
-          <div className="space-y-10">
-            {vitrines.length > 0 && (
-              <section>
-                <h2 className="mb-4 text-lg font-bold text-ink">Vitrines</h2>
-                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {vitrines.map((v) => (
-                    <VitrineCard
-                      key={v.id}
-                      id={v.id}
-                      name={v.name}
-                      description={v.description}
-                      coverUrl={v.coverUrl}
-                      produtos={v._count.trilhas}
-                      lockReason={vitrineLock.get(v.id) ?? null}
+          <>
+            {vitrinesComConteudo.map((v) => {
+              const reason = vitrineLock.get(v.id) ?? null;
+              const locked = !!reason;
+              return (
+                <Row
+                  key={v.id}
+                  title={v.name}
+                  href={locked ? undefined : `/vitrines/${v.id}`}
+                  hrefLabel="Explorar"
+                  locked={locked}
+                  note={reason}
+                >
+                  {v.trilhas.map((t) => (
+                    <PosterCard
+                      key={t.id}
+                      title={t.title}
+                      seed={t.title}
+                      coverUrl={t.coverUrl}
+                      href={locked ? undefined : `/trilhas/${t.id}`}
+                      subtitle={`${t._count.aulas} aula(s)`}
+                      done={t.enrollments[0]?.status === "COMPLETED"}
+                      hasCert={t.certificates.length > 0}
+                      progress={t.enrollments.length > 0 ? 45 : 0}
+                      locked={locked}
                     />
                   ))}
-                </div>
-              </section>
-            )}
+                </Row>
+              );
+            })}
 
             {soltos.length > 0 && (
-              <section>
-                <h2 className="mb-4 text-lg font-bold text-ink">Outros treinamentos</h2>
-                <div className="row-scroll -mx-4 flex gap-4 overflow-x-auto px-4 pb-2">
-                  {soltos.map((t) => (
-                    <div key={t.id} className="w-[280px] shrink-0">
-                      <CourseCard
-                        id={t.id}
-                        title={t.title}
-                        description={t.description}
-                        coverUrl={t.coverUrl}
-                        aulas={t._count.aulas}
-                        done={t.enrollments[0]?.status === "COMPLETED"}
-                        hasCert={t.certificates.length > 0}
-                        progress={t.enrollments.length > 0 ? 45 : 0}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <Row title="Outros treinamentos">
+                {soltos.map((t) => (
+                  <PosterCard
+                    key={t.id}
+                    title={t.title}
+                    seed={t.title}
+                    coverUrl={t.coverUrl}
+                    href={`/trilhas/${t.id}`}
+                    subtitle={`${t._count.aulas} aula(s)`}
+                    done={t.enrollments[0]?.status === "COMPLETED"}
+                    hasCert={t.certificates.length > 0}
+                    progress={t.enrollments.length > 0 ? 45 : 0}
+                  />
+                ))}
+              </Row>
             )}
-          </div>
+          </>
         )}
       </div>
     </AppShell>
