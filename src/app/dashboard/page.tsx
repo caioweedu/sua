@@ -61,9 +61,10 @@ export default async function DashboardPage() {
   const nome = user.name.split(" ")[0];
   const vitrinesComConteudo = vitrines.filter((v) => v.trilhas.length > 0);
   const vazio = vitrinesComConteudo.length === 0 && soltos.length === 0;
+  const light = user.tenant.theme === "light";
 
   return (
-    <AppShell user={user} tenant={user.tenant} fluid dark>
+    <AppShell user={user} tenant={user.tenant} fluid dark light={light}>
       {/* Hero de topo (banner do tenant ou gradiente da marca) */}
       <section
         className="relative flex min-h-[280px] items-end sm:min-h-[380px]"
@@ -74,7 +75,7 @@ export default async function DashboardPage() {
         }
       >
         {!banner && <div className="brand-immersive absolute inset-0" />}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0b0b12] via-[#0b0b12]/50 to-transparent" />
+        <div className="s-fade-bottom absolute inset-0" />
         <div className="relative mx-auto w-full max-w-6xl px-4 pb-10">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/60">
             {user.tenant.name}
@@ -90,7 +91,7 @@ export default async function DashboardPage() {
 
       <div className="mx-auto max-w-6xl pb-16">
         {vazio ? (
-          <div className="mx-4 mt-8 rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/60">
+          <div className="s-card s-muted mx-4 mt-8 rounded-2xl p-8 text-center">
             {allowed && allowed.length === 0
               ? "Nenhum conteúdo liberado para o seu perfil ainda. Fale com o administrador."
               : "Nenhum conteúdo publicado ainda."}

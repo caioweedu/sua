@@ -134,6 +134,44 @@
   }
 }
 
+/* --- Tema da área do aluno (escuro imersivo x claro) -------------------
+   O contêiner `.stage` publica variáveis de cor consumidas pelos componentes
+   de streaming (Row, heróis, cartões). Assim a home/vitrine funciona em tema
+   escuro (padrão, estilo Netflix) ou claro (fundo branco) só trocando a classe. */
+.stage {
+  --page-bg: #0b0b12;
+  --s-fg: #ffffff;
+  --s-muted: rgb(255 255 255 / 0.72);
+  --s-faint: rgb(255 255 255 / 0.5);
+  --s-card: rgb(255 255 255 / 0.05);
+  --s-border: rgb(255 255 255 / 0.1);
+}
+.stage.light {
+  --page-bg: #f6f7fb;
+  --s-fg: #0f172a;
+  --s-muted: rgb(15 23 42 / 0.7);
+  --s-faint: rgb(15 23 42 / 0.5);
+  --s-card: #ffffff;
+  --s-border: rgb(15 23 42 / 0.1);
+}
+.s-fg {
+  color: var(--s-fg);
+}
+.s-muted {
+  color: var(--s-muted);
+}
+.s-faint {
+  color: var(--s-faint);
+}
+.s-card {
+  background: var(--s-card);
+  border: 1px solid var(--s-border);
+}
+/* Degradê que dissolve o herói no fundo da página (topo transparente). */
+.s-fade-bottom {
+  background: linear-gradient(to top, var(--page-bg) 0%, rgb(0 0 0 / 0) 60%);
+}
+
 /* Scrollbar discreta para os carrosséis */
 .row-scroll {
   scrollbar-width: thin;

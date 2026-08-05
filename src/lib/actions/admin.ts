@@ -602,6 +602,7 @@ export async function updateBranding(formData: FormData) {
     data: {
       brandColor: String(formData.get("brandColor") ?? user.tenant.brandColor),
       brandFgColor: String(formData.get("brandFgColor") ?? user.tenant.brandFgColor),
+      theme: String(formData.get("theme") ?? "dark") === "light" ? "light" : "dark",
       logoUrl: String(formData.get("logoUrl") ?? "").trim() || null,
       bannerUrl: String(formData.get("bannerUrl") ?? "").trim() || null,
       certificateBg: String(formData.get("certificateBg") ?? "").trim() || null,

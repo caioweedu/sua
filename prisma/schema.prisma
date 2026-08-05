@@ -38,6 +38,8 @@ model Tenant {
   // Branding
   brandColor     String  @default("#2563eb")
   brandFgColor   String  @default("#ffffff")
+  // Tema da área do aluno: "dark" (imersivo, estilo streaming) ou "light".
+  theme          String  @default("dark")
   logoUrl        String?
   // Fundo do certificado (URL de imagem) e texto de assinatura.
   certificateBg  String?
