@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { upload } from "@vercel/blob/client";
 
 // Campo de imagem reutilizável: mostra prévia, permite subir um arquivo
 // (Vercel Blob via /api/upload) e mantém um <input hidden> com a URL final para
@@ -31,13 +32,15 @@ export default function ImageUpload({
     setBusy(true);
     setErr(null);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      if (slot) fd.append("slot", slot);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Falha no upload.");
-      setUrl(data.url);
+      // Upload direto do navegador para o Blob (sem passar o arquivo pela
+      // função serverless), evitando o limite de ~4,5 MB de corpo.
+      const pathname = `${slot ?? "img"}/${file.name}`;
+      const blob = await upload(pathname, file, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+        contentType: file.type || undefined,
+      });
+      setUrl(blob.url);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Falha no upload.");
     } finally {
