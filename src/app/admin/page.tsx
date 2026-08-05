@@ -34,7 +34,7 @@ export default async function AdminPage() {
     orderBy: { order: "asc" },
     include: {
       _count: { select: { trilhas: true } },
-      releaseCondition: true,
+      releaseCondition: { include: { clauses: true } },
       examPlacements: {
         include: { exam: { select: { title: true, _count: { select: { questions: true } } } } },
       },

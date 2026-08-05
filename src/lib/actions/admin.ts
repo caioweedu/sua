@@ -273,6 +273,26 @@ async function linkCondition(kind: CondKind, id: string, condId: string | null) 
   else await prisma.examPlacement.update({ where: { id }, data });
 }
 
+// Tipos de cláusula válidos (espelha o motor em lib/release.ts).
+const CLAUSE_TYPES = new Set([
+  "AFTER_AULA",
+  "AFTER_ALL_LESSONS",
+  "AFTER_EXAM_PASSED",
+  "AFTER_MODULE_COMPLETED",
+  "AFTER_TRILHA_COMPLETED",
+  "AFTER_PERCENT",
+  "AFTER_DAYS",
+]);
+
+function intOrNull(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : null;
+}
+
+// Define/atualiza/limpa a REGRA de liberação de um item (Fase 4B). A regra vem
+// como JSON no campo "rule": { logic: "ALL"|"ANY", clauses: [...] }. Sem
+// cláusulas = limpa a regra.
 export async function setReleaseCondition(
   kind: CondKind,
   id: string,
@@ -280,17 +300,40 @@ export async function setReleaseCondition(
   formData: FormData
 ) {
   const user = await requireAdmin();
-  const type = String(formData.get("type") ?? "").trim();
   const existingId = await currentConditionId(kind, id);
 
-  const num = (k: string) => {
-    const v = String(formData.get(k) ?? "").trim();
-    return v === "" ? null : Math.max(0, Number(v));
-  };
-  const str = (k: string) => String(formData.get(k) ?? "").trim() || null;
+  let parsed: { logic?: string; clauses?: unknown[] } = {};
+  try {
+    parsed = JSON.parse(String(formData.get("rule") ?? "{}"));
+  } catch {
+    parsed = {};
+  }
+  const logic = parsed.logic === "ANY" ? "ANY" : "ALL";
+  const rawClauses = Array.isArray(parsed.clauses) ? parsed.clauses : [];
 
-  // Sem tipo → limpa a condição (e remove a linha órfã).
-  if (!type) {
+  // Normaliza e mantém só cláusulas com tipo válido; cada campo relevante ao tipo.
+  const clauseData = rawClauses
+    .map((raw, i) => {
+      const c = (raw ?? {}) as Record<string, unknown>;
+      const type = String(c.type ?? "");
+      if (!CLAUSE_TYPES.has(type)) return null;
+      const s = (k: string) => (c[k] ? String(c[k]) : null);
+      return {
+        type,
+        targetAulaId: type === "AFTER_AULA" ? s("targetAulaId") : null,
+        targetExamPlacementId: type === "AFTER_EXAM_PASSED" ? s("targetExamPlacementId") : null,
+        targetModuloId: type === "AFTER_MODULE_COMPLETED" ? s("targetModuloId") : null,
+        targetTrilhaId: type === "AFTER_TRILHA_COMPLETED" ? s("targetTrilhaId") : null,
+        minScore: type === "AFTER_EXAM_PASSED" ? intOrNull(c.minScore) : null,
+        percent: type === "AFTER_PERCENT" ? intOrNull(c.percent) : null,
+        days: type === "AFTER_DAYS" ? intOrNull(c.days) : null,
+        order: i,
+      };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null);
+
+  // Sem cláusulas → limpa a regra (e remove a linha órfã).
+  if (clauseData.length === 0) {
     if (existingId) {
       await linkCondition(kind, id, null);
       await prisma.releaseCondition.delete({ where: { id: existingId } }).catch(() => {});
@@ -299,22 +342,16 @@ export async function setReleaseCondition(
     return;
   }
 
-  // Só preenche os campos relevantes ao tipo escolhido.
-  const data = {
-    tenantId: user.tenantId,
-    type,
-    targetExamPlacementId: type === "AFTER_EXAM_PASSED" ? str("targetExamPlacementId") : null,
-    targetModuloId: type === "AFTER_MODULE_COMPLETED" ? str("targetModuloId") : null,
-    targetTrilhaId: type === "AFTER_TRILHA_COMPLETED" ? str("targetTrilhaId") : null,
-    minScore: type === "AFTER_EXAM_PASSED" ? num("minScore") : null,
-    percent: type === "AFTER_PERCENT" ? num("percent") : null,
-    days: type === "AFTER_DAYS" ? num("days") : null,
-  };
-
   if (existingId) {
-    await prisma.releaseCondition.update({ where: { id: existingId }, data });
+    await prisma.releaseCondition.update({ where: { id: existingId }, data: { logic } });
+    await prisma.releaseClause.deleteMany({ where: { conditionId: existingId } });
+    await prisma.releaseClause.createMany({
+      data: clauseData.map((c) => ({ ...c, conditionId: existingId })),
+    });
   } else {
-    const cond = await prisma.releaseCondition.create({ data });
+    const cond = await prisma.releaseCondition.create({
+      data: { tenantId: user.tenantId, logic, clauses: { create: clauseData } },
+    });
     await linkCondition(kind, id, cond.id);
   }
   revalidatePath(redirectTo);

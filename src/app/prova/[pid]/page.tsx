@@ -31,14 +31,14 @@ export default async function ProvaPage({
     where: { id: pid },
     include: {
       exam: { include: { questions: { include: { options: true } } } },
-      releaseCondition: true,
-      trilha: { select: { id: true, title: true, vitrineId: true, releaseCondition: true } },
+      releaseCondition: { include: { clauses: true } },
+      trilha: { select: { id: true, title: true, vitrineId: true, releaseCondition: { include: { clauses: true } } } },
       modulo: {
         select: {
           id: true,
           title: true,
-          releaseCondition: true,
-          trilha: { select: { id: true, title: true, vitrineId: true, releaseCondition: true } },
+          releaseCondition: { include: { clauses: true } },
+          trilha: { select: { id: true, title: true, vitrineId: true, releaseCondition: { include: { clauses: true } } } },
         },
       },
       vitrine: { select: { id: true, name: true } },

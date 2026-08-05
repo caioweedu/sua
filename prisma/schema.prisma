@@ -311,15 +311,39 @@ model ExamPlacement {
 }
 
 // ---------------------------------------------------------------------------
-// MOTOR DE CONDIÇÃO DE LIBERAÇÃO (Fase 2)
+// MOTOR DE CONDIÇÃO DE LIBERAÇÃO (Fase 2 + regra composta Fase 4B)
 // ---------------------------------------------------------------------------
-// Uma condição é anexada a um item (vitrine, produto, módulo ou colocação de
-// prova) via `releaseConditionId`. O item só fica liberado quando a condição é
-// satisfeita. Os alvos são ids "soltos" (sem FK) para permitir referência
+// Uma REGRA (ReleaseCondition) é anexada a um item (vitrine, produto, módulo,
+// colocação de prova ou de certificado) via `releaseConditionId`. A regra tem
+// uma lista de CLÁUSULAS (ReleaseClause) combinadas por `logic`:
+//   "ALL" → o item libera quando TODAS as cláusulas são satisfeitas (E)
+//   "ANY" → basta QUALQUER uma ser satisfeita (OU)
+// Os alvos das cláusulas são ids "soltos" (sem FK) para permitir referência
 // cruzada em qualquer lugar da vitrine e para o motor tolerar alvos removidos
 // (nunca travar o aluno permanentemente por um alvo apagado).
+model ReleaseCondition {
+  id        String @id @default(cuid())
+  tenantId  String
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  logic     String @default("ALL") // "ALL" (todas) | "ANY" (qualquer)
+  createdAt DateTime @default(now())
+
+  clauses ReleaseClause[]
+
+  // Itens que usam esta regra (na prática 1:1 por item).
+  vitrines       Vitrine[]
+  trilhas        Trilha[]
+  modulos        Modulo[]
+  examPlacements ExamPlacement[]
+  certificatePlacements CertificatePlacement[]
+
+  @@index([tenantId])
+}
+
+// Uma cláusula é um requisito concreto da regra.
 //
 // Tipos (campo `type`):
+//   AFTER_AULA             — concluir a aula targetAulaId
 //   AFTER_ALL_LESSONS      — concluir todas as aulas do container do item
 //                            (ou de targetModuloId/targetTrilhaId, se informado)
 //   AFTER_EXAM_PASSED      — ser aprovado na prova targetExamPlacementId
@@ -328,13 +352,14 @@ model ExamPlacement {
 //   AFTER_TRILHA_COMPLETED — concluir o produto targetTrilhaId
 //   AFTER_PERCENT          — concluir `percent`% das aulas do produto
 //   AFTER_DAYS             — passar `days` dias desde a matrícula
-model ReleaseCondition {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  type     String
+model ReleaseClause {
+  id          String @id @default(cuid())
+  conditionId String
+  condition   ReleaseCondition @relation(fields: [conditionId], references: [id], onDelete: Cascade)
+  type        String
 
   // Alvos (conforme o tipo) — ids soltos, sem chave estrangeira.
+  targetAulaId          String?
   targetExamPlacementId String?
   targetModuloId        String?
   targetTrilhaId        String?
@@ -342,16 +367,9 @@ model ReleaseCondition {
   minScore Int?
   percent  Int?
   days     Int?
-  createdAt DateTime @default(now())
+  order    Int @default(0)
 
-  // Itens que usam esta condição (na prática 1:1 por item).
-  vitrines       Vitrine[]
-  trilhas        Trilha[]
-  modulos        Modulo[]
-  examPlacements ExamPlacement[]
-  certificatePlacements CertificatePlacement[]
-
-  @@index([tenantId])
+  @@index([conditionId])
 }
 
 model Question {

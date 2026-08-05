@@ -270,7 +270,11 @@ export async function seedDatabase(prisma: PrismaClient) {
           },
         });
         const cond = await prisma.releaseCondition.create({
-          data: { tenantId: mother.id, type: "AFTER_ALL_LESSONS" },
+          data: {
+            tenantId: mother.id,
+            logic: "ALL",
+            clauses: { create: [{ type: "AFTER_ALL_LESSONS", order: 0 }] },
+          },
         });
         const provaPlacement = await prisma.examPlacement.create({
           data: { examId: exam.id, trilhaId: trilha.id, releaseConditionId: cond.id },
@@ -280,8 +284,10 @@ export async function seedDatabase(prisma: PrismaClient) {
         const certCond = await prisma.releaseCondition.create({
           data: {
             tenantId: mother.id,
-            type: "AFTER_EXAM_PASSED",
-            targetExamPlacementId: provaPlacement.id,
+            logic: "ALL",
+            clauses: {
+              create: [{ type: "AFTER_EXAM_PASSED", targetExamPlacementId: provaPlacement.id, order: 0 }],
+            },
           },
         });
         await prisma.certificatePlacement.create({
@@ -322,7 +328,11 @@ export async function seedDatabase(prisma: PrismaClient) {
   const dependenteId = trilhaByTitle.get("Indicadores e Metas");
   if (prereqId && dependenteId) {
     const cond = await prisma.releaseCondition.create({
-      data: { tenantId: mother.id, type: "AFTER_TRILHA_COMPLETED", targetTrilhaId: prereqId },
+      data: {
+        tenantId: mother.id,
+        logic: "ALL",
+        clauses: { create: [{ type: "AFTER_TRILHA_COMPLETED", targetTrilhaId: prereqId, order: 0 }] },
+      },
     });
     await prisma.trilha.update({
       where: { id: dependenteId },
