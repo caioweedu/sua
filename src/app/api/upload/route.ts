@@ -8,40 +8,45 @@ export const runtime = "nodejs";
 // o arquivo vai direto do navegador para o Blob, e esta rota apenas assina o
 // token. Isso evita o limite de ~4,5 MB de corpo das funções serverless.
 export async function POST(request: Request): Promise<NextResponse> {
-  // Sem token configurado: devolve aviso amigável (a UI cai no campo de URL).
+  // Sem token configurado: 4xx (falha rápida; evita retentativas do cliente que
+  // parecem "travar"). A UI cai no campo de URL.
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json(
       {
         error:
-          "Upload de imagens ainda não configurado. Conecte um Blob Store do Vercel ao projeto (variável BLOB_READ_WRITE_TOKEN) ou cole a URL da imagem.",
+          "Upload não configurado: falta BLOB_READ_WRITE_TOKEN no projeto (e um redeploy para aplicar). Cole a URL da imagem enquanto isso.",
       },
-      { status: 501 }
+      { status: 400 }
     );
   }
 
   const body = (await request.json()) as HandleUploadBody;
 
-  const user = await getCurrentUser();
-  if (!user || !isAdmin(user.role)) {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-  }
-
   try {
     const result = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => ({
-        allowedContentTypes: [
-          "image/png",
-          "image/jpeg",
-          "image/webp",
-          "image/svg+xml",
-        ],
-        addRandomSuffix: true,
-        maximumSizeInBytes: 10 * 1024 * 1024, // 10 MB
-        tokenPayload: JSON.stringify({ tenantId: user.tenantId }),
-      }),
-      // Sem pós-processamento: a URL já volta para o cliente pelo fluxo padrão.
+      // A autenticação é validada aqui: só roda na geração do token (requisição
+      // do navegador, com cookie). O evento de conclusão (webhook do Blob, sem
+      // cookie) não passa por aqui e portanto não é bloqueado.
+      onBeforeGenerateToken: async () => {
+        const user = await getCurrentUser();
+        if (!user || !isAdmin(user.role)) {
+          throw new Error("Não autorizado a enviar imagens.");
+        }
+        return {
+          allowedContentTypes: [
+            "image/png",
+            "image/jpeg",
+            "image/webp",
+            "image/svg+xml",
+          ],
+          addRandomSuffix: true,
+          maximumSizeInBytes: 10 * 1024 * 1024, // 10 MB
+          tokenPayload: JSON.stringify({ tenantId: user.tenantId }),
+        };
+      },
+      // Sem pós-processamento: a URL já volta ao cliente pelo fluxo padrão.
       onUploadCompleted: async () => {},
     });
     return NextResponse.json(result);
