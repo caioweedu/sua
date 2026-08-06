@@ -172,6 +172,50 @@
   background: linear-gradient(to top, var(--page-bg) 0%, rgb(0 0 0 / 0) 60%);
 }
 
+/* Remapeamento de superfícies claras dentro da área imersiva ESCURA (player,
+   telas de bloqueio etc.). Só vale em `.stage` sem `.light`, então não afeta o
+   admin nem o tema claro. Evita reescrever classe por classe nas páginas. */
+.stage:not(.light) .card {
+  background: rgb(255 255 255 / 0.05);
+  border-color: rgb(255 255 255 / 0.1);
+  color: #fff;
+  box-shadow: none;
+}
+.stage:not(.light) .bg-white {
+  background-color: rgb(255 255 255 / 0.05) !important;
+}
+.stage:not(.light) .bg-slate-50 {
+  background-color: rgb(255 255 255 / 0.03) !important;
+}
+.stage:not(.light) .bg-slate-100 {
+  background-color: rgb(255 255 255 / 0.09) !important;
+}
+.stage:not(.light) .text-ink {
+  color: #fff !important;
+}
+.stage:not(.light) .text-slate-700,
+.stage:not(.light) .text-slate-600,
+.stage:not(.light) .text-slate-500 {
+  color: rgb(255 255 255 / 0.72) !important;
+}
+.stage:not(.light) .text-slate-400,
+.stage:not(.light) .text-slate-300 {
+  color: rgb(255 255 255 / 0.45) !important;
+}
+.stage:not(.light) .border-slate-200,
+.stage:not(.light) .border-slate-100 {
+  border-color: rgb(255 255 255 / 0.1) !important;
+}
+/* Inputs no tema escuro imersivo. */
+.stage:not(.light) .input {
+  background-color: rgb(255 255 255 / 0.06);
+  border-color: rgb(255 255 255 / 0.14);
+  color: #fff;
+}
+.stage:not(.light) .input::placeholder {
+  color: rgb(255 255 255 / 0.4);
+}
+
 /* Scrollbar discreta para os carrosséis */
 .row-scroll {
   scrollbar-width: thin;

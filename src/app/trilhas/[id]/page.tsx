@@ -62,6 +62,9 @@ export default async function TrilhaPage({
   const allowed = await allowedVitrineIds(user);
   if (!canAccessVitrine(allowed, trilha.vitrineId)) notFound();
 
+  // Tema da área do aluno (escuro imersivo por padrão), igual à home.
+  const light = user.tenant.theme === "light";
+
   // Progresso do aluno (para gating e barra de progresso). Admin não é bloqueado.
   const isStudent = user.role === "STUDENT";
   const prog = isStudent ? await loadProgress(user.id) : null;
@@ -74,7 +77,7 @@ export default async function TrilhaPage({
     const targetTrilhaId =
       trilha.releaseCondition?.clauses.find((c) => c.targetTrilhaId)?.targetTrilhaId ?? null;
     return (
-      <AppShell user={user} tenant={user.tenant}>
+      <AppShell user={user} tenant={user.tenant} dark light={light}>
         <nav className="flex items-center gap-1.5 text-sm text-slate-500">
           <Link href="/dashboard" className="hover:text-ink">Início</Link>
           <span className="text-slate-300">/</span>
@@ -164,7 +167,7 @@ export default async function TrilhaPage({
   const embed = current?.videoUrl ? toEmbedUrl(current.videoUrl) : null;
 
   return (
-    <AppShell user={user} tenant={user.tenant}>
+    <AppShell user={user} tenant={user.tenant} dark light={light}>
       <nav className="flex items-center gap-1.5 text-sm text-slate-500">
         <Link href="/dashboard" className="hover:text-ink">Início</Link>
         {trilha.vitrine && (

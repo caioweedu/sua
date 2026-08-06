@@ -26,6 +26,7 @@ export default async function ProvaPage({
   const { pid } = await params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const light = user.tenant.theme === "light";
 
   const placement = await prisma.examPlacement.findUnique({
     where: { id: pid },
@@ -106,7 +107,7 @@ export default async function ProvaPage({
     }));
 
   return (
-    <AppShell user={user} tenant={user.tenant}>
+    <AppShell user={user} tenant={user.tenant} dark light={light}>
       <div className="mx-auto max-w-2xl">
         <h1 className="text-2xl font-bold">{exam.title}</h1>
         <p className="mb-6 text-slate-500">
