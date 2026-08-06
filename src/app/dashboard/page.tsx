@@ -13,40 +13,35 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const allowed = await allowedVitrineIds(user);
+  const isStudent = user.role === "STUDENT";
 
-  const vitrines = await prisma.vitrine.findMany({
-    where: {
-      tenantId: user.tenantId,
-      published: true,
-      ...(allowed ? { id: { in: allowed } } : {}),
-    },
-    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-    include: {
-      releaseCondition: { include: { clauses: true } },
-      trilhas: {
-        where: { published: true },
-        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-        include: {
-          _count: { select: { aulas: true } },
-          enrollments: { where: { userId: user.id } },
-          certificates: { where: { userId: user.id } },
+  // Busca vitrines, progresso do aluno e produtos soltos em paralelo — evita
+  // round-trips em série ao banco (que, com o banco distante, pesavam).
+  const [vitrines, prog, soltos] = await Promise.all([
+    prisma.vitrine.findMany({
+      where: {
+        tenantId: user.tenantId,
+        published: true,
+        ...(allowed ? { id: { in: allowed } } : {}),
+      },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      include: {
+        releaseCondition: { include: { clauses: true } },
+        trilhas: {
+          where: { published: true },
+          orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+          include: {
+            _count: { select: { aulas: true } },
+            enrollments: { where: { userId: user.id } },
+            certificates: { where: { userId: user.id } },
+          },
         },
       },
-    },
-  });
-
-  // Condição de liberação (só afeta alunos).
-  const prog = user.role === "STUDENT" ? await loadProgress(user.id) : null;
-  const vitrineLock = new Map<string, string | null>();
-  for (const v of vitrines) {
-    const r = prog ? await isUnlocked(v.releaseCondition, {}, prog) : { unlocked: true, reason: null };
-    vitrineLock.set(v.id, r.unlocked ? null : r.reason);
-  }
-
-  // Produtos sem vitrine (só para acesso total).
-  const soltos =
+    }),
+    isStudent ? loadProgress(user.id) : Promise.resolve(null),
+    // Produtos sem vitrine (só para acesso total).
     allowed === null
-      ? await prisma.trilha.findMany({
+      ? prisma.trilha.findMany({
           where: { tenantId: user.tenantId, published: true, vitrineId: null },
           orderBy: [{ order: "asc" }, { createdAt: "asc" }],
           include: {
@@ -55,7 +50,20 @@ export default async function DashboardPage() {
             certificates: { where: { userId: user.id } },
           },
         })
-      : [];
+      : Promise.resolve([]),
+  ]);
+
+  // Condição de liberação (só afeta alunos): avalia todos os cadeados em paralelo.
+  const vitrineLock = new Map<string, string | null>();
+  const lockResults = await Promise.all(
+    vitrines.map((v) =>
+      prog ? isUnlocked(v.releaseCondition, {}, prog) : Promise.resolve({ unlocked: true, reason: null })
+    )
+  );
+  vitrines.forEach((v, i) => {
+    const r = lockResults[i];
+    vitrineLock.set(v.id, r.unlocked ? null : r.reason);
+  });
 
   const banner = user.tenant.bannerUrl;
   const nome = user.name.split(" ")[0];
