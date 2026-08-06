@@ -23,6 +23,10 @@ import {
   createUser,
   assignProfile,
   deleteUser,
+  createHeroSlide,
+  updateHeroSlide,
+  deleteHeroSlide,
+  moveHeroSlide,
 } from "@/lib/actions/admin";
 
 export default async function AdminPage() {
@@ -80,6 +84,11 @@ export default async function AdminPage() {
     where: { tenantId: user.tenantId, role: "STUDENT" },
     orderBy: { createdAt: "asc" },
     include: { accessProfile: { select: { id: true, name: true } } },
+  });
+
+  const heroSlides = await prisma.heroSlide.findMany({
+    where: { tenantId: user.tenantId },
+    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
   });
 
   const isSuper = user.role === "SUPER_ADMIN";
@@ -432,6 +441,106 @@ export default async function AdminPage() {
               />
               <input name="certificateSignature" defaultValue={user.tenant.certificateSignature ?? ""} className="input" placeholder="Assinatura do certificado" />
               <SubmitButton pendingText="Salvando…">Salvar aparência</SubmitButton>
+            </form>
+          </div>
+
+          {/* Banner rotativo da home (hero) */}
+          <div className="card">
+            <h2 className="mb-1 font-semibold">Banner rotativo da home</h2>
+            <p className="mb-4 text-xs text-slate-500">
+              Slides que giram no topo da home do aluno. Imagem + texto e link
+              opcionais. Recomendado 1600×900px (16:9).
+            </p>
+
+            {heroSlides.length > 0 && (
+              <ul className="mb-4 space-y-3">
+                {heroSlides.map((s, idx) => (
+                  <li key={s.id} className="rounded-xl border border-slate-200 p-3">
+                    <div className="flex items-start gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={s.imageUrl}
+                        alt=""
+                        className="h-14 w-24 shrink-0 rounded-lg object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {s.title || <span className="text-slate-400">(sem título)</span>}
+                          {!s.active && (
+                            <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
+                              oculto
+                            </span>
+                          )}
+                        </p>
+                        {s.subtitle && <p className="truncate text-xs text-slate-500">{s.subtitle}</p>}
+                        {s.ctaHref && (
+                          <p className="truncate text-xs text-brand">
+                            {s.ctaLabel ? `${s.ctaLabel} → ` : "→ "}
+                            {s.ctaHref}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <div className="flex gap-1">
+                          <form action={moveHeroSlide.bind(null, s.id, "up")}>
+                            <button className="rounded border border-slate-200 px-1.5 text-xs disabled:opacity-30" disabled={idx === 0} type="submit">↑</button>
+                          </form>
+                          <form action={moveHeroSlide.bind(null, s.id, "down")}>
+                            <button className="rounded border border-slate-200 px-1.5 text-xs disabled:opacity-30" disabled={idx === heroSlides.length - 1} type="submit">↓</button>
+                          </form>
+                          <form action={deleteHeroSlide.bind(null, s.id)}>
+                            <button className="rounded border border-slate-200 px-1.5 text-xs text-red-500" type="submit">remover</button>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Editar slide */}
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-xs text-slate-500">editar</summary>
+                      <form action={updateHeroSlide.bind(null, s.id)} className="mt-2 space-y-2">
+                        <ImageUpload
+                          name="imageUrl"
+                          label="Imagem do slide"
+                          hint="16:9 · 1600×900px · JPG/WebP."
+                          defaultValue={s.imageUrl}
+                          slot="hero"
+                          aspect="16 / 9"
+                        />
+                        <input name="title" defaultValue={s.title ?? ""} className="input" placeholder="Título (opcional)" />
+                        <input name="subtitle" defaultValue={s.subtitle ?? ""} className="input" placeholder="Subtítulo (opcional)" />
+                        <div className="grid grid-cols-2 gap-2">
+                          <input name="ctaLabel" defaultValue={s.ctaLabel ?? ""} className="input" placeholder="Texto do botão" />
+                          <input name="ctaHref" defaultValue={s.ctaHref ?? ""} className="input" placeholder="Link (ex.: /vitrines/... ou https://)" />
+                        </div>
+                        <label className="flex items-center gap-2 text-sm text-slate-600">
+                          <input type="checkbox" name="active" defaultChecked={s.active} /> Ativo (visível na home)
+                        </label>
+                        <SubmitButton pendingText="Salvando…">Salvar slide</SubmitButton>
+                      </form>
+                    </details>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Novo slide */}
+            <form action={createHeroSlide} className="space-y-2 border-t border-slate-100 pt-4">
+              <p className="text-sm font-medium">Novo slide</p>
+              <ImageUpload
+                name="imageUrl"
+                label="Imagem do slide"
+                hint="16:9 · 1600×900px · JPG/WebP."
+                slot="hero"
+                aspect="16 / 9"
+              />
+              <input name="title" className="input" placeholder="Título (opcional)" />
+              <input name="subtitle" className="input" placeholder="Subtítulo (opcional)" />
+              <div className="grid grid-cols-2 gap-2">
+                <input name="ctaLabel" className="input" placeholder="Texto do botão (opcional)" />
+                <input name="ctaHref" className="input" placeholder="Link (ex.: /vitrines/ID ou https://)" />
+              </div>
+              <SubmitButton pendingText="Adicionando…">+ Adicionar slide</SubmitButton>
             </form>
           </div>
 

@@ -93,6 +93,24 @@ export async function deleteModulo(moduloId: string, trilhaId: string) {
   revalidatePath(`/admin/trilhas/${trilhaId}`);
 }
 
+// Atualiza título e/ou capa do módulo (Fatia 2 visual).
+export async function updateModulo(
+  moduloId: string,
+  trilhaId: string,
+  formData: FormData
+) {
+  await requireAdmin();
+  const title = String(formData.get("title") ?? "").trim();
+  await prisma.modulo.update({
+    where: { id: moduloId },
+    data: {
+      ...(title ? { title } : {}),
+      coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
+    },
+  });
+  revalidatePath(`/admin/trilhas/${trilhaId}`);
+}
+
 export async function togglePublish(trilhaId: string, published: boolean) {
   await requireAdmin();
   await prisma.trilha.update({ where: { id: trilhaId }, data: { published } });
@@ -609,5 +627,66 @@ export async function updateBranding(formData: FormData) {
       certificateSignature: String(formData.get("certificateSignature") ?? "").trim() || null,
     },
   });
+  revalidatePath("/admin");
+}
+
+// --- Hero / banner rotativo da home (Fatia 2 visual) --------------------
+export async function createHeroSlide(formData: FormData) {
+  const user = await requireAdmin();
+  const imageUrl = String(formData.get("imageUrl") ?? "").trim();
+  if (!imageUrl) return; // slide sem imagem não faz sentido
+  const count = await prisma.heroSlide.count({ where: { tenantId: user.tenantId } });
+  await prisma.heroSlide.create({
+    data: {
+      tenantId: user.tenantId,
+      imageUrl,
+      title: String(formData.get("title") ?? "").trim() || null,
+      subtitle: String(formData.get("subtitle") ?? "").trim() || null,
+      ctaLabel: String(formData.get("ctaLabel") ?? "").trim() || null,
+      ctaHref: String(formData.get("ctaHref") ?? "").trim() || null,
+      order: count,
+    },
+  });
+  revalidatePath("/admin");
+}
+
+export async function updateHeroSlide(slideId: string, formData: FormData) {
+  const user = await requireAdmin();
+  await prisma.heroSlide.updateMany({
+    where: { id: slideId, tenantId: user.tenantId },
+    data: {
+      imageUrl: String(formData.get("imageUrl") ?? "").trim() || undefined,
+      title: String(formData.get("title") ?? "").trim() || null,
+      subtitle: String(formData.get("subtitle") ?? "").trim() || null,
+      ctaLabel: String(formData.get("ctaLabel") ?? "").trim() || null,
+      ctaHref: String(formData.get("ctaHref") ?? "").trim() || null,
+      active: formData.get("active") != null,
+    },
+  });
+  revalidatePath("/admin");
+}
+
+export async function deleteHeroSlide(slideId: string) {
+  const user = await requireAdmin();
+  await prisma.heroSlide.deleteMany({ where: { id: slideId, tenantId: user.tenantId } });
+  revalidatePath("/admin");
+}
+
+// Move um slide para cima/baixo trocando a ordem com o vizinho.
+export async function moveHeroSlide(slideId: string, dir: "up" | "down") {
+  const user = await requireAdmin();
+  const slides = await prisma.heroSlide.findMany({
+    where: { tenantId: user.tenantId },
+    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+    select: { id: true },
+  });
+  const i = slides.findIndex((s) => s.id === slideId);
+  if (i < 0) return;
+  const j = dir === "up" ? i - 1 : i + 1;
+  if (j < 0 || j >= slides.length) return;
+  await prisma.$transaction([
+    prisma.heroSlide.update({ where: { id: slides[i].id }, data: { order: j } }),
+    prisma.heroSlide.update({ where: { id: slides[j].id }, data: { order: i } }),
+  ]);
   revalidatePath("/admin");
 }
