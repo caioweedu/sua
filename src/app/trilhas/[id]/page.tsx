@@ -136,6 +136,7 @@ export default async function TrilhaPage({
     ...trilha.modulos.map((m) => ({
       moduloId: m.id,
       title: m.title,
+      coverUrl: m.coverUrl as string | null,
       aulas: m.aulas,
       provas: m.examPlacements.filter((p) => p.exam._count.questions > 0),
       lock: moduloLock.get(m.id) ?? { unlocked: true, reason: null },
@@ -144,6 +145,7 @@ export default async function TrilhaPage({
       ? [{
           moduloId: null as string | null,
           title: "Aulas",
+          coverUrl: null as string | null,
           aulas: trilha.aulas,
           provas: [] as typeof trilha.modulos[number]["examPlacements"],
           lock: { unlocked: true, reason: null } as UnlockResult,
@@ -276,8 +278,18 @@ export default async function TrilhaPage({
             <div className="max-h-[55vh] overflow-y-auto">
               {grupos.map((g, gi) => (
                 <div key={gi}>
+                  {g.coverUrl && (
+                    <div className="relative h-20 w-full overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={g.coverUrl} alt="" className={`h-full w-full object-cover ${g.lock.unlocked ? "" : "grayscale"}`} />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                      <span className="absolute bottom-1.5 left-3 text-sm font-bold text-white drop-shadow">
+                        {g.title}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between bg-slate-50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                    <span>{g.title}</span>
+                    <span>{g.coverUrl ? "Conteúdo" : g.title}</span>
                     {!g.lock.unlocked && <span title={g.lock.reason ?? ""}>🔒</span>}
                   </div>
 

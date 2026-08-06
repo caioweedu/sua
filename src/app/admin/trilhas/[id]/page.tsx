@@ -12,6 +12,7 @@ import {
   deleteAula,
   addModulo,
   deleteModulo,
+  updateModulo,
   updateTrilhaMeta,
   attachExamToTrilha,
   attachExamToModulo,
@@ -194,12 +195,39 @@ export default async function ManageTrilhaPage({
               {trilha.modulos.map((m) => (
                 <div key={m.id} className="rounded-xl border border-slate-200">
                   <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-                    <span className="text-sm font-semibold text-ink">{m.title}</span>
+                    <span className="flex items-center gap-2 text-sm font-semibold text-ink">
+                      {m.coverUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={m.coverUrl} alt="" className="h-6 w-10 rounded object-cover" />
+                      )}
+                      {m.title}
+                    </span>
                     <form action={deleteModulo.bind(null, m.id, trilha.id)}>
                       <button className="text-xs text-red-500 hover:underline" type="submit">
                         remover módulo
                       </button>
                     </form>
+                  </div>
+
+                  {/* Capa do módulo (Fatia 2 visual) */}
+                  <div className="border-b border-slate-100 px-3 py-2">
+                    <details>
+                      <summary className="cursor-pointer text-xs text-slate-500">
+                        {m.coverUrl ? "trocar capa do módulo" : "adicionar capa do módulo"}
+                      </summary>
+                      <form action={updateModulo.bind(null, m.id, trilha.id)} className="mt-2 space-y-2">
+                        <input name="title" defaultValue={m.title} className="input" placeholder="Título do módulo" />
+                        <ImageUpload
+                          name="coverUrl"
+                          label="Capa do módulo"
+                          hint="16:9 · 1600×900px · JPG/WebP. Aparece no topo do módulo no player."
+                          defaultValue={m.coverUrl ?? ""}
+                          slot="modulo"
+                          aspect="16 / 9"
+                        />
+                        <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">Salvar módulo</SubmitButton>
+                      </form>
+                    </details>
                   </div>
                   <ul className="divide-y divide-slate-50">
                     {m.aulas.map((a, i) => (

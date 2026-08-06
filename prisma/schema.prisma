@@ -8,9 +8,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   // URL com pooling (ex.: Neon pooler) — usada pela aplicação em runtime.
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
   // URL direta (sem pooler) — usada pelas migrations. Em dev local pode ser
   // igual à DATABASE_URL.
   directUrl = env("DIRECT_URL")
@@ -24,45 +24,69 @@ datasource db {
 // sua própria marca e pode ter um domínio personalizado.
 
 model Tenant {
-  id           String  @id @default(cuid())
-  name         String
-  slug         String  @unique // usado como subdomínio: <slug>.dominio.com
-  type         String  @default("DAUGHTER") // "MOTHER" | "DAUGHTER"
-  parentId     String?
-  parent       Tenant? @relation("TenantHierarchy", fields: [parentId], references: [id])
-  children     Tenant[] @relation("TenantHierarchy")
+  id       String   @id @default(cuid())
+  name     String
+  slug     String   @unique // usado como subdomínio: <slug>.dominio.com
+  type     String   @default("DAUGHTER") // "MOTHER" | "DAUGHTER"
+  parentId String?
+  parent   Tenant?  @relation("TenantHierarchy", fields: [parentId], references: [id])
+  children Tenant[] @relation("TenantHierarchy")
 
   // Domínio próprio (ex.: universidade.cliente.com.br). Opcional.
   customDomain String? @unique
 
   // Branding
-  brandColor     String  @default("#2563eb")
-  brandFgColor   String  @default("#ffffff")
+  brandColor           String  @default("#2563eb")
+  brandFgColor         String  @default("#ffffff")
   // Tema da área do aluno: "dark" (imersivo, estilo streaming) ou "light".
-  theme          String  @default("dark")
-  logoUrl        String?
+  theme                String  @default("dark")
+  logoUrl              String?
   // Fundo do certificado (URL de imagem) e texto de assinatura.
-  certificateBg  String?
+  certificateBg        String?
   certificateSignature String?
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  users    User[]
-  trilhas  Trilha[]
-  vitrines Vitrine[]
-  accessProfiles AccessProfile[]
+  users                User[]
+  trilhas              Trilha[]
+  vitrines             Vitrine[]
+  accessProfiles       AccessProfile[]
   // Biblioteca de provas reutilizáveis do tenant.
-  exams    Exam[]
+  exams                Exam[]
   // Condições de liberação (motor de gating unificado, Fase 2).
-  releaseConditions ReleaseCondition[]
+  releaseConditions    ReleaseCondition[]
   // Biblioteca de modelos de certificado (Fase 3).
   certificateTemplates CertificateTemplate[]
+  // Slides do banner rotativo da home (Fatia 2 visual).
+  heroSlides           HeroSlide[]
 
   // Banner exibido na entrada (topo do painel do aluno).
   bannerUrl String?
 
   @@index([parentId])
+}
+
+// ---------------------------------------------------------------------------
+// HERO / BANNER ROTATIVO (Fatia 2 visual)
+// ---------------------------------------------------------------------------
+// Slides do carrossel de topo da home do aluno. Cada slide tem uma imagem e,
+// opcionalmente, texto e um link (CTA) para conteúdo/URL. Geridos no admin.
+
+model HeroSlide {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  imageUrl  String
+  title     String?
+  subtitle  String?
+  ctaLabel  String?
+  ctaHref   String?
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
 }
 
 // ---------------------------------------------------------------------------
@@ -73,16 +97,16 @@ model Tenant {
 // O acesso pode ser restrito por perfil (Fase B).
 
 model Vitrine {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   tenantId    String
-  tenant      Tenant  @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
   name        String
   slug        String
   description String?
   coverUrl    String?
   bannerUrl   String?
-  published   Boolean @default(true)
-  order       Int     @default(0)
+  published   Boolean  @default(true)
+  order       Int      @default(0)
   createdAt   DateTime @default(now())
 
   // Condição de liberação (Fase 2): a vitrine só fica acessível quando a
@@ -90,8 +114,8 @@ model Vitrine {
   releaseConditionId String?
   releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
 
-  trilhas Trilha[]
-  profiles AccessProfile[]
+  trilhas        Trilha[]
+  profiles       AccessProfile[]
   // Provas colocadas diretamente na vitrine (avaliação geral da área).
   examPlacements ExamPlacement[]
 
@@ -108,9 +132,9 @@ model Vitrine {
 // publicadas (aberto por padrão).
 
 model AccessProfile {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   tenantId    String
-  tenant      Tenant  @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
   name        String
   description String?
   createdAt   DateTime @default(now())
@@ -158,9 +182,9 @@ model User {
 // A trilha (produto) pode ter uma prova ao final e emite certificado.
 
 model Trilha {
-  id          String  @id @default(cuid())
+  id          String   @id @default(cuid())
   tenantId    String
-  tenant      Tenant  @relation(fields: [tenantId], references: [id])
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
   // Vitrine à qual o produto pertence (nulo = ainda não organizado).
   vitrineId   String?
   vitrine     Vitrine? @relation(fields: [vitrineId], references: [id])
@@ -169,8 +193,8 @@ model Trilha {
   coverUrl    String?
   // Categoria legada (substituída por vitrine; mantida por compatibilidade).
   category    String?
-  published   Boolean @default(false)
-  order       Int     @default(0)
+  published   Boolean  @default(false)
+  order       Int      @default(0)
   createdAt   DateTime @default(now())
 
   // Condição de liberação (Fase 2): este produto só fica acessível quando a
@@ -178,14 +202,14 @@ model Trilha {
   releaseConditionId String?
   releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
 
-  modulos     Modulo[]
-  aulas       Aula[]
+  modulos               Modulo[]
+  aulas                 Aula[]
   // Provas colocadas neste produto (prova final do produto).
-  examPlacements ExamPlacement[]
+  examPlacements        ExamPlacement[]
   // Certificados colocados neste produto (Fase 3).
   certificatePlacements CertificatePlacement[]
-  enrollments Enrollment[]
-  certificates Certificate[]
+  enrollments           Enrollment[]
+  certificates          Certificate[]
 
   @@index([tenantId])
   @@index([vitrineId])
@@ -194,17 +218,19 @@ model Trilha {
 
 // Módulo agrupa aulas dentro de um produto.
 model Modulo {
-  id        String  @id @default(cuid())
-  trilhaId  String
-  trilha    Trilha  @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
-  title     String
-  order     Int     @default(0)
+  id       String  @id @default(cuid())
+  trilhaId String
+  trilha   Trilha  @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  title    String
+  order    Int     @default(0)
+  // Capa/banner do módulo (Fatia 2 visual). Aparece no topo do módulo no player.
+  coverUrl String?
 
   // Condição de liberação (Fase 2): o módulo só abre quando satisfeita.
   releaseConditionId String?
   releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
 
-  aulas     Aula[]
+  aulas          Aula[]
   // Provas colocadas ao fim deste módulo (checkpoint do módulo).
   examPlacements ExamPlacement[]
 
@@ -227,7 +253,7 @@ model Aula {
   pdfUrl      String?
   order       Int     @default(0)
 
-  progress    AulaProgress[]
+  progress AulaProgress[]
 
   @@index([trilhaId])
   @@index([moduloId])
@@ -262,17 +288,17 @@ model AulaProgress {
 // cadastradas, mostra 6).
 
 model Exam {
-  id             String @id @default(cuid())
+  id              String   @id @default(cuid())
   // Tenant dono da prova (a prova vive na biblioteca do tenant).
-  tenantId       String
-  tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  title          String @default("Avaliação final")
-  questionsToShow Int   @default(6)  // quantas questões sortear por tentativa
-  passingScore   Int    @default(70) // % mínimo para aprovação
-  maxAttempts    Int    @default(0)  // 0 = ilimitado
-  shuffleOptions Boolean @default(true)  // embaralhar as alternativas
-  showAnswers    Boolean @default(false) // mostrar o gabarito ao final
-  createdAt      DateTime @default(now())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  title           String   @default("Avaliação final")
+  questionsToShow Int      @default(6) // quantas questões sortear por tentativa
+  passingScore    Int      @default(70) // % mínimo para aprovação
+  maxAttempts     Int      @default(0) // 0 = ilimitado
+  shuffleOptions  Boolean  @default(true) // embaralhar as alternativas
+  showAnswers     Boolean  @default(false) // mostrar o gabarito ao final
+  createdAt       DateTime @default(now())
 
   questions  Question[]
   attempts   ExamAttempt[]
@@ -284,9 +310,9 @@ model Exam {
 // Colocação de uma prova num container. Exatamente UM de vitrineId/trilhaId/
 // moduloId é preenchido — é onde a prova aparece para o aluno.
 model ExamPlacement {
-  id       String  @id @default(cuid())
-  examId   String
-  exam     Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  examId String
+  exam   Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
 
   // Container (exatamente um):
   vitrineId String?
@@ -296,12 +322,12 @@ model ExamPlacement {
   moduloId  String?
   modulo    Modulo?  @relation(fields: [moduloId], references: [id], onDelete: Cascade)
 
-  order    Int     @default(0)
-  required Boolean @default(true)
+  order              Int               @default(0)
+  required           Boolean           @default(true)
   // Condição de liberação (Fase 2): a prova só abre quando satisfeita.
   releaseConditionId String?
   releaseCondition   ReleaseCondition? @relation(fields: [releaseConditionId], references: [id])
-  createdAt DateTime @default(now())
+  createdAt          DateTime          @default(now())
 
   attempts ExamAttempt[]
 
@@ -324,19 +350,19 @@ model ExamPlacement {
 // cruzada em qualquer lugar da vitrine e para o motor tolerar alvos removidos
 // (nunca travar o aluno permanentemente por um alvo apagado).
 model ReleaseCondition {
-  id        String @id @default(cuid())
+  id        String   @id @default(cuid())
   tenantId  String
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  logic     String @default("ALL") // "ALL" (todas) | "ANY" (qualquer)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  logic     String   @default("ALL") // "ALL" (todas) | "ANY" (qualquer)
   createdAt DateTime @default(now())
 
   clauses ReleaseClause[]
 
   // Itens que usam esta regra (na prática 1:1 por item).
-  vitrines       Vitrine[]
-  trilhas        Trilha[]
-  modulos        Modulo[]
-  examPlacements ExamPlacement[]
+  vitrines              Vitrine[]
+  trilhas               Trilha[]
+  modulos               Modulo[]
+  examPlacements        ExamPlacement[]
   certificatePlacements CertificatePlacement[]
 
   @@index([tenantId])
@@ -355,7 +381,7 @@ model ReleaseCondition {
 //   AFTER_PERCENT          — concluir `percent`% das aulas do produto
 //   AFTER_DAYS             — passar `days` dias desde a matrícula
 model ReleaseClause {
-  id          String @id @default(cuid())
+  id          String           @id @default(cuid())
   conditionId String
   condition   ReleaseCondition @relation(fields: [conditionId], references: [id], onDelete: Cascade)
   type        String
@@ -369,17 +395,17 @@ model ReleaseClause {
   minScore Int?
   percent  Int?
   days     Int?
-  order    Int @default(0)
+  order    Int  @default(0)
 
   @@index([conditionId])
 }
 
 model Question {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   examId    String
-  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  exam      Exam             @relation(fields: [examId], references: [id], onDelete: Cascade)
   statement String
-  order     Int      @default(0)
+  order     Int              @default(0)
   options   QuestionOption[]
 
   @@index([examId])
@@ -413,20 +439,20 @@ model Enrollment {
 }
 
 model ExamAttempt {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  examId    String
-  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  id          String         @id @default(cuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examId      String
+  exam        Exam           @relation(fields: [examId], references: [id], onDelete: Cascade)
   // Colocação em que a tentativa foi feita (define o contexto: produto/módulo/
   // vitrine). Nulo apenas para tentativas antigas anteriores à Fase 1.
   placementId String?
   placement   ExamPlacement? @relation(fields: [placementId], references: [id], onDelete: SetNull)
-  score     Int      // percentual acertado (0-100)
-  passed    Boolean
+  score       Int // percentual acertado (0-100)
+  passed      Boolean
   // Respostas do aluno em JSON (stringificado para compatibilidade com SQLite).
-  answers   String
-  createdAt DateTime @default(now())
+  answers     String
+  createdAt   DateTime       @default(now())
 
   @@index([userId])
   @@index([examId])
@@ -434,16 +460,16 @@ model ExamAttempt {
 }
 
 model Certificate {
-  id           String   @id @default(cuid())
-  code         String   @unique // código público de validação
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trilhaId     String
-  trilha       Trilha   @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  code        String   @unique // código público de validação
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trilhaId    String
+  trilha      Trilha   @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
   // Snapshot dos dados no momento da emissão (para o certificado não mudar depois).
-  studentName  String
-  trilhaTitle  String
-  issuedAt     DateTime @default(now())
+  studentName String
+  trilhaTitle String
+  issuedAt    DateTime @default(now())
 
   // Snapshot do modelo/colocação usados (Fase 3). Nulos = certificado legado
   // (renderiza com o fundo/assinatura padrão do tenant).
@@ -470,9 +496,9 @@ model Certificate {
 // curso, data) + campos preenchidos.
 
 model CertificateTemplate {
-  id            String @id @default(cuid())
+  id            String   @id @default(cuid())
   tenantId      String
-  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name          String
   // Fundo (frente) do certificado. Nulo = usa o fundo padrão do tenant.
   backgroundUrl String?
@@ -485,12 +511,12 @@ model CertificateTemplate {
 }
 
 model CertificatePlacement {
-  id         String @id @default(cuid())
+  id         String              @id @default(cuid())
   templateId String
   template   CertificateTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   // Certificado é sempre vinculado a um produto (como na Cademí).
   trilhaId   String
-  trilha     Trilha @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  trilha     Trilha              @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
 
   // Campos preenchidos por produto.
   professor            String?

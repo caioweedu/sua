@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import Row from "@/components/Row";
 import PosterCard from "@/components/PosterCard";
+import HeroCarousel from "@/components/HeroCarousel";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -15,9 +16,9 @@ export default async function DashboardPage() {
   const allowed = await allowedVitrineIds(user);
   const isStudent = user.role === "STUDENT";
 
-  // Busca vitrines, progresso do aluno e produtos soltos em paralelo — evita
-  // round-trips em série ao banco (que, com o banco distante, pesavam).
-  const [vitrines, prog, soltos] = await Promise.all([
+  // Busca vitrines, progresso do aluno, produtos soltos e slides do hero em
+  // paralelo — evita round-trips em série ao banco.
+  const [vitrines, prog, soltos, heroSlides] = await Promise.all([
     prisma.vitrine.findMany({
       where: {
         tenantId: user.tenantId,
@@ -51,6 +52,10 @@ export default async function DashboardPage() {
           },
         })
       : Promise.resolve([]),
+    prisma.heroSlide.findMany({
+      where: { tenantId: user.tenantId, active: true },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+    }),
   ]);
 
   // Condição de liberação (só afeta alunos): avalia todos os cadeados em paralelo.
@@ -73,29 +78,29 @@ export default async function DashboardPage() {
 
   return (
     <AppShell user={user} tenant={user.tenant} fluid dark light={light}>
-      {/* Hero de topo (banner do tenant ou gradiente da marca) */}
-      <section
-        className="relative flex min-h-[280px] items-end sm:min-h-[380px]"
-        style={
-          banner
-            ? { background: `url(${banner}) center/cover` }
-            : undefined
-        }
-      >
-        {!banner && <div className="brand-immersive absolute inset-0" />}
-        <div className="s-fade-bottom absolute inset-0" />
-        <div className="relative mx-auto w-full max-w-6xl px-4 pb-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/60">
-            {user.tenant.name}
-          </p>
-          <h1 className="mt-2 max-w-2xl text-3xl font-black leading-tight text-white drop-shadow sm:text-5xl">
-            Olá, {nome}. Bora aprender? 👋
-          </h1>
-          <p className="mt-2 max-w-xl text-white/75">
-            Continue de onde parou ou explore uma nova trilha abaixo.
-          </p>
-        </div>
-      </section>
+      {/* Hero de topo: carrossel rotativo (se houver slides) ou hero padrão */}
+      {heroSlides.length > 0 ? (
+        <HeroCarousel slides={heroSlides} />
+      ) : (
+        <section
+          className="relative flex min-h-[280px] items-end sm:min-h-[380px]"
+          style={banner ? { background: `url(${banner}) center/cover` } : undefined}
+        >
+          {!banner && <div className="brand-immersive absolute inset-0" />}
+          <div className="s-fade-bottom absolute inset-0" />
+          <div className="relative mx-auto w-full max-w-6xl px-4 pb-10">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/60">
+              {user.tenant.name}
+            </p>
+            <h1 className="mt-2 max-w-2xl text-3xl font-black leading-tight text-white drop-shadow sm:text-5xl">
+              Olá, {nome}. Bora aprender? 👋
+            </h1>
+            <p className="mt-2 max-w-xl text-white/75">
+              Continue de onde parou ou explore uma nova trilha abaixo.
+            </p>
+          </div>
+        </section>
+      )}
 
       <div className="mx-auto max-w-6xl pb-16">
         {vazio ? (
