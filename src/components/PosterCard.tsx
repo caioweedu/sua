@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { coverFor, iconFor } from "@/lib/cover";
 
 type Props = {
@@ -35,11 +36,23 @@ export default function PosterCard({
       className="relative aspect-[2/3] w-full overflow-hidden rounded-xl"
       style={
         coverUrl
-          ? { background: `url(${coverUrl}) center/cover` }
+          ? undefined
           : ({ ["--c1" as string]: c1, ["--c2" as string]: c2 } as React.CSSProperties)
       }
     >
-      {!coverUrl && <div className="cover-gradient absolute inset-0" />}
+      {coverUrl ? (
+        // next/image: gera versões responsivas (AVIF/WebP) e faz lazy load,
+        // reduzindo muito a banda nas grades de pôsteres.
+        <Image
+          src={coverUrl}
+          alt={title}
+          fill
+          sizes="(max-width: 640px) 45vw, 168px"
+          className="object-cover"
+        />
+      ) : (
+        <div className="cover-gradient absolute inset-0" />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
       {/* Selos */}
