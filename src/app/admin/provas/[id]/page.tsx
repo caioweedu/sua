@@ -11,6 +11,7 @@ import {
   addQuestion,
   deleteQuestion,
 } from "@/lib/actions/admin";
+import GerarQuestoesCard from "./gerar-questoes-card";
 
 // Descreve, em texto, onde uma colocação está inserida.
 function placementLabel(p: {
@@ -161,6 +162,8 @@ export default async function EditExamPage({
             <p className="text-xs text-slate-400">Marque o círculo da alternativa correta.</p>
             <SubmitButton pendingText="Adicionando…">Adicionar questão</SubmitButton>
           </form>
+
+          <GerarQuestoesCard examId={exam.id} />
         </section>
       </div>
     </AppShell>
