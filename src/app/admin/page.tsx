@@ -105,6 +105,9 @@ export default async function AdminPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Administração</h1>
         <div className="flex flex-wrap gap-2">
+          <Link href="/admin/copiloto" className="btn-brand text-sm">
+            ✨ Copiloto de criação
+          </Link>
           <Link href="/admin/analytics" className="btn-outline text-sm">
             📊 Resultados
           </Link>
