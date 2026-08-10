@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
-import { propostaSchema, type PropostaCurso } from "@/lib/copiloto";
+import {
+  propostaSchema,
+  questoesSchema,
+  type PropostaCurso,
+  type PropostaQuestao,
+} from "@/lib/copiloto";
 
 export type PublicarResult = {
   ok: boolean;
@@ -120,4 +125,58 @@ export async function publicarCurso(args: {
   revalidatePath(`/admin/trilhas/${trilha.id}`);
 
   return { ok: true, trilhaId: trilha.id, stats };
+}
+
+export type AdicionarQuestoesResult = {
+  ok: boolean;
+  error?: string;
+  criadas?: number;
+};
+
+// Anexa questões (geradas pela IA e revisadas) ao banco de uma prova existente.
+// Re-valida no servidor e confere a posse da prova pelo tenant.
+export async function adicionarQuestoes(args: {
+  examId: string;
+  questoes: PropostaQuestao[];
+}): Promise<AdicionarQuestoesResult> {
+  const user = await getCurrentUser();
+  if (!user || !isAdmin(user.role)) {
+    return { ok: false, error: "Sem permissão." };
+  }
+
+  const exam = await prisma.exam.findFirst({
+    where: { id: args.examId, tenantId: user.tenantId },
+    select: { id: true },
+  });
+  if (!exam) return { ok: false, error: "Prova inválida." };
+
+  const parsed = questoesSchema.safeParse(args.questoes);
+  if (!parsed.success || parsed.data.length === 0) {
+    return { ok: false, error: "Nenhuma questão válida para adicionar." };
+  }
+
+  // Continua a numeração a partir do que já existe no banco.
+  const base = await prisma.question.count({ where: { examId: exam.id } });
+
+  let criadas = 0;
+  for (let i = 0; i < parsed.data.length; i++) {
+    const q = parsed.data[i];
+    await prisma.question.create({
+      data: {
+        examId: exam.id,
+        statement: q.enunciado.trim(),
+        order: base + i,
+        options: {
+          create: q.alternativas.map((text, idx) => ({
+            text: text.trim(),
+            isCorrect: idx === q.correta,
+          })),
+        },
+      },
+    });
+    criadas++;
+  }
+
+  revalidatePath(`/admin/provas/${exam.id}`);
+  return { ok: true, criadas };
 }
