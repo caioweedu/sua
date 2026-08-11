@@ -5,7 +5,7 @@ import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
 import { loadProgress, isUnlocked, type UnlockResult } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import { toEmbedUrl } from "@/lib/video";
-import { enroll, toggleAulaComplete, claimCertificate } from "@/lib/actions/learning";
+import { enroll, toggleAulaComplete, completeAndGo, claimCertificate } from "@/lib/actions/learning";
 import AppShell from "@/components/AppShell";
 import ProfessorChat from "@/components/ProfessorChat";
 import SubmitButton from "@/components/SubmitButton";
@@ -164,10 +164,47 @@ export default async function TrilhaPage({
   const doneCount = flat.filter((x) => doneAulas.has(x.id)).length;
   const progressPct = totalAulas > 0 ? Math.round((doneCount / totalAulas) * 100) : 0;
 
-  const current = flat.find((x) => x.id === a) ?? flat[0] ?? null;
+  // Liberação SEQUENCIAL das aulas (estilo Udemy). Só vale para aluno
+  // matriculado: a aula abre quando a anterior é concluída, e uma aula
+  // concluída fica sempre aberta. Admin (preview) e aluno antes de começar
+  // não entram nessa regra — o admin vê tudo; o aluno vê o botão "Começar".
+  const seqGated = isStudent && enrolled;
+  function aulaUnlockedAt(i: number): boolean {
+    if (!seqGated) return true;
+    const aula = flat[i];
+    if (!aula) return false;
+    if (doneAulas.has(aula.id)) return true;
+    if (i === 0) return true;
+    return doneAulas.has(flat[i - 1].id);
+  }
+  const unlockedAulaIds = new Set(
+    flat.filter((_, i) => aulaUnlockedAt(i)).map((x) => x.id)
+  );
+  // Uma aula é "acessível" para o aluno se estiver matriculado e liberada.
+  function aulaOpen(id: string): boolean {
+    if (!isStudent) return true; // admin: preview livre
+    if (!enrolled) return false; // precisa começar a trilha
+    return unlockedAulaIds.has(id);
+  }
+
+  // Aula atual: respeita a liberação. Se a URL apontar para uma aula bloqueada
+  // (ou nenhuma), retoma na primeira liberada ainda não concluída.
+  let current =
+    a && unlockedAulaIds.has(a) ? flat.find((x) => x.id === a) ?? null : null;
+  if (!current) {
+    current =
+      flat.find((x, i) => aulaUnlockedAt(i) && !doneAulas.has(x.id)) ??
+      flat.find((_, i) => aulaUnlockedAt(i)) ??
+      flat[0] ??
+      null;
+  }
   const currentIndex = current ? flat.findIndex((x) => x.id === current.id) : -1;
   const currentDone = current ? doneAulas.has(current.id) : false;
+  const nextAula =
+    currentIndex >= 0 && currentIndex + 1 < flat.length ? flat[currentIndex + 1] : null;
   const embed = current?.videoUrl ? toEmbedUrl(current.videoUrl) : null;
+  // Player só toca quando o aluno já começou (ou é admin em preview).
+  const canWatch = !isStudent || enrolled;
 
   return (
     <AppShell user={user} tenant={user.tenant} dark light={light}>
@@ -206,11 +243,6 @@ export default async function TrilhaPage({
             </div>
           )}
         </div>
-        {!enrolled && (
-          <form action={enroll.bind(null, trilha.id)}>
-            <SubmitButton pendingText="Começando…">Começar trilha</SubmitButton>
-          </form>
-        )}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -218,7 +250,18 @@ export default async function TrilhaPage({
         <div>
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-card">
             <div className="aspect-video">
-              {embed ? (
+              {!canWatch ? (
+                <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+                  <div className="text-5xl">▶️</div>
+                  <p className="max-w-sm text-slate-300">
+                    Comece a trilha para liberar as aulas e acompanhar seu
+                    progresso. As aulas abrem conforme você conclui a anterior.
+                  </p>
+                  <form action={enroll.bind(null, trilha.id)}>
+                    <SubmitButton pendingText="Começando…">Começar trilha</SubmitButton>
+                  </form>
+                </div>
+              ) : embed ? (
                 <iframe
                   src={embed}
                   className="h-full w-full"
@@ -228,13 +271,13 @@ export default async function TrilhaPage({
                 />
               ) : (
                 <div className="flex h-full items-center justify-center text-slate-500">
-                  Selecione uma aula para assistir
+                  {current ? "Esta aula ainda não tem vídeo." : "Selecione uma aula para assistir"}
                 </div>
               )}
             </div>
           </div>
 
-          {current && (
+          {current && canWatch && (
             <div className="mt-4">
               <h2 className="text-lg font-bold text-ink">
                 {currentIndex + 1}. {current.title}
@@ -253,19 +296,36 @@ export default async function TrilhaPage({
                     📎 Material de apoio (PDF)
                   </a>
                 )}
-                {user.role === "STUDENT" && (
-                  <form action={toggleAulaComplete.bind(null, current.id, trilha.id, !currentDone)}>
-                    <SubmitButton
-                      pendingText="Salvando…"
-                      className={
-                        currentDone
-                          ? "inline-flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-4 py-2.5 text-sm font-medium text-green-700 transition hover:bg-green-100"
-                          : "btn-brand"
-                      }
-                    >
-                      {currentDone ? "✓ Aula concluída" : "Marcar como concluída"}
-                    </SubmitButton>
-                  </form>
+                {user.role === "STUDENT" ? (
+                  currentDone ? (
+                    <>
+                      <form action={toggleAulaComplete.bind(null, current.id, trilha.id, false)}>
+                        <SubmitButton
+                          pendingText="Salvando…"
+                          className="inline-flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-4 py-2.5 text-sm font-medium text-green-700 transition hover:bg-green-100"
+                        >
+                          ✓ Aula concluída
+                        </SubmitButton>
+                      </form>
+                      {nextAula && (
+                        <Link href={`/trilhas/${trilha.id}?a=${nextAula.id}`} className="btn-brand">
+                          Próxima aula →
+                        </Link>
+                      )}
+                    </>
+                  ) : (
+                    <form action={completeAndGo.bind(null, current.id, trilha.id, nextAula?.id ?? null)}>
+                      <SubmitButton className="btn-brand" pendingText="Salvando…">
+                        {nextAula ? "Concluir e avançar →" : "Concluir aula"}
+                      </SubmitButton>
+                    </form>
+                  )
+                ) : (
+                  nextAula && (
+                    <Link href={`/trilhas/${trilha.id}?a=${nextAula.id}`} className="btn-outline">
+                      Próxima aula →
+                    </Link>
+                  )
                 )}
               </div>
             </div>
@@ -311,33 +371,51 @@ export default async function TrilhaPage({
                           const active = current?.id === aula.id;
                           const done = doneAulas.has(aula.id);
                           const pos = flat.findIndex((x) => x.id === aula.id) + 1;
+                          const open = aulaOpen(aula.id);
+                          const badge = (
+                            <span
+                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                                done
+                                  ? "bg-green-100 text-green-700"
+                                  : active
+                                  ? "text-brand-fg"
+                                  : "bg-slate-100 text-slate-500"
+                              }`}
+                              style={active && !done ? { background: "var(--brand-color)" } : undefined}
+                            >
+                              {done ? "✓" : open ? pos : "🔒"}
+                            </span>
+                          );
                           return (
                             <li key={aula.id}>
-                              <Link
-                                href={`/trilhas/${trilha.id}?a=${aula.id}`}
-                                className={`flex items-center gap-3 px-4 py-3 text-sm transition ${
-                                  active ? "bg-brand/5" : "hover:bg-slate-50"
-                                }`}
-                              >
-                                <span
-                                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                                    done
-                                      ? "bg-green-100 text-green-700"
-                                      : active
-                                      ? "text-brand-fg"
-                                      : "bg-slate-100 text-slate-500"
+                              {open ? (
+                                <Link
+                                  href={`/trilhas/${trilha.id}?a=${aula.id}`}
+                                  className={`flex items-center gap-3 px-4 py-3 text-sm transition ${
+                                    active ? "bg-brand/5" : "hover:bg-slate-50"
                                   }`}
-                                  style={active && !done ? { background: "var(--brand-color)" } : undefined}
                                 >
-                                  {done ? "✓" : pos}
-                                </span>
-                                <span className={active ? "font-semibold text-ink" : "text-slate-600"}>
-                                  {aula.title}
-                                </span>
-                                <span className="ml-auto text-slate-300">
-                                  {aula.videoUrl ? "🎬" : aula.pdfUrl ? "📎" : ""}
-                                </span>
-                              </Link>
+                                  {badge}
+                                  <span className={active ? "font-semibold text-ink" : "text-slate-600"}>
+                                    {aula.title}
+                                  </span>
+                                  <span className="ml-auto text-slate-300">
+                                    {aula.videoUrl ? "🎬" : aula.pdfUrl ? "📎" : ""}
+                                  </span>
+                                </Link>
+                              ) : (
+                                <div
+                                  className="flex items-center gap-3 px-4 py-3 text-sm text-slate-400"
+                                  title={
+                                    enrolled
+                                      ? "Conclua a aula anterior para liberar."
+                                      : "Comece a trilha para liberar."
+                                  }
+                                >
+                                  {badge}
+                                  <span>{aula.title}</span>
+                                </div>
+                              )}
                             </li>
                           );
                         })}
