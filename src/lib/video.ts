@@ -1,7 +1,13 @@
-// Converte um link de vídeo (YouTube, Vimeo, etc.) numa URL de embed.
-// O admin só cola o link normal; aqui geramos o iframe correto.
-export function toEmbedUrl(url: string): string | null {
-  if (!url) return null;
+// Converte um link de vídeo (YouTube, Vimeo, Panda, etc.) numa URL de embed.
+// O admin pode colar o link normal OU o código de incorporação (<iframe ...>);
+// aqui normalizamos para o endereço correto usado dentro do iframe do player.
+export function toEmbedUrl(input: string): string | null {
+  if (!input) return null;
+
+  // Se colaram o código de incorporação inteiro (ex.: "<iframe src="..."></iframe>"),
+  // extraímos apenas o endereço de dentro do src. É o erro mais comum no Panda.
+  const url = extractIframeSrc(input) ?? input.trim();
+
   try {
     const u = new URL(url);
     const host = u.hostname.replace(/^www\./, "");
@@ -31,4 +37,12 @@ export function toEmbedUrl(url: string): string | null {
   } catch {
     return null;
   }
+}
+
+// Extrai o valor do atributo src de um trecho de HTML com <iframe>.
+// Retorna null quando o texto não é um código de incorporação.
+function extractIframeSrc(input: string): string | null {
+  if (!input.includes("<iframe")) return null;
+  const match = input.match(/<iframe[^>]*\ssrc\s*=\s*["']([^"']+)["']/i);
+  return match ? match[1].trim() : null;
 }

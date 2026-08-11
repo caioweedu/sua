@@ -249,7 +249,7 @@ export default async function ManageTrilhaPage({
                             className="mt-2 space-y-2"
                           >
                             <input name="title" defaultValue={a.title} className="input" placeholder="Título da aula" />
-                            <input name="videoUrl" defaultValue={a.videoUrl ?? ""} className="input" placeholder="Link do vídeo (YouTube, Vimeo, Panda...)" />
+                            <input name="videoUrl" defaultValue={a.videoUrl ?? ""} className="input" placeholder="Link ou código de incorporação (YouTube, Vimeo, Panda...)" />
                             <input name="pdfUrl" defaultValue={a.pdfUrl ?? ""} className="input" placeholder="Link do material/PDF (opcional)" />
                             <textarea name="description" defaultValue={a.description ?? ""} rows={2} className="input" placeholder="Descrição (opcional)" />
                             <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">
@@ -329,7 +329,7 @@ export default async function ManageTrilhaPage({
 
                   <form action={addAula.bind(null, m.id, trilha.id)} className="space-y-2 border-t border-slate-100 p-3">
                     <input name="title" required className="input" placeholder="Título da aula" />
-                    <input name="videoUrl" className="input" placeholder="Link do vídeo (YouTube, Vimeo, Panda...)" />
+                    <input name="videoUrl" className="input" placeholder="Link ou código de incorporação (YouTube, Vimeo, Panda...)" />
                     <input name="pdfUrl" className="input" placeholder="Link do PDF (opcional)" />
                     <textarea name="description" className="input" rows={2} placeholder="Descrição (opcional)" />
                     <SubmitButton className="btn-outline text-sm" pendingText="Adicionando…">+ Adicionar aula</SubmitButton>
