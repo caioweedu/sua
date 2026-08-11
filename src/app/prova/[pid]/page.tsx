@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { allowedVitrineIds, canAccessVitrine, contentTenantIds } from "@/lib/access";
+import { allowedVitrineIds, canAccessVitrine, contentTenantIds, hiddenSharedVitrineIds } from "@/lib/access";
 import { loadProgress, isUnlocked } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
@@ -62,6 +62,12 @@ export default async function ProvaPage({
     : "/dashboard";
   const contextName =
     placement.modulo?.title ?? trilhaCtx?.title ?? placement.vitrine?.name ?? "";
+
+  // Conteúdo herdado da mãe que a filha ocultou não é acessível.
+  if (vitrineId) {
+    const hiddenShared = await hiddenSharedVitrineIds(user.tenant);
+    if (hiddenShared.includes(vitrineId)) notFound();
+  }
 
   // Respeita o perfil de acesso do aluno.
   const allowed = await allowedVitrineIds(user);

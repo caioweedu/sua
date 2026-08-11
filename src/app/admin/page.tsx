@@ -8,13 +8,14 @@ import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
 import { describeCondition } from "@/lib/release";
-import { contentTenantIds } from "@/lib/access";
+import { hiddenSharedVitrineIds } from "@/lib/access";
 import {
   createTrilha,
   togglePublish,
   updateBranding,
   createDaughter,
   updateDaughter,
+  saveSharedVisibility,
   createVitrine,
   deleteVitrine,
   setReleaseCondition,
@@ -112,11 +113,17 @@ export default async function AdminPage() {
       })
     : [];
 
+  // Vitrines herdadas que esta filha optou por ocultar (opt-out).
+  const hiddenShared = isDaughter ? await hiddenSharedVitrineIds(user.tenant) : [];
+  const hiddenSet = new Set(hiddenShared);
+
   // Opções de vitrine para os perfis de acesso: as próprias + as compartilhadas
-  // da Weedu (marcadas com "(Weedu)").
+  // da Weedu que NÃO foram ocultadas (marcadas com "(Weedu)").
   const profileVitrineOptions = [
     ...vitrines.map((v) => ({ id: v.id, label: v.name })),
-    ...sharedVitrines.map((v) => ({ id: v.id, label: `${v.name} (Weedu)` })),
+    ...sharedVitrines
+      .filter((v) => !hiddenSet.has(v.id))
+      .map((v) => ({ id: v.id, label: `${v.name} (Weedu)` })),
   ];
 
   const isSuper = user.role === "SUPER_ADMIN";
@@ -279,32 +286,52 @@ export default async function AdminPage() {
               )}
             </div>
 
-            {/* Conteúdo compartilhado da Weedu (só leitura, para filhas) */}
+            {/* Conteúdo compartilhado da Weedu — a filha escolhe o que herdar */}
             {sharedVitrines.length > 0 && (
-              <div className="mt-3 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40">
+              <form
+                action={saveSharedVisibility}
+                className="mt-3 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40"
+              >
                 <div className="border-b border-indigo-100 px-3 py-2 text-sm font-semibold text-indigo-700">
-                  🔗 Compartilhado pela Weedu (aparece para seus alunos)
+                  🔗 Conteúdo compartilhado pela Weedu
                 </div>
+                <p className="px-3 pt-2 text-xs text-slate-500">
+                  Marque o que deve aparecer nesta universidade. O que estiver desmarcado
+                  não é herdado (some para os alunos e some dos perfis de acesso). Este
+                  conteúdo é gerenciado pela Weedu — aqui você só escolhe se herda ou não.
+                </p>
                 <ul className="divide-y divide-indigo-50">
                   {sharedVitrines.map((v) => (
                     <li key={v.id} className="px-3 py-2">
-                      <span className="text-sm font-medium text-ink">🗂️ {v.name}</span>
-                      <span className="ml-2 text-xs text-slate-400">
-                        {v.trilhas.length} produto(s)
-                      </span>
-                      {v.trilhas.length > 0 && (
-                        <p className="mt-0.5 pl-6 text-xs text-slate-500">
-                          {v.trilhas.map((t) => t.title).join(" · ")}
-                        </p>
-                      )}
+                      <label className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          name="visibleVitrineIds"
+                          value={v.id}
+                          defaultChecked={!hiddenSet.has(v.id)}
+                          className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                        />
+                        <span className="min-w-0">
+                          <span className="text-sm font-medium text-ink">🗂️ {v.name}</span>
+                          <span className="ml-2 text-xs text-slate-400">
+                            {v.trilhas.length} produto(s)
+                          </span>
+                          {v.trilhas.length > 0 && (
+                            <span className="mt-0.5 block text-xs text-slate-500">
+                              {v.trilhas.map((t) => t.title).join(" · ")}
+                            </span>
+                          )}
+                        </span>
+                      </label>
                     </li>
                   ))}
                 </ul>
-                <p className="px-3 py-2 text-xs text-slate-500">
-                  Este conteúdo é gerenciado pela Weedu. Use os <strong>perfis de acesso</strong> acima
-                  para definir quais alunos o veem.
-                </p>
-              </div>
+                <div className="px-3 py-2">
+                  <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">
+                    Salvar conteúdo herdado
+                  </SubmitButton>
+                </div>
+              </form>
             )}
 
             {/* Nova vitrine */}

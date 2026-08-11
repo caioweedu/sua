@@ -145,6 +145,20 @@ model AccessProfile {
   @@index([tenantId])
 }
 
+// Opt-out de conteúdo herdado: por padrão a filha herda TODAS as vitrines
+// publicadas da mãe (Weedu). Cada linha aqui OCULTA uma vitrine da mãe para
+// uma filha específica — some para os alunos daquela filha e deixa de ser
+// selecionável nos perfis de acesso dela.
+model SharedVitrineOptOut {
+  id        String   @id @default(cuid())
+  tenantId  String   // filha que ocultou
+  vitrineId String   // vitrine da mãe ocultada
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, vitrineId])
+  @@index([tenantId])
+}
+
 // ---------------------------------------------------------------------------
 // USUÁRIOS
 // ---------------------------------------------------------------------------

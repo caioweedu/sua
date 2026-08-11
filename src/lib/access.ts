@@ -36,6 +36,22 @@ export async function allowedVitrineIds(
   return profile ? profile.vitrines.map((v) => v.id) : [];
 }
 
+// IDs de vitrines da mãe que ESTA filha optou por ocultar (não herdar). Para a
+// mãe (ou tenant sem pai) retorna lista vazia. Usado para excluir o conteúdo
+// herdado que a filha não quer exibir.
+export async function hiddenSharedVitrineIds(tenant: {
+  id: string;
+  type: string;
+  parentId: string | null;
+}): Promise<string[]> {
+  if (!(tenant.type === "DAUGHTER" && tenant.parentId)) return [];
+  const rows = await prisma.sharedVitrineOptOut.findMany({
+    where: { tenantId: tenant.id },
+    select: { vitrineId: true },
+  });
+  return rows.map((r) => r.vitrineId);
+}
+
 // Verifica se o usuário pode acessar uma vitrine específica.
 export function canAccessVitrine(allowed: string[] | null, vitrineId: string | null) {
   if (allowed === null) return true; // acesso total

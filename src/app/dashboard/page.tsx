@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { allowedVitrineIds, contentTenantIds } from "@/lib/access";
+import { allowedVitrineIds, contentTenantIds, hiddenSharedVitrineIds } from "@/lib/access";
 import { loadProgress, isUnlocked } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
@@ -15,8 +15,10 @@ export default async function DashboardPage() {
 
   const allowed = await allowedVitrineIds(user);
   const isStudent = user.role === "STUDENT";
-  // Conteúdo visível = próprio + herdado da mãe (para filhas).
+  // Conteúdo visível = próprio + herdado da mãe (para filhas), menos as
+  // vitrines herdadas que a filha optou por ocultar.
   const contentIds = contentTenantIds(user.tenant);
+  const hiddenShared = await hiddenSharedVitrineIds(user.tenant);
 
   // Busca vitrines, progresso do aluno, produtos soltos e slides do hero em
   // paralelo — evita round-trips em série ao banco.
@@ -25,7 +27,14 @@ export default async function DashboardPage() {
       where: {
         tenantId: { in: contentIds },
         published: true,
-        ...(allowed ? { id: { in: allowed } } : {}),
+        ...(allowed || hiddenShared.length
+          ? {
+              id: {
+                ...(allowed ? { in: allowed } : {}),
+                ...(hiddenShared.length ? { notIn: hiddenShared } : {}),
+              },
+            }
+          : {}),
       },
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       include: {

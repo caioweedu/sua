@@ -674,6 +674,29 @@ export async function updateDaughter(daughterId: string, formData: FormData) {
   revalidatePath("/admin");
 }
 
+// Define quais vitrines herdadas da mãe (Weedu) a filha exibe. Recebe os ids
+// marcados como VISÍVEIS; as demais vitrines da mãe viram opt-out (ocultas).
+export async function saveSharedVisibility(formData: FormData) {
+  const user = await requireAdmin();
+  if (!(user.tenant.type === "DAUGHTER" && user.tenant.parentId)) return;
+
+  const motherVitrines = await prisma.vitrine.findMany({
+    where: { tenantId: user.tenant.parentId, published: true },
+    select: { id: true },
+  });
+  const visible = new Set(formData.getAll("visibleVitrineIds").map((v) => String(v)));
+  const hidden = motherVitrines.filter((v) => !visible.has(v.id)).map((v) => v.id);
+
+  // Reescreve o conjunto de opt-outs desta filha.
+  await prisma.sharedVitrineOptOut.deleteMany({ where: { tenantId: user.tenantId } });
+  if (hidden.length > 0) {
+    await prisma.sharedVitrineOptOut.createMany({
+      data: hidden.map((vitrineId) => ({ tenantId: user.tenantId, vitrineId })),
+    });
+  }
+  revalidatePath("/admin");
+}
+
 // --- Branding do próprio tenant -----------------------------------------
 export async function updateBranding(formData: FormData) {
   const user = await requireAdmin();
