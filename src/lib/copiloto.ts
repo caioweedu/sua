@@ -181,11 +181,15 @@ export async function gerarProposta(input: GerarInput): Promise<PropostaCurso> {
   });
 
   const client = new Anthropic();
-  const model = process.env.COPILOTO_MODEL || "claude-opus-5";
+  const model =
+    process.env.COPILOTO_MODEL || process.env.PROFESSOR_MODEL || "claude-opus-5";
 
   const resp = await client.messages.create({
     model,
     max_tokens: 8000,
+    // Efeito baixo reduz muito a latência (evita estourar o tempo da função),
+    // mantendo boa qualidade na extração estruturada.
+    output_config: { effort: "low" },
     system: systemPrompt(input.tenantName, numQuestoes),
     tools: [
       {
@@ -297,11 +301,13 @@ Regras:
 - Devolva o resultado EXCLUSIVAMENTE chamando a ferramenta "propor_questoes".`;
 
   const client = new Anthropic();
-  const model = process.env.COPILOTO_MODEL || "claude-opus-5";
+  const model =
+    process.env.COPILOTO_MODEL || process.env.PROFESSOR_MODEL || "claude-opus-5";
 
   const resp = await client.messages.create({
     model,
     max_tokens: 6000,
+    output_config: { effort: "low" },
     system,
     tools: [
       {
@@ -406,11 +412,13 @@ Regras:
 - Devolva o resultado EXCLUSIVAMENTE chamando a ferramenta "propor_flashcards".`;
 
   const client = new Anthropic();
-  const model = process.env.COPILOTO_MODEL || "claude-opus-5";
+  const model =
+    process.env.COPILOTO_MODEL || process.env.PROFESSOR_MODEL || "claude-opus-5";
 
   const resp = await client.messages.create({
     model,
     max_tokens: 6000,
+    output_config: { effort: "low" },
     system,
     tools: [
       {

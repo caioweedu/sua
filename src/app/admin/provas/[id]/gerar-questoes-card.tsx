@@ -35,9 +35,20 @@ export default function GerarQuestoesCard({ examId }: { examId: string }) {
         method: "POST",
         body: fd,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Falha ao gerar.");
-      setQuestoes(data.questoes as PropostaQuestao[]);
+      const raw = await res.text();
+      let data: { questoes?: PropostaQuestao[]; error?: string } | null = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        // Resposta não-JSON = erro de plataforma (ex.: tempo limite da função).
+      }
+      if (!res.ok || !data?.questoes) {
+        throw new Error(
+          data?.error ||
+            "A geração falhou (o servidor pode ter excedido o tempo limite). Tente um material menor ou tente novamente."
+        );
+      }
+      setQuestoes(data.questoes);
       setPhase("review");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao gerar.");
