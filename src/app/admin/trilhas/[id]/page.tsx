@@ -7,6 +7,7 @@ import AppShell from "@/components/AppShell";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
 import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
+import FlashcardsCard from "./flashcards-card";
 import {
   addAula,
   deleteAula,
@@ -56,6 +57,7 @@ export default async function ManageTrilhaPage({
       certificatePlacements: {
         include: { template: { select: { name: true } }, releaseCondition: { include: { clauses: true } } },
       },
+      flashcards: { orderBy: { order: "asc" }, select: { id: true, front: true, back: true } },
     },
   });
   if (!trilha) notFound();
@@ -483,6 +485,9 @@ export default async function ManageTrilhaPage({
               </div>
             )}
           </div>
+
+          {/* Flashcards de estudo (Fase 5 — fatia 3) */}
+          <FlashcardsCard trilhaId={trilha.id} cards={trilha.flashcards} />
         </section>
       </div>
     </AppShell>

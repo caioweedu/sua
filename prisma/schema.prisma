@@ -208,12 +208,28 @@ model Trilha {
   examPlacements        ExamPlacement[]
   // Certificados colocados neste produto (Fase 3).
   certificatePlacements CertificatePlacement[]
+  // Flashcards de estudo do produto (Fase 5 — fatia 3).
+  flashcards            Flashcard[]
   enrollments           Enrollment[]
   certificates          Certificate[]
 
   @@index([tenantId])
   @@index([vitrineId])
   @@index([releaseConditionId])
+}
+
+// Flashcard de estudo por produto (deck de revisão do aluno). Frente/verso
+// simples — geralmente termo/pergunta na frente e definição/resposta no verso.
+model Flashcard {
+  id        String   @id @default(cuid())
+  trilhaId  String
+  trilha    Trilha   @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  front     String
+  back      String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([trilhaId])
 }
 
 // Módulo agrupa aulas dentro de um produto.

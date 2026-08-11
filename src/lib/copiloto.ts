@@ -54,6 +54,14 @@ export const questaoSchema = z
 // Lista de questões (usada pela geração avulsa "gerar questões").
 export const questoesSchema = z.array(questaoSchema);
 
+// Flashcards (frente/verso) — geração e validação (Fase 5 fatia 3).
+export type PropostaFlashcard = { front: string; back: string };
+export const flashcardSchema = z.object({
+  front: z.string().trim().min(1).max(500),
+  back: z.string().trim().min(1).max(1000),
+});
+export const flashcardsSchema = z.array(flashcardSchema);
+
 export const propostaSchema = z.object({
   titulo: z.string().trim().min(1).max(200),
   descricao: z.string().trim().max(2000).default(""),
@@ -317,6 +325,115 @@ Regras:
   const parsed = questoesSchema.safeParse(input_.questoes);
   if (!parsed.success || parsed.data.length === 0) {
     throw new Error("Nenhuma questão válida foi gerada. Tente outro material.");
+  }
+  return parsed.data;
+}
+
+// ---------------------------------------------------------------------------
+// GERAR FLASHCARDS (Fase 5 — fatia 3)
+// ---------------------------------------------------------------------------
+
+const TOOL_FLASHCARDS_SCHEMA = {
+  type: "object" as const,
+  properties: {
+    flashcards: {
+      type: "array",
+      description: "Flashcards de estudo (frente e verso) gerados do material.",
+      items: {
+        type: "object",
+        properties: {
+          front: {
+            type: "string",
+            description: "Frente: termo, conceito ou pergunta curta.",
+          },
+          back: {
+            type: "string",
+            description: "Verso: definição ou resposta objetiva.",
+          },
+        },
+        required: ["front", "back"],
+      },
+    },
+  },
+  required: ["flashcards"],
+};
+
+export type GerarFlashcardsInput = {
+  tenantName: string;
+  contexto?: string;
+  texto?: string;
+  pdf?: { base64: string; mediaType: string };
+  num?: number;
+};
+
+export async function gerarFlashcards(
+  input: GerarFlashcardsInput
+): Promise<PropostaFlashcard[]> {
+  const num = Math.min(Math.max(input.num ?? 10, 1), 30);
+
+  const content: Anthropic.ContentBlockParam[] = [];
+  if (input.pdf) {
+    content.push({
+      type: "document",
+      source: {
+        type: "base64",
+        media_type: "application/pdf",
+        data: input.pdf.base64,
+      },
+    });
+  }
+  const texto = (input.texto ?? "").slice(0, MAX_TEXTO).trim();
+  if (texto) {
+    content.push({ type: "text", text: `Material:\n\n${texto}` });
+  }
+  if (content.length === 0) {
+    throw new Error("Envie um texto ou um PDF para gerar os flashcards.");
+  }
+  content.push({
+    type: "text",
+    text: "Com base no material acima, chame a ferramenta propor_flashcards.",
+  });
+
+  const system = `Você é um designer instrucional da ${input.tenantName}. Gere ${num} flashcards de estudo (frente e verso) que ajudem o aluno a memorizar os conceitos-chave do material.${
+    input.contexto ? `\n\nContexto: ${input.contexto}` : ""
+  }
+
+Regras:
+- Escreva em português do Brasil.
+- Frente curta (termo, conceito ou pergunta); verso objetivo (definição ou resposta).
+- Baseie-se SOMENTE no material fornecido; não invente fatos.
+- Evite flashcards repetidos.
+- Devolva o resultado EXCLUSIVAMENTE chamando a ferramenta "propor_flashcards".`;
+
+  const client = new Anthropic();
+  const model = process.env.COPILOTO_MODEL || "claude-opus-5";
+
+  const resp = await client.messages.create({
+    model,
+    max_tokens: 6000,
+    system,
+    tools: [
+      {
+        name: "propor_flashcards",
+        description: "Registra os flashcards gerados a partir do material.",
+        input_schema: TOOL_FLASHCARDS_SCHEMA,
+      },
+    ],
+    tool_choice: { type: "tool", name: "propor_flashcards" },
+    messages: [{ role: "user", content }],
+  });
+
+  const toolUse = resp.content.find(
+    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+  );
+  if (!toolUse) {
+    throw new Error("A IA não retornou flashcards. Tente novamente.");
+  }
+
+  const input_ = (toolUse.input ?? {}) as { flashcards?: unknown };
+  const parsed = flashcardsSchema.safeParse(input_.flashcards);
+  if (!parsed.success || parsed.data.length === 0) {
+    throw new Error("Nenhum flashcard válido foi gerado. Tente outro material.");
   }
   return parsed.data;
 }
