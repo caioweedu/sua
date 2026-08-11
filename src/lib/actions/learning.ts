@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { contentTenantIds } from "@/lib/access";
 import { issueCertificateForPlacement } from "@/lib/certificate";
 
 // Matricula o aluno na trilha (idempotente).
@@ -43,7 +44,7 @@ export async function toggleAulaComplete(
 
   // Confirma que a aula pertence à trilha do tenant do aluno (evita abuso).
   const aula = await prisma.aula.findFirst({
-    where: { id: aulaId, trilhaId, trilha: { tenantId: user.tenantId } },
+    where: { id: aulaId, trilhaId, trilha: { tenantId: { in: contentTenantIds(user.tenant) } } },
     select: { id: true },
   });
   if (!aula) return;
@@ -77,7 +78,7 @@ export async function completeAndGo(
   if (!user) return;
 
   const aula = await prisma.aula.findFirst({
-    where: { id: aulaId, trilhaId, trilha: { tenantId: user.tenantId } },
+    where: { id: aulaId, trilhaId, trilha: { tenantId: { in: contentTenantIds(user.tenant) } } },
     select: { id: true },
   });
   if (!aula) return;

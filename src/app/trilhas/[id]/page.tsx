@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
+import { allowedVitrineIds, canAccessVitrine, contentTenantIds } from "@/lib/access";
 import { loadProgress, isUnlocked, type UnlockResult } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import { toEmbedUrl, videoProvider } from "@/lib/video";
@@ -25,7 +25,7 @@ export default async function TrilhaPage({
   if (!user) redirect("/login");
 
   const trilha = await prisma.trilha.findFirst({
-    where: { id, tenantId: user.tenantId },
+    where: { id, tenantId: { in: contentTenantIds(user.tenant) } },
     include: {
       vitrine: { select: { id: true, name: true } },
       releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },

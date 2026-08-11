@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { loadStudentDetail } from "@/lib/analytics";
+import { contentTenantIds } from "@/lib/access";
 import { emailConfigured } from "@/lib/email";
 import { updateUser, resetUserPassword } from "@/lib/actions/users";
 import AppShell from "@/components/AppShell";
@@ -24,7 +25,7 @@ export default async function StudentDetailPage({
   if (!isAdmin(user.role)) redirect("/dashboard");
 
   const { id } = await params;
-  const detail = await loadStudentDetail(user.tenantId, id);
+  const detail = await loadStudentDetail(user.tenantId, id, contentTenantIds(user.tenant));
   if (!detail) notFound();
   const { student, totals, courses } = detail;
 

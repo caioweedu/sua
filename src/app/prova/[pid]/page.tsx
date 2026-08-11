@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
+import { allowedVitrineIds, canAccessVitrine, contentTenantIds } from "@/lib/access";
 import { loadProgress, isUnlocked } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
@@ -45,7 +45,7 @@ export default async function ProvaPage({
       vitrine: { select: { id: true, name: true } },
     },
   });
-  if (!placement || placement.exam.tenantId !== user.tenantId) notFound();
+  if (!placement || !contentTenantIds(user.tenant).includes(placement.exam.tenantId)) notFound();
 
   const exam = placement.exam;
   const trilhaCtx = placement.trilha ?? placement.modulo?.trilha ?? null;
