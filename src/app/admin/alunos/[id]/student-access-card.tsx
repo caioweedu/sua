@@ -70,6 +70,9 @@ export default function StudentAccessCard({
             Link de {state.purpose === "RESET" ? "redefinição" : "convite"} gerado
             {state.error ? " (e-mail não enviado)" : ""}:
           </p>
+          {state.error && (
+            <p className="mt-1 text-xs text-amber-700">Motivo: {state.error}</p>
+          )}
           <div className="mt-2 flex gap-2">
             <input readOnly value={state.url} className="input flex-1 text-xs" onFocus={(e) => e.currentTarget.select()} />
             <button type="button" onClick={() => copy(state.url!)} className="btn-outline px-3 text-xs">
