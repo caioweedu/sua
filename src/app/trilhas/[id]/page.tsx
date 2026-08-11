@@ -27,15 +27,15 @@ export default async function TrilhaPage({
     where: { id, tenantId: user.tenantId },
     include: {
       vitrine: { select: { id: true, name: true } },
-      releaseCondition: { include: { clauses: true } },
+      releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },
       modulos: {
         orderBy: { order: "asc" },
         include: {
-          releaseCondition: { include: { clauses: true } },
+          releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },
           aulas: { orderBy: { order: "asc" } },
           examPlacements: {
             include: {
-              releaseCondition: { include: { clauses: true } },
+              releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },
               exam: { select: { title: true, _count: { select: { questions: true } } } },
             },
           },
@@ -46,13 +46,13 @@ export default async function TrilhaPage({
       // Provas do produto (colocação de trilha).
       examPlacements: {
         include: {
-          releaseCondition: { include: { clauses: true } },
+          releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },
           exam: { select: { title: true, passingScore: true, questionsToShow: true, _count: { select: { questions: true } } } },
         },
       },
       // Certificados colocados no produto (Fase 3).
       certificatePlacements: {
-        include: { template: { select: { name: true } }, releaseCondition: { include: { clauses: true } } },
+        include: { template: { select: { name: true } }, releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } } },
       },
       // Flashcards de estudo (Fase 5 — fatia 3).
       flashcards: { orderBy: { order: "asc" }, select: { id: true, front: true, back: true } },

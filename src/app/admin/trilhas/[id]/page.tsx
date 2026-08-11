@@ -38,25 +38,25 @@ export default async function ManageTrilhaPage({
   const examInc = {
     include: {
       exam: { select: { title: true, _count: { select: { questions: true } } } },
-      releaseCondition: { include: { clauses: true } },
+      releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },
     },
   } as const;
 
   const trilha = await prisma.trilha.findFirst({
     where: { id, tenantId: user.tenantId },
     include: {
-      releaseCondition: { include: { clauses: true } },
+      releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },
       modulos: {
         orderBy: { order: "asc" },
         include: {
           aulas: { orderBy: { order: "asc" } },
           examPlacements: examInc,
-          releaseCondition: { include: { clauses: true } },
+          releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },
         },
       },
       examPlacements: examInc,
       certificatePlacements: {
-        include: { template: { select: { name: true } }, releaseCondition: { include: { clauses: true } } },
+        include: { template: { select: { name: true } }, releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } } },
       },
       flashcards: { orderBy: { order: "asc" }, select: { id: true, front: true, back: true } },
     },

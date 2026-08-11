@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SubmitButton from "./SubmitButton";
 
 export type CondOption = { id: string; label: string };
@@ -62,8 +62,8 @@ export default function ConditionEditor({
   aulas?: CondOption[];
   compact?: boolean;
 }) {
-  const [logic, setLogic] = useState(current?.logic === "ANY" ? "ANY" : "ALL");
-  const [clauses, setClauses] = useState<Clause[]>(
+  // Converte a regra salva (vinda do servidor) para o estado do editor.
+  const fromCurrent = (): Clause[] =>
     (current?.clauses ?? []).map((c) => ({
       type: c.type,
       targetAulaId: c.targetAulaId ?? undefined,
@@ -73,8 +73,21 @@ export default function ConditionEditor({
       minScore: c.minScore != null ? String(c.minScore) : undefined,
       percent: c.percent != null ? String(c.percent) : undefined,
       days: c.days != null ? String(c.days) : undefined,
-    }))
-  );
+    }));
+
+  const [logic, setLogic] = useState(current?.logic === "ANY" ? "ANY" : "ALL");
+  const [clauses, setClauses] = useState<Clause[]>(fromCurrent);
+
+  // Re-hidrata o editor quando a regra REGISTRADA muda (ex.: logo após salvar,
+  // o servidor revalida e envia o `current` atualizado). Sem isto, o estado do
+  // cliente ficava "preso" no valor inicial e podia divergir do que foi gravado.
+  // Compara por assinatura serializada para não resetar durante a edição.
+  const signature = JSON.stringify(current);
+  useEffect(() => {
+    setLogic(current?.logic === "ANY" ? "ANY" : "ALL");
+    setClauses(fromCurrent());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature]);
 
   const inputCls = compact ? "input py-1.5 text-xs" : "input";
 
