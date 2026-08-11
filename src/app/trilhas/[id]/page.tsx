@@ -9,6 +9,7 @@ import { enroll, toggleAulaComplete, claimCertificate } from "@/lib/actions/lear
 import AppShell from "@/components/AppShell";
 import ProfessorChat from "@/components/ProfessorChat";
 import SubmitButton from "@/components/SubmitButton";
+import FlashcardStudy from "./flashcard-study";
 
 export default async function TrilhaPage({
   params,
@@ -53,6 +54,8 @@ export default async function TrilhaPage({
       certificatePlacements: {
         include: { template: { select: { name: true } }, releaseCondition: { include: { clauses: true } } },
       },
+      // Flashcards de estudo (Fase 5 — fatia 3).
+      flashcards: { orderBy: { order: "asc" }, select: { id: true, front: true, back: true } },
       enrollments: { where: { userId: user.id } },
       certificates: { where: { userId: user.id } },
     },
@@ -266,6 +269,11 @@ export default async function TrilhaPage({
                 )}
               </div>
             </div>
+          )}
+
+          {/* Flashcards de estudo do produto (Fase 5 — fatia 3) */}
+          {trilha.flashcards.length > 0 && (
+            <FlashcardStudy cards={trilha.flashcards} />
           )}
         </div>
 
