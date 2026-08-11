@@ -39,6 +39,23 @@ export function toEmbedUrl(input: string): string | null {
   }
 }
 
+export type VideoProvider = "youtube" | "vimeo" | "panda" | "other";
+
+// Identifica a plataforma de um link/embed de vídeo. Usado, por exemplo, para
+// exigir que o aluno assista o vídeo do Panda até o fim antes de avançar.
+export function videoProvider(embedUrl: string | null | undefined): VideoProvider {
+  if (!embedUrl) return "other";
+  try {
+    const host = new URL(embedUrl).hostname.replace(/^www\./, "");
+    if (host === "youtu.be" || host.endsWith("youtube.com")) return "youtube";
+    if (host.endsWith("vimeo.com")) return "vimeo";
+    if (host.includes("pandavideo.com")) return "panda";
+    return "other";
+  } catch {
+    return "other";
+  }
+}
+
 // Extrai o valor do atributo src de um trecho de HTML com <iframe>.
 // Retorna null quando o texto não é um código de incorporação.
 function extractIframeSrc(input: string): string | null {
