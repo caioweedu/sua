@@ -119,6 +119,7 @@ export async function sendAccessLink(
 
   const res = await sendEmail({
     to: target.email,
+    fromName: admin.tenant.name,
     subject:
       purpose === "INVITE"
         ? `Seu acesso à ${admin.tenant.name}`
@@ -129,6 +130,7 @@ export async function sendAccessLink(
       actionUrl: url,
       purpose,
       brandColor: admin.tenant.brandColor,
+      logoUrl: admin.tenant.logoUrl,
     }),
   });
 

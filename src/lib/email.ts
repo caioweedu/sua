@@ -15,10 +15,24 @@ export function emailConfigured(): boolean {
 
 export type SendResult = { sent: boolean; error?: string };
 
+// Monta o cabeçalho "From" mantendo o ENDEREÇO verificado do EMAIL_FROM, mas
+// trocando o NOME de exibição pelo do tenant (ex.: numa filha, aparece o nome
+// da empresa dona da filha como remetente). Sem displayName, usa o EMAIL_FROM
+// como está.
+function composeFrom(displayName?: string): string {
+  const raw = process.env.EMAIL_FROM ?? "";
+  if (!displayName) return raw;
+  const m = raw.match(/<([^>]+)>/);
+  const address = (m ? m[1] : raw).trim();
+  const safe = displayName.replace(/[<>"\r\n]/g, "").trim();
+  return safe && address ? `${safe} <${address}>` : raw;
+}
+
 export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
+  fromName?: string;
 }): Promise<SendResult> {
   if (!emailConfigured()) {
     return { sent: false, error: "E-mail não configurado (RESEND_API_KEY/EMAIL_FROM)." };
@@ -26,7 +40,7 @@ export async function sendEmail(opts: {
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { error } = await resend.emails.send({
-      from: process.env.EMAIL_FROM!,
+      from: composeFrom(opts.fromName),
       to: opts.to,
       subject: opts.subject,
       html: opts.html,
@@ -46,8 +60,15 @@ export function accessEmailHtml(opts: {
   actionUrl: string;
   purpose: "INVITE" | "RESET";
   brandColor?: string;
+  logoUrl?: string | null;
 }): string {
   const brand = opts.brandColor || "#4f46e5";
+  // Só embute a logo se for uma URL absoluta (http/https) — caminhos relativos
+  // não carregam dentro de um e-mail.
+  const logo =
+    opts.logoUrl && /^https?:\/\//i.test(opts.logoUrl)
+      ? `<img src="${opts.logoUrl}" alt="${opts.tenantName}" style="max-height:44px;margin-bottom:16px" />`
+      : "";
   const title =
     opts.purpose === "INVITE"
       ? `Seu acesso à ${opts.tenantName}`
@@ -59,6 +80,7 @@ export function accessEmailHtml(opts: {
   const cta = opts.purpose === "INVITE" ? "Definir minha senha" : "Redefinir senha";
   return `
   <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#0f172a">
+    ${logo}
     <h1 style="font-size:20px;margin:0 0 8px">${title}</h1>
     <p style="font-size:14px;line-height:1.6;color:#334155">Olá, ${opts.studentName}.</p>
     <p style="font-size:14px;line-height:1.6;color:#334155">${lead}</p>
