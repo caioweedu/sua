@@ -8,6 +8,7 @@ import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
 import { describeCondition } from "@/lib/release";
+import { contentTenantIds } from "@/lib/access";
 import {
   createTrilha,
   togglePublish,
@@ -91,6 +92,32 @@ export default async function AdminPage() {
     where: { tenantId: user.tenantId },
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
   });
+
+  // Conteúdo herdado da mãe (só para filhas): vitrines compartilhadas pela
+  // Weedu, exibidas em modo leitura e disponíveis para os perfis de acesso.
+  const isDaughter = user.tenant.type === "DAUGHTER" && !!user.tenant.parentId;
+  const sharedVitrines = isDaughter
+    ? await prisma.vitrine.findMany({
+        where: { tenantId: user.tenant.parentId!, published: true },
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          trilhas: {
+            where: { published: true },
+            orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+            select: { id: true, title: true },
+          },
+        },
+      })
+    : [];
+
+  // Opções de vitrine para os perfis de acesso: as próprias + as compartilhadas
+  // da Weedu (marcadas com "(Weedu)").
+  const profileVitrineOptions = [
+    ...vitrines.map((v) => ({ id: v.id, label: v.name })),
+    ...sharedVitrines.map((v) => ({ id: v.id, label: `${v.name} (Weedu)` })),
+  ];
 
   const isSuper = user.role === "SUPER_ADMIN";
   const daughters = isSuper
@@ -252,6 +279,34 @@ export default async function AdminPage() {
               )}
             </div>
 
+            {/* Conteúdo compartilhado da Weedu (só leitura, para filhas) */}
+            {sharedVitrines.length > 0 && (
+              <div className="mt-3 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40">
+                <div className="border-b border-indigo-100 px-3 py-2 text-sm font-semibold text-indigo-700">
+                  🔗 Compartilhado pela Weedu (aparece para seus alunos)
+                </div>
+                <ul className="divide-y divide-indigo-50">
+                  {sharedVitrines.map((v) => (
+                    <li key={v.id} className="px-3 py-2">
+                      <span className="text-sm font-medium text-ink">🗂️ {v.name}</span>
+                      <span className="ml-2 text-xs text-slate-400">
+                        {v.trilhas.length} produto(s)
+                      </span>
+                      {v.trilhas.length > 0 && (
+                        <p className="mt-0.5 pl-6 text-xs text-slate-500">
+                          {v.trilhas.map((t) => t.title).join(" · ")}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <p className="px-3 py-2 text-xs text-slate-500">
+                  Este conteúdo é gerenciado pela Weedu. Use os <strong>perfis de acesso</strong> acima
+                  para definir quais alunos o veem.
+                </p>
+              </div>
+            )}
+
             {/* Nova vitrine */}
             <form action={createVitrine} className="mt-4 grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
               <input name="name" required className="input" placeholder="Nome da nova vitrine" />
@@ -308,11 +363,11 @@ export default async function AdminPage() {
                       <input name="name" defaultValue={p.name} required className="input py-1.5 text-sm" placeholder="Nome do perfil" />
                       <div>
                         <label className="label text-xs">Vitrines liberadas</label>
-                        {vitrines.length === 0 ? (
+                        {profileVitrineOptions.length === 0 ? (
                           <p className="text-xs text-slate-500">Crie uma vitrine primeiro.</p>
                         ) : (
                           <div className="grid gap-1.5 sm:grid-cols-2">
-                            {vitrines.map((v) => (
+                            {profileVitrineOptions.map((v) => (
                               <label key={v.id} className="flex items-center gap-2 text-sm">
                                 <input
                                   type="checkbox"
@@ -321,7 +376,7 @@ export default async function AdminPage() {
                                   defaultChecked={p.vitrines.some((pv) => pv.id === v.id)}
                                   className="h-4 w-4 rounded border-slate-300"
                                 />
-                                {v.name}
+                                {v.label}
                               </label>
                             ))}
                           </div>
@@ -338,14 +393,14 @@ export default async function AdminPage() {
               <textarea name="description" className="input" rows={2} placeholder="Descrição (opcional)" />
               <div>
                 <label className="label">Vitrines liberadas</label>
-                {vitrines.length === 0 ? (
+                {profileVitrineOptions.length === 0 ? (
                   <p className="text-xs text-slate-500">Crie uma vitrine primeiro.</p>
                 ) : (
                   <div className="grid gap-1.5 sm:grid-cols-2">
-                    {vitrines.map((v) => (
+                    {profileVitrineOptions.map((v) => (
                       <label key={v.id} className="flex items-center gap-2 text-sm">
                         <input type="checkbox" name="vitrineIds" value={v.id} className="h-4 w-4 rounded border-slate-300" />
-                        {v.name}
+                        {v.label}
                       </label>
                     ))}
                   </div>

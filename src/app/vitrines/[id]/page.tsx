@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
+import { allowedVitrineIds, canAccessVitrine, contentTenantIds } from "@/lib/access";
 import { loadProgress, isUnlocked } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
@@ -18,7 +18,7 @@ export default async function VitrinePage({
   if (!user) redirect("/login");
 
   const vitrine = await prisma.vitrine.findFirst({
-    where: { id, tenantId: user.tenantId },
+    where: { id, tenantId: { in: contentTenantIds(user.tenant) } },
     include: {
       releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },
       trilhas: {

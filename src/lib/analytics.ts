@@ -3,7 +3,7 @@ import { prisma } from "./db";
 
 // Agrega as métricas do painel de resultados (Fase 7), tudo escopado ao tenant.
 // Uma única leva de consultas em paralelo para manter a página rápida.
-export async function loadAnalytics(tenantId: string) {
+export async function loadAnalytics(tenantId: string, contentIds: string[] = [tenantId]) {
   const now = new Date();
   const d30 = new Date(now.getTime() - 30 * 864e5);
   const d14 = new Date(now.getTime() - 14 * 864e5);
@@ -14,6 +14,7 @@ export async function loadAnalytics(tenantId: string) {
     totalCertificates,
     trilhas,
     completedByTrilha,
+    enrolledByTrilha,
     attempts,
     enrollByUser,
     completedByUser,
@@ -28,15 +29,23 @@ export async function loadAnalytics(tenantId: string) {
   ] = await Promise.all([
     prisma.user.count({ where: { tenantId, role: "STUDENT" } }),
     prisma.enrollment.groupBy({ by: ["status"], where: { user: { tenantId } }, _count: { _all: true } }),
-    prisma.certificate.count({ where: { trilha: { tenantId } } }),
+    prisma.certificate.count({ where: { user: { tenantId } } }),
+    // Produtos visíveis a este tenant (próprios + herdados da mãe).
     prisma.trilha.findMany({
-      where: { tenantId },
+      where: { tenantId: { in: contentIds } },
       orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, published: true, _count: { select: { enrollments: true } } },
+      select: { id: true, title: true, published: true },
     }),
     prisma.enrollment.groupBy({
       by: ["trilhaId"],
       where: { user: { tenantId }, status: "COMPLETED" },
+      _count: { _all: true },
+    }),
+    // Matriculados por produto — só alunos DESTE tenant (numa filha, não conta
+    // alunos de outras filhas/mãe matriculados no mesmo produto compartilhado).
+    prisma.enrollment.groupBy({
+      by: ["trilhaId"],
+      where: { user: { tenantId } },
       _count: { _all: true },
     }),
     // Tentativas de prova com o produto de contexto (colocação em trilha ou módulo).
@@ -50,7 +59,7 @@ export async function loadAnalytics(tenantId: string) {
     }),
     prisma.enrollment.groupBy({ by: ["userId"], where: { user: { tenantId } }, _count: { _all: true } }),
     prisma.enrollment.groupBy({ by: ["userId"], where: { user: { tenantId }, status: "COMPLETED" }, _count: { _all: true } }),
-    prisma.certificate.groupBy({ by: ["userId"], where: { trilha: { tenantId } }, _count: { _all: true } }),
+    prisma.certificate.groupBy({ by: ["userId"], where: { user: { tenantId } }, _count: { _all: true } }),
     prisma.aulaProgress.groupBy({ by: ["userId"], where: { user: { tenantId } }, _count: { _all: true } }),
     prisma.examAttempt.groupBy({ by: ["userId"], where: { user: { tenantId }, passed: true }, _count: { _all: true } }),
     prisma.user.findMany({
@@ -60,7 +69,7 @@ export async function loadAnalytics(tenantId: string) {
     }),
     prisma.enrollment.count({ where: { user: { tenantId }, createdAt: { gte: d30 } } }),
     prisma.aulaProgress.count({ where: { user: { tenantId }, completedAt: { gte: d30 } } }),
-    prisma.certificate.count({ where: { trilha: { tenantId }, issuedAt: { gte: d30 } } }),
+    prisma.certificate.count({ where: { user: { tenantId }, issuedAt: { gte: d30 } } }),
     prisma.aulaProgress.findMany({
       where: { user: { tenantId }, completedAt: { gte: d14 } },
       select: { completedAt: true },
@@ -73,6 +82,7 @@ export async function loadAnalytics(tenantId: string) {
   const completionRate = totalEnroll > 0 ? Math.round((completedEnroll / totalEnroll) * 100) : 0;
 
   const completedMap = new Map(completedByTrilha.map((r) => [r.trilhaId, r._count._all]));
+  const enrolledMap = new Map(enrolledByTrilha.map((r) => [r.trilhaId, r._count._all]));
 
   // Aprovação por trilha (alunos distintos aprovados / que tentaram).
   const attemptedByTrilha = new Map<string, Set<string>>();
@@ -89,7 +99,7 @@ export async function loadAnalytics(tenantId: string) {
   }
 
   const perTrilha = trilhas.map((t) => {
-    const enrolled = t._count.enrollments;
+    const enrolled = enrolledMap.get(t.id) ?? 0;
     const completed = completedMap.get(t.id) ?? 0;
     const attempted = attemptedByTrilha.get(t.id)?.size ?? 0;
     const passed = passedByTrilha.get(t.id)?.size ?? 0;
@@ -150,7 +160,11 @@ export async function loadAnalytics(tenantId: string) {
 // Detalhe de um aluno (Fase 8): cursos matriculados/concluídos, progresso de
 // aulas, tempo até concluir, melhor nota nas provas e certificados. Tudo
 // escopado ao tenant. Retorna null se o aluno não existe no tenant.
-export async function loadStudentDetail(tenantId: string, userId: string) {
+export async function loadStudentDetail(
+  tenantId: string,
+  userId: string,
+  contentIds: string[] = [tenantId]
+) {
   const student = await prisma.user.findFirst({
     where: { id: userId, tenantId, role: "STUDENT" },
     select: {
@@ -167,7 +181,7 @@ export async function loadStudentDetail(tenantId: string, userId: string) {
 
   const [enrollments, progress, attempts, certs] = await Promise.all([
     prisma.enrollment.findMany({
-      where: { userId, trilha: { tenantId } },
+      where: { userId, trilha: { tenantId: { in: contentIds } } },
       orderBy: { createdAt: "asc" },
       select: {
         status: true,
@@ -188,7 +202,7 @@ export async function loadStudentDetail(tenantId: string, userId: string) {
       },
     }),
     prisma.certificate.findMany({
-      where: { userId, trilha: { tenantId } },
+      where: { userId, trilha: { tenantId: { in: contentIds } } },
       select: { trilhaId: true, issuedAt: true, code: true },
     }),
   ]);

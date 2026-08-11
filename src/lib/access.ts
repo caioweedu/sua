@@ -3,6 +3,21 @@ import { prisma } from "./db";
 
 type AccessUser = { role: string; accessProfileId: string | null };
 
+// Escopo de CONTEÚDO visível a um tenant (herança mãe→filha):
+//  - filha: vê o conteúdo próprio + o da mãe (compartilhado com todos).
+//  - mãe: vê só o próprio.
+// A escrita continua escopada ao tenant do usuário (a filha não edita a mãe),
+// e o conteúdo específico da filha nunca aparece na mãe (direção única).
+export function contentTenantIds(tenant: {
+  id: string;
+  type: string;
+  parentId: string | null;
+}): string[] {
+  return tenant.type === "DAUGHTER" && tenant.parentId
+    ? [tenant.id, tenant.parentId]
+    : [tenant.id];
+}
+
 // Retorna a lista de IDs de vitrines que o usuário pode acessar, ou `null`
 // quando pode ver TODAS (admins, ou alunos sem perfil definido).
 export async function allowedVitrineIds(
