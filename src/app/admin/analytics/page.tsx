@@ -155,7 +155,9 @@ export default async function AnalyticsPage() {
                 {a.perStudent.map((s) => (
                   <tr key={s.id}>
                     <td className="py-2 pr-4">
-                      <span className="font-medium text-ink">{s.name}</span>
+                      <Link href={`/admin/alunos/${s.id}`} className="font-medium text-ink hover:text-brand hover:underline">
+                        {s.name}
+                      </Link>
                       <span className="block text-xs text-slate-400">{s.email}</span>
                     </td>
                     <td className="py-2 pr-4">{s.enrolled}</td>
