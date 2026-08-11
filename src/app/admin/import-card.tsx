@@ -13,7 +13,8 @@ export default function ImportCard() {
       <h2 className="mb-1 font-semibold">Importar por planilha</h2>
       <p className="mb-4 text-xs text-slate-500">
         Baixe o modelo, preencha e suba para criar vitrines, produtos, módulos,
-        aulas e provas de uma vez. Formato CSV (o Google Sheets exporta em
+        aulas e provas de uma vez. O modelo abre no Excel e no Google Sheets já
+        com cada campo em sua coluna. Para reenviar, salve como CSV (no Sheets:
         Arquivo → Baixar → CSV).
       </p>
 
