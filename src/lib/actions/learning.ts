@@ -64,3 +64,35 @@ export async function toggleAulaComplete(
   }
   revalidatePath(`/trilhas/${trilhaId}`);
 }
+
+// Conclui a aula atual e leva à próxima (fluxo estilo Udemy). Se não houver
+// próxima, apenas volta para a trilha. Marcar como concluída libera a aula
+// seguinte (liberação sequencial na página).
+export async function completeAndGo(
+  aulaId: string,
+  trilhaId: string,
+  nextAulaId: string | null
+) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const aula = await prisma.aula.findFirst({
+    where: { id: aulaId, trilhaId, trilha: { tenantId: user.tenantId } },
+    select: { id: true },
+  });
+  if (!aula) return;
+
+  await prisma.enrollment.upsert({
+    where: { userId_trilhaId: { userId: user.id, trilhaId } },
+    update: {},
+    create: { userId: user.id, trilhaId, status: "IN_PROGRESS" },
+  });
+  await prisma.aulaProgress.upsert({
+    where: { userId_aulaId: { userId: user.id, aulaId } },
+    update: {},
+    create: { userId: user.id, aulaId },
+  });
+
+  revalidatePath(`/trilhas/${trilhaId}`);
+  redirect(nextAulaId ? `/trilhas/${trilhaId}?a=${nextAulaId}` : `/trilhas/${trilhaId}`);
+}
