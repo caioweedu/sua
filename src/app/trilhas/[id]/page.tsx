@@ -4,12 +4,13 @@ import { getCurrentUser } from "@/lib/auth";
 import { allowedVitrineIds, canAccessVitrine } from "@/lib/access";
 import { loadProgress, isUnlocked, type UnlockResult } from "@/lib/release";
 import { prisma } from "@/lib/db";
-import { toEmbedUrl } from "@/lib/video";
-import { enroll, toggleAulaComplete, completeAndGo, claimCertificate } from "@/lib/actions/learning";
+import { toEmbedUrl, videoProvider } from "@/lib/video";
+import { enroll, claimCertificate } from "@/lib/actions/learning";
 import AppShell from "@/components/AppShell";
 import ProfessorChat from "@/components/ProfessorChat";
 import SubmitButton from "@/components/SubmitButton";
 import FlashcardStudy from "./flashcard-study";
+import LessonPlayer from "./lesson-player";
 
 export default async function TrilhaPage({
   params,
@@ -248,9 +249,9 @@ export default async function TrilhaPage({
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* Player + material */}
         <div>
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-card">
-            <div className="aspect-video">
-              {!canWatch ? (
+          {!canWatch ? (
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-black shadow-card">
+              <div className="aspect-video">
                 <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
                   <div className="text-5xl">▶️</div>
                   <p className="max-w-sm text-slate-300">
@@ -261,74 +262,23 @@ export default async function TrilhaPage({
                     <SubmitButton pendingText="Começando…">Começar trilha</SubmitButton>
                   </form>
                 </div>
-              ) : embed ? (
-                <iframe
-                  src={embed}
-                  className="h-full w-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title={current?.title}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-slate-500">
-                  {current ? "Esta aula ainda não tem vídeo." : "Selecione uma aula para assistir"}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {current && canWatch && (
-            <div className="mt-4">
-              <h2 className="text-lg font-bold text-ink">
-                {currentIndex + 1}. {current.title}
-              </h2>
-              {current.description && (
-                <p className="mt-1 text-slate-600">{current.description}</p>
-              )}
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                {current.pdfUrl && (
-                  <a
-                    href={current.pdfUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-brand hover:text-brand"
-                  >
-                    📎 Material de apoio (PDF)
-                  </a>
-                )}
-                {user.role === "STUDENT" ? (
-                  currentDone ? (
-                    <>
-                      <form action={toggleAulaComplete.bind(null, current.id, trilha.id, false)}>
-                        <SubmitButton
-                          pendingText="Salvando…"
-                          className="inline-flex items-center gap-2 rounded-xl border border-green-300 bg-green-50 px-4 py-2.5 text-sm font-medium text-green-700 transition hover:bg-green-100"
-                        >
-                          ✓ Aula concluída
-                        </SubmitButton>
-                      </form>
-                      {nextAula && (
-                        <Link href={`/trilhas/${trilha.id}?a=${nextAula.id}`} className="btn-brand">
-                          Próxima aula →
-                        </Link>
-                      )}
-                    </>
-                  ) : (
-                    <form action={completeAndGo.bind(null, current.id, trilha.id, nextAula?.id ?? null)}>
-                      <SubmitButton className="btn-brand" pendingText="Salvando…">
-                        {nextAula ? "Concluir e avançar →" : "Concluir aula"}
-                      </SubmitButton>
-                    </form>
-                  )
-                ) : (
-                  nextAula && (
-                    <Link href={`/trilhas/${trilha.id}?a=${nextAula.id}`} className="btn-outline">
-                      Próxima aula →
-                    </Link>
-                  )
-                )}
               </div>
             </div>
+          ) : (
+            <LessonPlayer
+              key={current?.id ?? "none"}
+              embed={embed}
+              provider={videoProvider(embed)}
+              title={current?.title ?? ""}
+              description={current?.description ?? null}
+              pdfUrl={current?.pdfUrl ?? null}
+              indexLabel={currentIndex + 1}
+              isStudent={user.role === "STUDENT"}
+              currentDone={currentDone}
+              currentId={current?.id ?? null}
+              trilhaId={trilha.id}
+              nextAulaId={nextAula?.id ?? null}
+            />
           )}
 
           {/* Flashcards de estudo do produto (Fase 5 — fatia 3) */}
