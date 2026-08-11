@@ -10,6 +10,7 @@ import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
 import FlashcardsCard from "./flashcards-card";
 import {
   addAula,
+  updateAula,
   deleteAula,
   addModulo,
   deleteModulo,
@@ -233,17 +234,34 @@ export default async function ManageTrilhaPage({
                   </div>
                   <ul className="divide-y divide-slate-50">
                     {m.aulas.map((a, i) => (
-                      <li key={a.id} className="flex items-center justify-between px-3 py-2">
-                        <span className="text-sm">
-                          {i + 1}. {a.title}
-                          {a.videoUrl && " 🎬"}
-                          {a.pdfUrl && " 📎"}
-                        </span>
-                        <form action={deleteAula.bind(null, a.id, trilha.id)}>
-                          <button className="text-xs text-red-500 hover:underline" type="submit">
-                            remover
-                          </button>
-                        </form>
+                      <li key={a.id} className="px-3 py-2">
+                        <details>
+                          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm">
+                            <span>
+                              {i + 1}. {a.title}
+                              {a.videoUrl && " 🎬"}
+                              {a.pdfUrl && " 📎"}
+                            </span>
+                            <span className="text-xs font-medium text-brand">editar ▾</span>
+                          </summary>
+                          <form
+                            action={updateAula.bind(null, a.id, trilha.id)}
+                            className="mt-2 space-y-2"
+                          >
+                            <input name="title" defaultValue={a.title} className="input" placeholder="Título da aula" />
+                            <input name="videoUrl" defaultValue={a.videoUrl ?? ""} className="input" placeholder="Link do vídeo (YouTube, Vimeo, Panda...)" />
+                            <input name="pdfUrl" defaultValue={a.pdfUrl ?? ""} className="input" placeholder="Link do material/PDF (opcional)" />
+                            <textarea name="description" defaultValue={a.description ?? ""} rows={2} className="input" placeholder="Descrição (opcional)" />
+                            <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">
+                              Salvar aula
+                            </SubmitButton>
+                          </form>
+                          <form action={deleteAula.bind(null, a.id, trilha.id)} className="mt-1">
+                            <button className="text-xs text-red-500 hover:underline" type="submit">
+                              remover aula
+                            </button>
+                          </form>
+                        </details>
                       </li>
                     ))}
                     {m.aulas.length === 0 && (

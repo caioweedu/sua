@@ -137,6 +137,27 @@ export async function addAula(moduloId: string, trilhaId: string, formData: Form
   revalidatePath(`/admin/trilhas/${trilhaId}`);
 }
 
+// Edita uma aula existente (título, descrição, vídeo e material/PDF).
+// Escopo por tenant via a relação com a trilha.
+export async function updateAula(
+  aulaId: string,
+  trilhaId: string,
+  formData: FormData
+) {
+  const user = await requireAdmin();
+  const title = String(formData.get("title") ?? "").trim();
+  await prisma.aula.updateMany({
+    where: { id: aulaId, trilha: { tenantId: user.tenantId } },
+    data: {
+      ...(title ? { title } : {}),
+      description: String(formData.get("description") ?? "").trim() || null,
+      videoUrl: String(formData.get("videoUrl") ?? "").trim() || null,
+      pdfUrl: String(formData.get("pdfUrl") ?? "").trim() || null,
+    },
+  });
+  revalidatePath(`/admin/trilhas/${trilhaId}`);
+}
+
 export async function deleteAula(aulaId: string, trilhaId: string) {
   await requireAdmin();
   await prisma.aula.delete({ where: { id: aulaId } });
