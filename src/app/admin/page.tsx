@@ -13,6 +13,7 @@ import {
   togglePublish,
   updateBranding,
   createDaughter,
+  updateDaughter,
   createVitrine,
   deleteVitrine,
   setReleaseCondition,
@@ -584,15 +585,51 @@ export default async function AdminPage() {
                 <p className="mb-4 text-xs text-slate-500">
                   {daughters.length} cliente(s) white-label
                 </p>
+                <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                  Para acessar uma filha sem domínio próprio, use o link
+                  <span className="font-medium"> Acessar</span> (guarda a filha por 1 dia).
+                  Faça <span className="font-medium">logout</span> antes, e entre com o admin da filha.
+                </p>
                 <ul className="divide-y divide-slate-100 text-sm">
                   {daughters.map((d) => (
-                    <li key={d.id} className="py-2">
-                      <span className="font-medium">{d.name}</span>
-                      <span className="text-slate-400"> · {d.slug}</span>
-                      <p className="text-xs text-slate-500">
-                        {d._count.users} usuário(s) · {d._count.trilhas} produto(s)
-                        {d.customDomain && ` · ${d.customDomain}`}
-                      </p>
+                    <li key={d.id} className="py-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className="font-medium">{d.name}</span>
+                          {!d.active && (
+                            <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">inativa</span>
+                          )}
+                          <span className="text-slate-400"> · {d.slug}</span>
+                          <p className="text-xs text-slate-500">
+                            {d._count.users} usuário(s) · {d._count.trilhas} produto(s)
+                            {d.customDomain && ` · ${d.customDomain}`}
+                          </p>
+                        </div>
+                        <a
+                          href={`/login?tenant=${d.slug}`}
+                          className="btn-outline shrink-0 px-2 py-1 text-xs"
+                        >
+                          Acessar ↗
+                        </a>
+                      </div>
+
+                      {/* Editar filha */}
+                      <details className="mt-1.5">
+                        <summary className="cursor-pointer text-xs font-medium text-brand">editar</summary>
+                        <form action={updateDaughter.bind(null, d.id)} className="mt-2 space-y-2">
+                          <input name="name" defaultValue={d.name} required className="input py-1.5 text-sm" placeholder="Nome da filha" />
+                          <input name="slug" defaultValue={d.slug} required className="input py-1.5 text-sm" placeholder="slug (ex: cliente-x)" />
+                          <input name="customDomain" defaultValue={d.customDomain ?? ""} className="input py-1.5 text-sm" placeholder="Domínio próprio (opcional)" />
+                          <div className="flex items-center gap-2">
+                            <label className="label mb-0 text-xs">Cor</label>
+                            <input name="brandColor" type="color" defaultValue={d.brandColor} className="h-8 w-12 rounded border border-slate-300" />
+                            <label className="ml-3 flex items-center gap-1.5 text-sm text-slate-600">
+                              <input type="checkbox" name="active" defaultChecked={d.active} /> Ativa
+                            </label>
+                          </div>
+                          <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">Salvar filha</SubmitButton>
+                        </form>
+                      </details>
                     </li>
                   ))}
                 </ul>

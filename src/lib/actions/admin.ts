@@ -633,6 +633,47 @@ export async function createDaughter(formData: FormData) {
   revalidatePath("/admin");
 }
 
+export async function updateDaughter(daughterId: string, formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "SUPER_ADMIN") throw new Error("Sem permissão.");
+
+  const target = await prisma.tenant.findFirst({
+    where: { id: daughterId, type: "DAUGHTER" },
+    select: { id: true },
+  });
+  if (!target) return;
+
+  const name = String(formData.get("name") ?? "").trim();
+  const slug = String(formData.get("slug") ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "-");
+  const customDomain = String(formData.get("customDomain") ?? "").trim().toLowerCase() || null;
+  const brandColor = String(formData.get("brandColor") ?? "").trim();
+  const active = formData.get("active") != null;
+
+  // Slug é único: bloqueia colisão com outro tenant.
+  if (slug) {
+    const clash = await prisma.tenant.findFirst({
+      where: { slug, id: { not: daughterId } },
+      select: { id: true },
+    });
+    if (clash) throw new Error("Já existe um tenant com este slug.");
+  }
+
+  await prisma.tenant.update({
+    where: { id: daughterId },
+    data: {
+      ...(name ? { name } : {}),
+      ...(slug ? { slug } : {}),
+      customDomain,
+      ...(brandColor ? { brandColor } : {}),
+      active,
+    },
+  });
+  revalidatePath("/admin");
+}
+
 // --- Branding do próprio tenant -----------------------------------------
 export async function updateBranding(formData: FormData) {
   const user = await requireAdmin();

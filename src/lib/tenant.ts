@@ -1,5 +1,5 @@
 import "server-only";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { prisma } from "./db";
 
 // Resolve o tenant a partir do host da requisição.
@@ -33,7 +33,17 @@ export async function resolveTenant() {
     }
   }
 
-  // 3. Fallback: tenant mãe
+  // 3. Atalho de pré-visualização por cookie (?tenant=slug), enquanto o
+  // subdomínio/domínio próprio não está configurado.
+  const override = (await cookies()).get("tenant_override")?.value;
+  if (override) {
+    const byOverride = await prisma.tenant.findFirst({
+      where: { slug: override, active: true },
+    });
+    if (byOverride) return byOverride;
+  }
+
+  // 4. Fallback: tenant mãe
   return prisma.tenant.findFirst({
     where: { type: "MOTHER" },
     orderBy: { createdAt: "asc" },
