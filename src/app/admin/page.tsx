@@ -39,7 +39,7 @@ export default async function AdminPage() {
     orderBy: { order: "asc" },
     include: {
       _count: { select: { trilhas: true } },
-      releaseCondition: { include: { clauses: true } },
+      releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },
       examPlacements: {
         include: { exam: { select: { title: true, _count: { select: { questions: true } } } } },
       },

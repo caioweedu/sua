@@ -20,7 +20,7 @@ export default async function VitrinePage({
   const vitrine = await prisma.vitrine.findFirst({
     where: { id, tenantId: user.tenantId },
     include: {
-      releaseCondition: { include: { clauses: true } },
+      releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },
       trilhas: {
         where: { published: true },
         orderBy: [{ order: "asc" }, { createdAt: "asc" }],

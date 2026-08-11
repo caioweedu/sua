@@ -27,7 +27,7 @@ export default async function DashboardPage() {
       },
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       include: {
-        releaseCondition: { include: { clauses: true } },
+        releaseCondition: { include: { clauses: { orderBy: { order: "asc" } } } },
         trilhas: {
           where: { published: true },
           orderBy: [{ order: "asc" }, { createdAt: "asc" }],
