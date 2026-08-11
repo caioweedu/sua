@@ -146,3 +146,109 @@ export async function loadAnalytics(tenantId: string) {
     perStudent,
   };
 }
+
+// Detalhe de um aluno (Fase 8): cursos matriculados/concluídos, progresso de
+// aulas, tempo até concluir, melhor nota nas provas e certificados. Tudo
+// escopado ao tenant. Retorna null se o aluno não existe no tenant.
+export async function loadStudentDetail(tenantId: string, userId: string) {
+  const student = await prisma.user.findFirst({
+    where: { id: userId, tenantId, role: "STUDENT" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      active: true,
+      createdAt: true,
+      accessProfile: { select: { name: true } },
+    },
+  });
+  if (!student) return null;
+
+  const [enrollments, progress, attempts, certs] = await Promise.all([
+    prisma.enrollment.findMany({
+      where: { userId, trilha: { tenantId } },
+      orderBy: { createdAt: "asc" },
+      select: {
+        status: true,
+        createdAt: true,
+        trilha: { select: { id: true, title: true, aulas: { select: { id: true } } } },
+      },
+    }),
+    prisma.aulaProgress.findMany({
+      where: { userId },
+      select: { aulaId: true, completedAt: true },
+    }),
+    prisma.examAttempt.findMany({
+      where: { userId },
+      select: {
+        score: true,
+        passed: true,
+        placement: { select: { trilhaId: true, modulo: { select: { trilhaId: true } } } },
+      },
+    }),
+    prisma.certificate.findMany({
+      where: { userId, trilha: { tenantId } },
+      select: { trilhaId: true, issuedAt: true, code: true },
+    }),
+  ]);
+
+  const doneAt = new Map(progress.map((p) => [p.aulaId, p.completedAt]));
+  const certByTrilha = new Map(certs.map((c) => [c.trilhaId, c]));
+
+  // Melhor nota (e aprovação) por produto de contexto da prova.
+  const bestScore = new Map<string, number>();
+  const passedTrilha = new Set<string>();
+  for (const at of attempts) {
+    const tid = at.placement?.trilhaId ?? at.placement?.modulo?.trilhaId ?? null;
+    if (!tid) continue;
+    bestScore.set(tid, Math.max(bestScore.get(tid) ?? 0, at.score));
+    if (at.passed) passedTrilha.add(tid);
+  }
+
+  const DAY = 864e5;
+  const courses = enrollments.map((e) => {
+    const aulaIds = e.trilha.aulas.map((a) => a.id);
+    const done = aulaIds.filter((id) => doneAt.has(id));
+    const total = aulaIds.length;
+    const progressPct = total > 0 ? Math.round((done.length / total) * 100) : 0;
+
+    // Última aula concluída deste produto (para estimar tempo de conclusão).
+    let lastCompleted: Date | null = null;
+    for (const id of done) {
+      const d = doneAt.get(id)!;
+      if (!lastCompleted || d > lastCompleted) lastCompleted = d;
+    }
+    const cert = certByTrilha.get(e.trilha.id) ?? null;
+    const endDate = cert?.issuedAt ?? (e.status === "COMPLETED" ? lastCompleted : null);
+    const completionDays = endDate
+      ? Math.max(0, Math.round((endDate.getTime() - e.createdAt.getTime()) / DAY))
+      : null;
+
+    return {
+      id: e.trilha.id,
+      title: e.trilha.title,
+      status: e.status,
+      enrolledAt: e.createdAt,
+      aulasTotal: total,
+      aulasDone: done.length,
+      progressPct,
+      bestScore: bestScore.has(e.trilha.id) ? bestScore.get(e.trilha.id)! : null,
+      passed: passedTrilha.has(e.trilha.id),
+      certCode: cert?.code ?? null,
+      certIssuedAt: cert?.issuedAt ?? null,
+      completionDays,
+    };
+  });
+
+  const scores = courses.map((c) => c.bestScore).filter((s): s is number => s != null);
+  const totals = {
+    enrolled: enrollments.length,
+    completed: enrollments.filter((e) => e.status === "COMPLETED").length,
+    aulasDone: progress.length,
+    certificates: certs.length,
+    avgScore: scores.length ? Math.round(scores.reduce((s, n) => s + n, 0) / scores.length) : null,
+  };
+
+  return { student, totals, courses };
+}

@@ -157,6 +157,7 @@ model User {
   tenant       Tenant   @relation(fields: [tenantId], references: [id])
   name         String
   email        String
+  phone        String?
   passwordHash String
   role         String   @default("STUDENT") // SUPER_ADMIN | TENANT_ADMIN | STUDENT
   active       Boolean  @default(true)
@@ -170,9 +171,26 @@ model User {
   attempts     ExamAttempt[]
   certificates Certificate[]
   aulaProgress AulaProgress[]
+  authTokens   AuthToken[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
+}
+
+// Token de uso único para o aluno DEFINIR/REDEFINIR a senha por um link
+// (convite de acesso ou "esqueci a senha" disparado pelo admin). O mesmo
+// mecanismo serve para os dois casos — muda só o texto do e-mail (purpose).
+model AuthToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String    @default("INVITE") // INVITE | RESET
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------

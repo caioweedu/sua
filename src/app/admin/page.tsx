@@ -19,9 +19,9 @@ import {
   attachExamToVitrine,
   detachExamPlacement,
   createAccessProfile,
+  updateAccessProfile,
   deleteAccessProfile,
   createUser,
-  assignProfile,
   deleteUser,
   createHeroSlide,
   updateHeroSlide,
@@ -282,21 +282,53 @@ export default async function AdminPage() {
             )}
             <ul className="mb-4 divide-y divide-slate-100">
               {profiles.map((p) => (
-                <li key={p.id} className="flex items-start justify-between gap-3 py-2.5">
-                  <div>
-                    <span className="font-medium">{p.name}</span>
-                    <p className="text-xs text-slate-500">
-                      {p._count.users} usuário(s) ·{" "}
-                      {p.vitrines.length === 0
-                        ? "nenhuma vitrine liberada"
-                        : p.vitrines.map((v) => v.name).join(", ")}
-                    </p>
+                <li key={p.id} className="py-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="font-medium">{p.name}</span>
+                      <p className="text-xs text-slate-500">
+                        {p._count.users} usuário(s) ·{" "}
+                        {p.vitrines.length === 0
+                          ? "nenhuma vitrine liberada"
+                          : p.vitrines.map((v) => v.name).join(", ")}
+                      </p>
+                    </div>
+                    <form action={deleteAccessProfile.bind(null, p.id)}>
+                      <button className="text-xs text-red-500 hover:underline" type="submit">
+                        remover
+                      </button>
+                    </form>
                   </div>
-                  <form action={deleteAccessProfile.bind(null, p.id)}>
-                    <button className="text-xs text-red-500 hover:underline" type="submit">
-                      remover
-                    </button>
-                  </form>
+
+                  {/* Editar perfil: nome, descrição e vitrines liberadas */}
+                  <details className="mt-1.5">
+                    <summary className="cursor-pointer text-xs font-medium text-brand">editar</summary>
+                    <form action={updateAccessProfile.bind(null, p.id)} className="mt-2 space-y-2">
+                      <input name="name" defaultValue={p.name} required className="input py-1.5 text-sm" placeholder="Nome do perfil" />
+                      <div>
+                        <label className="label text-xs">Vitrines liberadas</label>
+                        {vitrines.length === 0 ? (
+                          <p className="text-xs text-slate-500">Crie uma vitrine primeiro.</p>
+                        ) : (
+                          <div className="grid gap-1.5 sm:grid-cols-2">
+                            {vitrines.map((v) => (
+                              <label key={v.id} className="flex items-center gap-2 text-sm">
+                                <input
+                                  type="checkbox"
+                                  name="vitrineIds"
+                                  value={v.id}
+                                  defaultChecked={p.vitrines.some((pv) => pv.id === v.id)}
+                                  className="h-4 w-4 rounded border-slate-300"
+                                />
+                                {v.name}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">Salvar perfil</SubmitButton>
+                    </form>
+                  </details>
                 </li>
               ))}
             </ul>
@@ -336,22 +368,17 @@ export default async function AdminPage() {
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                   <div className="min-w-0">
                     <span className="font-medium">{s.name}</span>
-                    <p className="truncate text-xs text-slate-500">{s.email}</p>
+                    {!s.active && (
+                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">inativo</span>
+                    )}
+                    <p className="truncate text-xs text-slate-500">
+                      {s.email} · {s.accessProfile?.name ?? "Acesso total"}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <form action={assignProfile.bind(null, s.id)} className="flex items-center gap-1">
-                      <select
-                        name="accessProfileId"
-                        defaultValue={s.accessProfile?.id ?? ""}
-                        className="input py-1.5 text-sm"
-                      >
-                        <option value="">Acesso total</option>
-                        {profiles.map((p) => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
-                      <button className="btn-outline px-2 py-1.5 text-xs" type="submit">salvar</button>
-                    </form>
+                    <Link href={`/admin/alunos/${s.id}`} className="btn-outline px-2 py-1 text-xs">
+                      editar
+                    </Link>
                     <form action={deleteUser.bind(null, s.id)}>
                       <button className="text-xs text-red-500 hover:underline" type="submit">
                         remover
