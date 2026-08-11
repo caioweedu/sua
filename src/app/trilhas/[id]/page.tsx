@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { allowedVitrineIds, canAccessVitrine, contentTenantIds } from "@/lib/access";
+import { allowedVitrineIds, canAccessVitrine, contentTenantIds, hiddenSharedVitrineIds } from "@/lib/access";
 import { loadProgress, isUnlocked, type UnlockResult } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import { toEmbedUrl, videoProvider } from "@/lib/video";
@@ -62,6 +62,12 @@ export default async function TrilhaPage({
     },
   });
   if (!trilha) notFound();
+
+  // Conteúdo herdado da mãe que a filha ocultou não é acessível.
+  if (trilha.vitrineId) {
+    const hiddenShared = await hiddenSharedVitrineIds(user.tenant);
+    if (hiddenShared.includes(trilha.vitrineId)) notFound();
+  }
 
   const allowed = await allowedVitrineIds(user);
   if (!canAccessVitrine(allowed, trilha.vitrineId)) notFound();
