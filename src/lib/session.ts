@@ -47,4 +47,6 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function destroySession() {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
+  // Encerra também qualquer impersonação de filha (preview via ?tenant).
+  cookieStore.delete("tenant_override");
 }
