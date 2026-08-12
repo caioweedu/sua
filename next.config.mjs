@@ -33,4 +33,13 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+import { withSentryConfig } from "@sentry/nextjs";
+
+// withSentryConfig só faz upload de source maps quando SENTRY_AUTH_TOKEN e org/
+// project estão definidos; sem eles, o build roda normal (apenas sem source
+// maps no Sentry). O monitoramento de erros funciona só com o DSN.
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+});
