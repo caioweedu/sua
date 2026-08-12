@@ -8,14 +8,14 @@ import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
 import { describeCondition } from "@/lib/release";
-import { hiddenSharedVitrineIds } from "@/lib/access";
+import { grantedSharedVitrineIds } from "@/lib/access";
 import {
   createTrilha,
   togglePublish,
   updateBranding,
   createDaughter,
   updateDaughter,
-  saveSharedVisibility,
+  saveDaughterGrants,
   createVitrine,
   deleteVitrine,
   setReleaseCondition,
@@ -113,17 +113,16 @@ export default async function AdminPage() {
       })
     : [];
 
-  // Vitrines herdadas que esta filha optou por ocultar (opt-out).
-  const hiddenShared = isDaughter ? await hiddenSharedVitrineIds(user.tenant) : [];
-  const hiddenSet = new Set(hiddenShared);
+  // Vitrines da Weedu LIBERADAS para esta filha (só essas ela pode usar).
+  const grantedShared = isDaughter ? await grantedSharedVitrineIds(user.tenant) : [];
+  const grantedSet = new Set(grantedShared);
+  const receivedVitrines = sharedVitrines.filter((v) => grantedSet.has(v.id));
 
-  // Opções de vitrine para os perfis de acesso: as próprias + as compartilhadas
-  // da Weedu que NÃO foram ocultadas (marcadas com "(Weedu)").
+  // Opções de vitrine para os perfis de acesso: as próprias + as liberadas pela
+  // Weedu (marcadas com "(Weedu)").
   const profileVitrineOptions = [
     ...vitrines.map((v) => ({ id: v.id, label: v.name })),
-    ...sharedVitrines
-      .filter((v) => !hiddenSet.has(v.id))
-      .map((v) => ({ id: v.id, label: `${v.name} (Weedu)` })),
+    ...receivedVitrines.map((v) => ({ id: v.id, label: `${v.name} (Weedu)` })),
   ];
 
   const isSuper = user.role === "SUPER_ADMIN";
@@ -134,6 +133,19 @@ export default async function AdminPage() {
         include: { _count: { select: { users: true, trilhas: true } } },
       })
     : [];
+  // Liberações de conteúdo por filha (para o painel da Weedu): filha → set de
+  // ids de vitrines da mãe liberadas.
+  const grantsByDaughter = new Map<string, Set<string>>();
+  if (isSuper && daughters.length > 0) {
+    const grants = await prisma.sharedVitrineGrant.findMany({
+      where: { tenantId: { in: daughters.map((d) => d.id) } },
+      select: { tenantId: true, vitrineId: true },
+    });
+    for (const g of grants) {
+      if (!grantsByDaughter.has(g.tenantId)) grantsByDaughter.set(g.tenantId, new Set());
+      grantsByDaughter.get(g.tenantId)!.add(g.vitrineId);
+    }
+  }
 
   return (
     <AppShell user={user} tenant={user.tenant}>
@@ -286,52 +298,40 @@ export default async function AdminPage() {
               )}
             </div>
 
-            {/* Conteúdo compartilhado da Weedu — a filha escolhe o que herdar */}
-            {sharedVitrines.length > 0 && (
-              <form
-                action={saveSharedVisibility}
-                className="mt-3 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40"
-              >
+            {/* Conteúdo liberado pela Weedu (só leitura — quem controla é a Weedu) */}
+            {isDaughter && (
+              <div className="mt-3 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40">
                 <div className="border-b border-indigo-100 px-3 py-2 text-sm font-semibold text-indigo-700">
-                  🔗 Conteúdo compartilhado pela Weedu
+                  🔗 Conteúdo liberado pela Weedu
                 </div>
-                <p className="px-3 pt-2 text-xs text-slate-500">
-                  Marque o que deve aparecer nesta universidade. O que estiver desmarcado
-                  não é herdado (some para os alunos e some dos perfis de acesso). Este
-                  conteúdo é gerenciado pela Weedu — aqui você só escolhe se herda ou não.
-                </p>
-                <ul className="divide-y divide-indigo-50">
-                  {sharedVitrines.map((v) => (
-                    <li key={v.id} className="px-3 py-2">
-                      <label className="flex items-start gap-2">
-                        <input
-                          type="checkbox"
-                          name="visibleVitrineIds"
-                          value={v.id}
-                          defaultChecked={!hiddenSet.has(v.id)}
-                          className="mt-0.5 h-4 w-4 rounded border-slate-300"
-                        />
-                        <span className="min-w-0">
+                {receivedVitrines.length === 0 ? (
+                  <p className="px-3 py-3 text-xs text-slate-500">
+                    A Weedu ainda não liberou nenhum conteúdo para esta universidade.
+                  </p>
+                ) : (
+                  <>
+                    <ul className="divide-y divide-indigo-50">
+                      {receivedVitrines.map((v) => (
+                        <li key={v.id} className="px-3 py-2">
                           <span className="text-sm font-medium text-ink">🗂️ {v.name}</span>
                           <span className="ml-2 text-xs text-slate-400">
                             {v.trilhas.length} produto(s)
                           </span>
                           {v.trilhas.length > 0 && (
-                            <span className="mt-0.5 block text-xs text-slate-500">
+                            <p className="mt-0.5 pl-6 text-xs text-slate-500">
                               {v.trilhas.map((t) => t.title).join(" · ")}
-                            </span>
+                            </p>
                           )}
-                        </span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-                <div className="px-3 py-2">
-                  <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">
-                    Salvar conteúdo herdado
-                  </SubmitButton>
-                </div>
-              </form>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="px-3 py-2 text-xs text-slate-500">
+                      Gerenciado pela Weedu. Use os <strong>perfis de acesso</strong> acima para
+                      definir quais alunos veem cada um.
+                    </p>
+                  </>
+                )}
+              </div>
             )}
 
             {/* Nova vitrine */}
@@ -711,6 +711,41 @@ export default async function AdminPage() {
                           </div>
                           <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">Salvar filha</SubmitButton>
                         </form>
+                      </details>
+
+                      {/* Conteúdo liberado para esta filha (controle da Weedu) */}
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-xs font-medium text-indigo-600">
+                          conteúdo liberado ({grantsByDaughter.get(d.id)?.size ?? 0})
+                        </summary>
+                        {vitrines.length === 0 ? (
+                          <p className="mt-2 text-xs text-slate-500">
+                            Crie vitrines na Weedu para poder liberá-las.
+                          </p>
+                        ) : (
+                          <form action={saveDaughterGrants.bind(null, d.id)} className="mt-2 space-y-2">
+                            <p className="text-xs text-slate-500">
+                              Marque as vitrines da Weedu que <strong>{d.name}</strong> recebe.
+                            </p>
+                            <div className="grid gap-1.5">
+                              {vitrines.map((v) => (
+                                <label key={v.id} className="flex items-center gap-2 text-sm">
+                                  <input
+                                    type="checkbox"
+                                    name="grantVitrineIds"
+                                    value={v.id}
+                                    defaultChecked={grantsByDaughter.get(d.id)?.has(v.id) ?? false}
+                                    className="h-4 w-4 rounded border-slate-300"
+                                  />
+                                  {v.name}
+                                </label>
+                              ))}
+                            </div>
+                            <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">
+                              Salvar liberação
+                            </SubmitButton>
+                          </form>
+                        )}
                       </details>
                     </li>
                   ))}

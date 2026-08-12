@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { allowedVitrineIds, canAccessVitrine, contentTenantIds, hiddenSharedVitrineIds } from "@/lib/access";
+import { allowedVitrineIds, canAccessVitrine, contentTenantIds, grantedSharedVitrineIds, vitrineVisible } from "@/lib/access";
 import { loadProgress, isUnlocked } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
@@ -40,9 +40,9 @@ export default async function VitrinePage({
   });
   if (!vitrine) notFound();
 
-  // Conteúdo herdado da mãe que a filha ocultou não é acessível.
-  const hiddenShared = await hiddenSharedVitrineIds(user.tenant);
-  if (hiddenShared.includes(vitrine.id)) notFound();
+  // Conteúdo da mãe só é acessível se liberado para esta filha.
+  const granted = await grantedSharedVitrineIds(user.tenant);
+  if (!vitrineVisible(user.tenant, vitrine.tenantId, vitrine.id, granted)) notFound();
 
   const allowed = await allowedVitrineIds(user);
   if (!canAccessVitrine(allowed, vitrine.id)) notFound();

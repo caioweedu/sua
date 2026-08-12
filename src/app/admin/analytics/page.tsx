@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { loadAnalytics } from "@/lib/analytics";
-import { contentTenantIds } from "@/lib/access";
+import { grantedSharedVitrineIds } from "@/lib/access";
 import AppShell from "@/components/AppShell";
 
 function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
@@ -20,7 +20,13 @@ export default async function AnalyticsPage() {
   if (!user) redirect("/login");
   if (!isAdmin(user.role)) redirect("/dashboard");
 
-  const a = await loadAnalytics(user.tenantId, contentTenantIds(user.tenant));
+  // Produtos considerados: próprios + os liberados pela Weedu (para filhas).
+  const isDaughter = user.tenant.type === "DAUGHTER" && !!user.tenant.parentId;
+  const granted = isDaughter ? await grantedSharedVitrineIds(user.tenant) : [];
+  const trilhaWhere = isDaughter
+    ? { OR: [{ tenantId: user.tenantId }, { vitrineId: { in: granted } }] }
+    : { tenantId: user.tenantId };
+  const a = await loadAnalytics(user.tenantId, trilhaWhere);
   const maxDay = Math.max(1, ...a.engagement.days.map((d) => d.count));
 
   return (

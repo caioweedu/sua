@@ -674,24 +674,36 @@ export async function updateDaughter(daughterId: string, formData: FormData) {
   revalidatePath("/admin");
 }
 
-// Define quais vitrines herdadas da mãe (Weedu) a filha exibe. Recebe os ids
-// marcados como VISÍVEIS; as demais vitrines da mãe viram opt-out (ocultas).
-export async function saveSharedVisibility(formData: FormData) {
-  const user = await requireAdmin();
-  if (!(user.tenant.type === "DAUGHTER" && user.tenant.parentId)) return;
+// A MÃE (Weedu) define quais das SUAS vitrines cada filha recebe (white-label).
+// Recebe os ids liberados e reescreve as liberações daquela filha.
+export async function saveDaughterGrants(daughterId: string, formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "SUPER_ADMIN") throw new Error("Sem permissão.");
 
-  const motherVitrines = await prisma.vitrine.findMany({
-    where: { tenantId: user.tenant.parentId, published: true },
+  // A filha precisa ser filha desta mãe.
+  const daughter = await prisma.tenant.findFirst({
+    where: { id: daughterId, type: "DAUGHTER", parentId: user.tenantId },
     select: { id: true },
   });
-  const visible = new Set(formData.getAll("visibleVitrineIds").map((v) => String(v)));
-  const hidden = motherVitrines.filter((v) => !visible.has(v.id)).map((v) => v.id);
+  if (!daughter) return;
 
-  // Reescreve o conjunto de opt-outs desta filha.
-  await prisma.sharedVitrineOptOut.deleteMany({ where: { tenantId: user.tenantId } });
-  if (hidden.length > 0) {
-    await prisma.sharedVitrineOptOut.createMany({
-      data: hidden.map((vitrineId) => ({ tenantId: user.tenantId, vitrineId })),
+  const motherVitrineIds = new Set(
+    (
+      await prisma.vitrine.findMany({
+        where: { tenantId: user.tenantId },
+        select: { id: true },
+      })
+    ).map((v) => v.id)
+  );
+  const granted = formData
+    .getAll("grantVitrineIds")
+    .map((v) => String(v))
+    .filter((id) => motherVitrineIds.has(id));
+
+  await prisma.sharedVitrineGrant.deleteMany({ where: { tenantId: daughterId } });
+  if (granted.length > 0) {
+    await prisma.sharedVitrineGrant.createMany({
+      data: granted.map((vitrineId) => ({ tenantId: daughterId, vitrineId })),
     });
   }
   revalidatePath("/admin");
