@@ -11,6 +11,15 @@ async function requireAdmin() {
   return user;
 }
 
+// Slugs reservados para a mãe/sistema (viram subdomínios: sua.weedu.com.br,
+// www.weedu.com.br, …). Filhas não podem tomá-los para não sequestrar esses
+// endereços quando a resolução por subdomínio estiver ativa.
+const RESERVED_SLUGS = new Set([
+  "www", "sua", "weedu", "app", "admin", "api", "mail", "auth", "login",
+  "dashboard", "painel", "portal", "static", "assets", "cdn", "status",
+  "help", "suporte", "docs", "blog",
+]);
+
 // --- Vitrines ------------------------------------------------------------
 export async function createVitrine(formData: FormData) {
   const user = await requireAdmin();
@@ -607,6 +616,10 @@ export async function createDaughter(formData: FormData) {
   const adminPassword = String(formData.get("adminPassword") ?? "");
   if (!name || !slug || !adminEmail || adminPassword.length < 6) return;
 
+  if (RESERVED_SLUGS.has(slug)) throw new Error(`O endereço "${slug}" é reservado. Escolha outro.`);
+  const slugClash = await prisma.tenant.findFirst({ where: { slug }, select: { id: true } });
+  if (slugClash) throw new Error("Já existe uma universidade com este endereço (slug).");
+
   const mother = user.tenant.type === "MOTHER" ? user.tenant : await prisma.tenant.findFirst({ where: { type: "MOTHER" } });
 
   const daughter = await prisma.tenant.create({
@@ -652,13 +665,14 @@ export async function updateDaughter(daughterId: string, formData: FormData) {
   const brandColor = String(formData.get("brandColor") ?? "").trim();
   const active = formData.get("active") != null;
 
-  // Slug é único: bloqueia colisão com outro tenant.
+  // Slug é único e não pode ser um endereço reservado.
   if (slug) {
+    if (RESERVED_SLUGS.has(slug)) throw new Error(`O endereço "${slug}" é reservado. Escolha outro.`);
     const clash = await prisma.tenant.findFirst({
       where: { slug, id: { not: daughterId } },
       select: { id: true },
     });
-    if (clash) throw new Error("Já existe um tenant com este slug.");
+    if (clash) throw new Error("Já existe uma universidade com este endereço (slug).");
   }
 
   await prisma.tenant.update({
