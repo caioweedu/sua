@@ -668,9 +668,9 @@ export default async function AdminPage() {
                   {daughters.length} cliente(s) white-label
                 </p>
                 <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                  Para acessar uma filha sem domínio próprio, use o link
-                  <span className="font-medium"> Acessar</span> (guarda a filha por 1 dia).
-                  Faça <span className="font-medium">logout</span> antes, e entre com o admin da filha.
+                  Clique em <span className="font-medium">Acessar</span> para entrar como aquela
+                  filha (você vê e edita o painel dela). Um aviso aparece no topo com o botão
+                  <span className="font-medium"> Voltar para a Weedu</span> para sair.
                 </p>
                 <ul className="divide-y divide-slate-100 text-sm">
                   {daughters.map((d) => (
@@ -688,7 +688,7 @@ export default async function AdminPage() {
                           </p>
                         </div>
                         <a
-                          href={`/login?tenant=${d.slug}`}
+                          href={`/admin?tenant=${d.slug}`}
                           className="btn-outline shrink-0 px-2 py-1 text-xs"
                         >
                           Acessar ↗

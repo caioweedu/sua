@@ -1,5 +1,6 @@
 import "server-only";
 import bcrypt from "bcryptjs";
+import { cookies } from "next/headers";
 import { prisma } from "./db";
 import { getSession } from "./session";
 
@@ -15,6 +16,12 @@ export async function verifyPassword(
 }
 
 // Retorna o usuário logado (com tenant), ou null.
+//
+// Impersonação de filha: a Weedu (SUPER_ADMIN) pode "entrar" numa filha sua via
+// ?tenant=<slug> (cookie tenant_override). Enquanto o cookie estiver ativo, o
+// usuário opera COMO aquela filha — tenant e papel viram os da filha
+// (TENANT_ADMIN), então ele vê só o conteúdo/admin da filha, sem os painéis de
+// super-admin. Para sair, basta ?tenant= (vazio), que limpa o cookie.
 export async function getCurrentUser() {
   const session = await getSession();
   if (!session) return null;
@@ -23,6 +30,24 @@ export async function getCurrentUser() {
     include: { tenant: true },
   });
   if (!user || !user.active) return null;
+
+  if (user.role === "SUPER_ADMIN") {
+    const override = (await cookies()).get("tenant_override")?.value;
+    if (override && override !== user.tenant.slug) {
+      const daughter = await prisma.tenant.findFirst({
+        where: { slug: override, type: "DAUGHTER", parentId: user.tenantId, active: true },
+      });
+      if (daughter) {
+        return {
+          ...user,
+          tenantId: daughter.id,
+          tenant: daughter,
+          role: "TENANT_ADMIN",
+          impersonating: true as const,
+        };
+      }
+    }
+  }
   return user;
 }
 

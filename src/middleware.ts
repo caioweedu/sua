@@ -1,18 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-// Atalho de PRÉ-VISUALIZAÇÃO de filhas sem DNS: ao abrir uma URL com
-// ?tenant=<slug>, guardamos o slug num cookie e o `resolveTenant` passa a
-// carregar essa filha. Útil enquanto o subdomínio/domínio próprio não está
-// configurado. Passar ?tenant= (vazio) volta para o tenant mãe.
-//
-// Observação: isto só troca qual tenant é exibido/autenticado no login. Os
-// dados após o login continuam escopados ao tenant do usuário logado (sessão).
+// Acesso/impersonação de filha via ?tenant=<slug>. Guardamos o slug num cookie
+// e REDIRECIONAMOS para a mesma URL sem o parâmetro — assim a requisição
+// seguinte já carrega o cookie e o app resolve a filha na hora (um clique).
+// ?tenant= (vazio) limpa o cookie e volta para o tenant mãe.
 export function middleware(req: NextRequest) {
-  const tenantParam = req.nextUrl.searchParams.get("tenant");
-  if (tenantParam === null) return NextResponse.next();
+  const url = req.nextUrl;
+  if (!url.searchParams.has("tenant")) return NextResponse.next();
 
-  const res = NextResponse.next();
-  const slug = tenantParam.trim().toLowerCase();
+  const slug = (url.searchParams.get("tenant") ?? "").trim().toLowerCase();
+  const dest = new URL(url);
+  dest.searchParams.delete("tenant");
+
+  const res = NextResponse.redirect(dest);
   if (slug) {
     res.cookies.set("tenant_override", slug, {
       path: "/",
@@ -26,6 +26,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Roda nas páginas; ignora assets estáticos.
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
