@@ -12,6 +12,29 @@ export async function loadAnalytics(
   const d30 = new Date(now.getTime() - 30 * 864e5);
   const d14 = new Date(now.getTime() - 14 * 864e5);
 
+  // Filtros escopados: só alunos DESTE tenant E só os produtos visíveis a ele
+  // (próprios + liberados pela mãe). Assim os totais do topo, engajamento e o
+  // "por aluno" batem com a tabela "por produto", mesmo se um conteúdo tiver
+  // sido liberado e depois retirado.
+  const enrollWhere: Prisma.EnrollmentWhereInput = {
+    user: { tenantId },
+    trilha: trilhaWhere,
+  };
+  const aulaWhere: Prisma.AulaProgressWhereInput = {
+    user: { tenantId },
+    aula: { trilha: trilhaWhere },
+  };
+  const certWhere: Prisma.CertificateWhereInput = {
+    user: { tenantId },
+    trilha: trilhaWhere,
+  };
+  const attemptWhere: Prisma.ExamAttemptWhereInput = {
+    user: { tenantId },
+    placement: {
+      OR: [{ trilha: trilhaWhere }, { modulo: { trilha: trilhaWhere } }],
+    },
+  };
+
   const [
     totalStudents,
     enrollByStatus,
@@ -32,8 +55,8 @@ export async function loadAnalytics(
     aulasRecent,
   ] = await Promise.all([
     prisma.user.count({ where: { tenantId, role: "STUDENT" } }),
-    prisma.enrollment.groupBy({ by: ["status"], where: { user: { tenantId } }, _count: { _all: true } }),
-    prisma.certificate.count({ where: { user: { tenantId } } }),
+    prisma.enrollment.groupBy({ by: ["status"], where: enrollWhere, _count: { _all: true } }),
+    prisma.certificate.count({ where: certWhere }),
     // Produtos visíveis a este tenant (próprios + liberados da mãe).
     prisma.trilha.findMany({
       where: trilhaWhere,
@@ -42,40 +65,40 @@ export async function loadAnalytics(
     }),
     prisma.enrollment.groupBy({
       by: ["trilhaId"],
-      where: { user: { tenantId }, status: "COMPLETED" },
+      where: { ...enrollWhere, status: "COMPLETED" },
       _count: { _all: true },
     }),
     // Matriculados por produto — só alunos DESTE tenant (numa filha, não conta
     // alunos de outras filhas/mãe matriculados no mesmo produto compartilhado).
     prisma.enrollment.groupBy({
       by: ["trilhaId"],
-      where: { user: { tenantId } },
+      where: enrollWhere,
       _count: { _all: true },
     }),
     // Tentativas de prova com o produto de contexto (colocação em trilha ou módulo).
     prisma.examAttempt.findMany({
-      where: { user: { tenantId } },
+      where: attemptWhere,
       select: {
         userId: true,
         passed: true,
         placement: { select: { trilhaId: true, modulo: { select: { trilhaId: true } } } },
       },
     }),
-    prisma.enrollment.groupBy({ by: ["userId"], where: { user: { tenantId } }, _count: { _all: true } }),
-    prisma.enrollment.groupBy({ by: ["userId"], where: { user: { tenantId }, status: "COMPLETED" }, _count: { _all: true } }),
-    prisma.certificate.groupBy({ by: ["userId"], where: { user: { tenantId } }, _count: { _all: true } }),
-    prisma.aulaProgress.groupBy({ by: ["userId"], where: { user: { tenantId } }, _count: { _all: true } }),
-    prisma.examAttempt.groupBy({ by: ["userId"], where: { user: { tenantId }, passed: true }, _count: { _all: true } }),
+    prisma.enrollment.groupBy({ by: ["userId"], where: enrollWhere, _count: { _all: true } }),
+    prisma.enrollment.groupBy({ by: ["userId"], where: { ...enrollWhere, status: "COMPLETED" }, _count: { _all: true } }),
+    prisma.certificate.groupBy({ by: ["userId"], where: certWhere, _count: { _all: true } }),
+    prisma.aulaProgress.groupBy({ by: ["userId"], where: aulaWhere, _count: { _all: true } }),
+    prisma.examAttempt.groupBy({ by: ["userId"], where: { ...attemptWhere, passed: true }, _count: { _all: true } }),
     prisma.user.findMany({
       where: { tenantId, role: "STUDENT" },
       orderBy: { createdAt: "asc" },
       select: { id: true, name: true, email: true },
     }),
-    prisma.enrollment.count({ where: { user: { tenantId }, createdAt: { gte: d30 } } }),
-    prisma.aulaProgress.count({ where: { user: { tenantId }, completedAt: { gte: d30 } } }),
-    prisma.certificate.count({ where: { user: { tenantId }, issuedAt: { gte: d30 } } }),
+    prisma.enrollment.count({ where: { ...enrollWhere, createdAt: { gte: d30 } } }),
+    prisma.aulaProgress.count({ where: { ...aulaWhere, completedAt: { gte: d30 } } }),
+    prisma.certificate.count({ where: { ...certWhere, issuedAt: { gte: d30 } } }),
     prisma.aulaProgress.findMany({
-      where: { user: { tenantId }, completedAt: { gte: d14 } },
+      where: { ...aulaWhere, completedAt: { gte: d14 } },
       select: { completedAt: true },
     }),
   ]);
