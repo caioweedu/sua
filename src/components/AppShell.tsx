@@ -4,7 +4,7 @@ import { isAdmin } from "@/lib/auth";
 
 type Props = {
   children: React.ReactNode;
-  user: { name: string; role: string };
+  user: { name: string; role: string; impersonating?: boolean };
   tenant: { name: string; logoUrl: string | null };
   fluid?: boolean;
   /** Área do aluno imersiva (estilo streaming). Combinada com `light` decide o tema. */
@@ -107,6 +107,20 @@ export default function AppShell({ children, user, tenant, fluid, dark, light }:
           </div>
         </div>
       </header>
+
+      {user.impersonating && (
+        <div className="border-b border-amber-300 bg-amber-100 text-amber-900">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm">
+            <span>
+              👁️ Você está visualizando como <strong>{tenant.name}</strong> (universidade filha).
+              O que você fizer aqui afeta esta filha.
+            </span>
+            <a href="/admin?tenant=" className="font-semibold underline hover:no-underline">
+              Voltar para a Weedu →
+            </a>
+          </div>
+        </div>
+      )}
 
       <main className={fluid ? "" : "mx-auto max-w-6xl px-4 py-8"}>{children}</main>
     </div>
