@@ -26,9 +26,9 @@ do piloto interno) e **completo** (antes da virada definitiva com clientes).
       atual e **testar uma restauração** numa branch do Neon. Se o plano não
       cobrir o retention desejado, avaliar upgrade ou export periódico (`pg_dump`).
 - [ ] **Monitor de uptime** apontando para `/api/health` (alerta por e-mail).
-- [ ] **Monitoramento de erros (Sentry)**: já integrado — basta definir
-      `NEXT_PUBLIC_SENTRY_DSN` na Vercel (Settings > Environment Variables) e
-      redeployar. Gerar um erro de teste para confirmar que chega no painel.
+- [x] **Monitoramento de erros (Sentry)**: integrado e **validado em produção**
+      (evento de teste confirmado no painel). `NEXT_PUBLIC_SENTRY_DSN` definido
+      na Vercel. Rota de teste removida após a validação.
 - [ ] **Revisão de variáveis de ambiente** na Vercel: `AUTH_SECRET` forte,
       `SEED_SECRET` vazio em produção (desativa `/api/seed`), chaves do Resend e
       da Anthropic corretas.
