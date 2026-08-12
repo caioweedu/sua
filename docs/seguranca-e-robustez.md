@@ -15,6 +15,10 @@ do piloto interno) e **completo** (antes da virada definitiva com clientes).
 - **Keep-alive do banco** `GET /api/keep-alive` (cron) — evita cold start do Neon.
 - **Isolamento por tenant**: leituras/escritas escopadas ao tenant do usuário;
   impersonação de filha só para SUPER_ADMIN sobre filhas próprias.
+- **Monitoramento de erros (Sentry)**: integrado no código (server + client +
+  erros de request). Ativa automaticamente quando `NEXT_PUBLIC_SENTRY_DSN`
+  estiver definido na Vercel — sem o DSN, fica desligado. Source maps
+  (opcional) exigem `SENTRY_ORG`, `SENTRY_PROJECT` e `SENTRY_AUTH_TOKEN`.
 
 ## Gate LEVE — antes do piloto interno
 
@@ -22,9 +26,9 @@ do piloto interno) e **completo** (antes da virada definitiva com clientes).
       atual e **testar uma restauração** numa branch do Neon. Se o plano não
       cobrir o retention desejado, avaliar upgrade ou export periódico (`pg_dump`).
 - [ ] **Monitor de uptime** apontando para `/api/health` (alerta por e-mail).
-- [ ] **Monitoramento de erros** (ex.: **Sentry**): criar projeto, pegar o DSN e
-      configurar. Sem um DSN o app roda normal; a integração é o próximo commit
-      quando você definir o serviço.
+- [ ] **Monitoramento de erros (Sentry)**: já integrado — basta definir
+      `NEXT_PUBLIC_SENTRY_DSN` na Vercel (Settings > Environment Variables) e
+      redeployar. Gerar um erro de teste para confirmar que chega no painel.
 - [ ] **Revisão de variáveis de ambiente** na Vercel: `AUTH_SECRET` forte,
       `SEED_SECRET` vazio em produção (desativa `/api/seed`), chaves do Resend e
       da Anthropic corretas.
