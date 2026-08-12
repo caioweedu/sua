@@ -36,20 +36,47 @@ export async function allowedVitrineIds(
   return profile ? profile.vitrines.map((v) => v.id) : [];
 }
 
-// IDs de vitrines da mãe que ESTA filha optou por ocultar (não herdar). Para a
-// mãe (ou tenant sem pai) retorna lista vazia. Usado para excluir o conteúdo
-// herdado que a filha não quer exibir.
-export async function hiddenSharedVitrineIds(tenant: {
-  id: string;
-  type: string;
-  parentId: string | null;
-}): Promise<string[]> {
+type ScopeTenant = { id: string; type: string; parentId: string | null };
+
+// IDs de vitrines da MÃE que foram LIBERADAS para esta filha (white-label). A
+// mãe (ou tenant sem pai) não recebe nada compartilhado → lista vazia.
+export async function grantedSharedVitrineIds(tenant: ScopeTenant): Promise<string[]> {
   if (!(tenant.type === "DAUGHTER" && tenant.parentId)) return [];
-  const rows = await prisma.sharedVitrineOptOut.findMany({
+  const rows = await prisma.sharedVitrineGrant.findMany({
     where: { tenantId: tenant.id },
     select: { vitrineId: true },
   });
   return rows.map((r) => r.vitrineId);
+}
+
+// Fragmento `where` das vitrines visíveis a um tenant:
+//  - mãe: só as próprias.
+//  - filha: as próprias + as vitrines da mãe liberadas para ela.
+export async function visibleVitrineWhere(tenant: ScopeTenant) {
+  if (!(tenant.type === "DAUGHTER" && tenant.parentId)) {
+    return { tenantId: tenant.id };
+  }
+  const granted = await grantedSharedVitrineIds(tenant);
+  return {
+    OR: [
+      { tenantId: tenant.id },
+      { tenantId: tenant.parentId, id: { in: granted } },
+    ],
+  };
+}
+
+// Uma vitrine específica é visível a este tenant? (própria ou liberada da mãe)
+export function vitrineVisible(
+  tenant: ScopeTenant,
+  vitrineTenantId: string,
+  vitrineId: string,
+  grantedIds: string[]
+): boolean {
+  if (vitrineTenantId === tenant.id) return true;
+  if (tenant.type === "DAUGHTER" && tenant.parentId === vitrineTenantId) {
+    return grantedIds.includes(vitrineId);
+  }
+  return false;
 }
 
 // Verifica se o usuário pode acessar uma vitrine específica.

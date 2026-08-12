@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { allowedVitrineIds, contentTenantIds, hiddenSharedVitrineIds } from "@/lib/access";
+import { allowedVitrineIds, visibleVitrineWhere } from "@/lib/access";
 import { loadProgress, isUnlocked } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
@@ -15,26 +15,17 @@ export default async function DashboardPage() {
 
   const allowed = await allowedVitrineIds(user);
   const isStudent = user.role === "STUDENT";
-  // Conteúdo visível = próprio + herdado da mãe (para filhas), menos as
-  // vitrines herdadas que a filha optou por ocultar.
-  const contentIds = contentTenantIds(user.tenant);
-  const hiddenShared = await hiddenSharedVitrineIds(user.tenant);
+  // Vitrines visíveis = próprias + as da mãe liberadas para esta filha.
+  const visWhere = await visibleVitrineWhere(user.tenant);
 
   // Busca vitrines, progresso do aluno, produtos soltos e slides do hero em
   // paralelo — evita round-trips em série ao banco.
   const [vitrines, prog, soltos, heroSlides] = await Promise.all([
     prisma.vitrine.findMany({
       where: {
-        tenantId: { in: contentIds },
+        ...visWhere,
         published: true,
-        ...(allowed || hiddenShared.length
-          ? {
-              id: {
-                ...(allowed ? { in: allowed } : {}),
-                ...(hiddenShared.length ? { notIn: hiddenShared } : {}),
-              },
-            }
-          : {}),
+        ...(allowed ? { id: { in: allowed } } : {}),
       },
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       include: {
@@ -54,7 +45,7 @@ export default async function DashboardPage() {
     // Produtos sem vitrine (só para acesso total).
     allowed === null
       ? prisma.trilha.findMany({
-          where: { tenantId: { in: contentIds }, published: true, vitrineId: null },
+          where: { tenantId: user.tenantId, published: true, vitrineId: null },
           orderBy: [{ order: "asc" }, { createdAt: "asc" }],
           include: {
             _count: { select: { aulas: true } },

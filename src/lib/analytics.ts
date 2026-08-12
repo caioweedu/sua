@@ -1,9 +1,13 @@
 import "server-only";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 
 // Agrega as métricas do painel de resultados (Fase 7), tudo escopado ao tenant.
 // Uma única leva de consultas em paralelo para manter a página rápida.
-export async function loadAnalytics(tenantId: string, contentIds: string[] = [tenantId]) {
+export async function loadAnalytics(
+  tenantId: string,
+  trilhaWhere: Prisma.TrilhaWhereInput = { tenantId }
+) {
   const now = new Date();
   const d30 = new Date(now.getTime() - 30 * 864e5);
   const d14 = new Date(now.getTime() - 14 * 864e5);
@@ -30,9 +34,9 @@ export async function loadAnalytics(tenantId: string, contentIds: string[] = [te
     prisma.user.count({ where: { tenantId, role: "STUDENT" } }),
     prisma.enrollment.groupBy({ by: ["status"], where: { user: { tenantId } }, _count: { _all: true } }),
     prisma.certificate.count({ where: { user: { tenantId } } }),
-    // Produtos visíveis a este tenant (próprios + herdados da mãe).
+    // Produtos visíveis a este tenant (próprios + liberados da mãe).
     prisma.trilha.findMany({
-      where: { tenantId: { in: contentIds } },
+      where: trilhaWhere,
       orderBy: { createdAt: "desc" },
       select: { id: true, title: true, published: true },
     }),
