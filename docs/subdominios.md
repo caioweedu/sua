@@ -55,15 +55,21 @@ um **CNAME** `slug.educacao` → `cname.vercel-dns.com`. Aqui o certificado é p
 subdomínio (HTTP-01), então **não precisa** delegar nameservers. Mais trabalho a
 cada filha, mas não altera a configuração do domínio principal.
 
-### 4. Cadastro das filhas no banco
+### 4. Cadastro das filhas
 
-Cada filha precisa de um `Tenant` com:
+O jeito recomendado é pela **UI de admin** (logado como **SUPER_ADMIN**, seção
+**Filhas / white-label** em `/admin` → `createDaughter`). Você informa:
 
-- `type = CHILD`
-- `slug` **igual** ao subdomínio (ex.: slug `acme` → `acme.educacao.weedu.com.br`)
-- `active = true`
+- **Nome** da filha
+- **slug** — **igual** ao subdomínio (ex.: slug `acme` → `acme.educacao.weedu.com.br`)
+- **e-mail + senha** do admin da filha (vira um `TENANT_ADMIN`)
+- cor da marca / (opcional) `customDomain`
 
-Feito isso, acessar `acme.educacao.weedu.com.br` já cai no tenant certo.
+Isso cria um `Tenant` com `type = DAUGHTER`, `parentId` = mãe e o usuário admin.
+O tenant precisa estar **`active = true`** (padrão; a edição tem o toggle). Feito
+isso, acessar `acme.educacao.weedu.com.br` já cai no tenant certo.
+
+> Alguns slugs são reservados (`RESERVED_SLUGS`) e são rejeitados.
 
 ## Teste rápido (antes do DNS)
 
