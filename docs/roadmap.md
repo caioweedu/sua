@@ -22,9 +22,9 @@ plugar um monitor de uptime em `/api/health`.
 ## 🎮 Onda 2 — Gamificação (em andamento)
 - [x] **Fatia 1 — XP + níveis.** Aula +10, prova +50, certificado +100; nível
       derivado do XP; card de progresso no dashboard do aluno.
-- [ ] **Fatia 2 — Conquistas (badges).** Marcos como "primeira trilha
-      concluída", "nota 100", "5 trilhas". Catálogo + concessão + vitrine de
-      conquistas no perfil.
+- [x] **Fatia 2 — Conquistas (badges).** 6 badges (primeira aula, maratonista,
+      primeira trilha, colecionador, gabaritou, nível 5); concessão automática
+      idempotente e vitrine de conquistas no dashboard.
 - [ ] **Fatia 3 — Ofensiva (streak).** Dias consecutivos de estudo; destaque no
       dashboard e badge por sequência.
 - [ ] **Fatia 4 — Ranking.** Placar por filha (semanal/geral), opt-in por tenant
