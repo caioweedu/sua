@@ -10,7 +10,8 @@ import PosterCard from "@/components/PosterCard";
 import HeroCarousel from "@/components/HeroCarousel";
 import XpCard from "@/components/XpCard";
 import BadgesStrip from "@/components/BadgesStrip";
-import { getGamificationStatus } from "@/lib/gamification";
+import StreakCard from "@/components/StreakCard";
+import { getGamificationStatus, getStreak } from "@/lib/gamification";
 import { getBadgeShowcase } from "@/lib/badges";
 
 export default async function DashboardPage() {
@@ -76,10 +77,14 @@ export default async function DashboardPage() {
     vitrineLock.set(v.id, r.unlocked ? null : r.reason);
   });
 
-  // Gamificação: status de XP/nível + conquistas do aluno (só para STUDENT).
-  const [gami, badges] = isStudent
-    ? await Promise.all([getGamificationStatus(user.id), getBadgeShowcase(user.id)])
-    : [null, null];
+  // Gamificação: XP/nível + ofensiva + conquistas do aluno (só para STUDENT).
+  const [gami, streak, badges] = isStudent
+    ? await Promise.all([
+        getGamificationStatus(user.id),
+        getStreak(user.id),
+        getBadgeShowcase(user.id),
+      ])
+    : [null, null, null];
 
   const banner = user.tenant.bannerUrl;
   const nome = user.name.split(" ")[0];
@@ -115,6 +120,7 @@ export default async function DashboardPage() {
 
       <div className="mx-auto max-w-6xl pb-16">
         {gami && <XpCard status={gami} />}
+        {streak != null && <StreakCard streak={streak} />}
         {badges && <BadgesStrip badges={badges} />}
         {vazio ? (
           <div className="s-card s-muted mx-4 mt-8 rounded-2xl p-8 text-center">

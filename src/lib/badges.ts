@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "./db";
-import { levelFromXp } from "./gamification";
+import { levelFromXp, getStreak } from "./gamification";
 
 // ---------------------------------------------------------------------------
 // Conquistas (badges) — Onda 2, Fatia 2
@@ -15,6 +15,7 @@ export type BadgeStats = {
   trilhas: number;
   notaMaxima: boolean;
   level: number;
+  streak: number;
 };
 
 export type BadgeDef = {
@@ -68,19 +69,27 @@ export const BADGES: BadgeDef[] = [
     description: "Alcançou o nível 5",
     earned: (s) => s.level >= 5,
   },
+  {
+    key: "OFENSIVA_7",
+    emoji: "🔥",
+    title: "Ofensiva",
+    description: "7 dias seguidos de estudo",
+    earned: (s) => s.streak >= 7,
+  },
 ];
 
 const BADGE_BY_KEY = new Map(BADGES.map((b) => [b.key, b]));
 
 async function computeStats(userId: string): Promise<BadgeStats> {
-  const [aulas, trilhas, notaMax, xpAgg] = await Promise.all([
+  const [aulas, trilhas, notaMax, xpAgg, streak] = await Promise.all([
     prisma.aulaProgress.count({ where: { userId } }),
     prisma.enrollment.count({ where: { userId, status: "COMPLETED" } }),
     prisma.examAttempt.findFirst({ where: { userId, score: 100 }, select: { id: true } }),
     prisma.gamificationEvent.aggregate({ where: { userId }, _sum: { points: true } }),
+    getStreak(userId),
   ]);
   const level = levelFromXp(xpAgg._sum.points ?? 0).level;
-  return { aulas, trilhas, notaMaxima: !!notaMax, level };
+  return { aulas, trilhas, notaMaxima: !!notaMax, level, streak };
 }
 
 // Recalcula e concede as conquistas recém-desbloqueadas. Idempotente e não-fatal.
