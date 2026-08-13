@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { issueCertificateForPlacement } from "@/lib/certificate";
 import { awardXp } from "@/lib/gamification";
+import { evaluateBadges } from "@/lib/badges";
 
 export type GradeResult = {
   ok: boolean;
@@ -129,6 +130,11 @@ export async function gradeExam(
     if (certificateCode) {
       await awardXp(user.id, user.tenantId, "CERTIFICADO", trilhaId);
     }
+  }
+
+  // Gamificação: reavalia conquistas (nota máxima, trilhas concluídas, nível).
+  if (passed) {
+    await evaluateBadges(user.id, user.tenantId);
   }
 
   return {
