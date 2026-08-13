@@ -71,3 +71,42 @@ export async function getGamificationStatus(userId: string): Promise<Gamificatio
   });
   return levelFromXp(agg._sum.points ?? 0);
 }
+
+// Ofensiva (streak) — Onda 2, Fatia 3. Dias consecutivos com atividade,
+// derivados das datas dos eventos de gamificação, no fuso de Brasília. Conta a
+// partir de hoje; se ainda não houve atividade hoje mas houve ontem, a sequência
+// se mantém (o aluno ainda pode estudar hoje).
+const TZ = "America/Sao_Paulo";
+function dayKey(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+export async function getStreak(userId: string): Promise<number> {
+  const events = await prisma.gamificationEvent.findMany({
+    where: { userId },
+    select: { createdAt: true },
+    orderBy: { createdAt: "desc" },
+    take: 730,
+  });
+  if (events.length === 0) return 0;
+
+  const days = new Set(events.map((e) => dayKey(e.createdAt)));
+  let streak = 0;
+  for (let i = 0; i < 730; i++) {
+    const key = dayKey(new Date(Date.now() - i * 86_400_000));
+    if (days.has(key)) {
+      streak++;
+    } else if (i === 0) {
+      // Sem atividade hoje ainda: não quebra — segue contando a partir de ontem.
+      continue;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
