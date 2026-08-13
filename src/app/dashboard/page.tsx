@@ -77,8 +77,11 @@ export default async function DashboardPage() {
     vitrineLock.set(v.id, r.unlocked ? null : r.reason);
   });
 
-  // Gamificação: XP/nível + ofensiva + conquistas do aluno (só para STUDENT).
-  const [gami, streak, badges] = isStudent
+  // Gamificação: XP/nível + ofensiva + conquistas do aluno (só para STUDENT e
+  // quando a filha tem gamificação habilitada).
+  const gamiOn = isStudent && user.tenant.gamificationEnabled;
+  const rankingOn = gamiOn && user.tenant.rankingEnabled;
+  const [gami, streak, badges] = gamiOn
     ? await Promise.all([
         getGamificationStatus(user.id),
         getStreak(user.id),
@@ -122,6 +125,17 @@ export default async function DashboardPage() {
         {gami && <XpCard status={gami} />}
         {streak != null && <StreakCard streak={streak} />}
         {badges && <BadgesStrip badges={badges} />}
+        {rankingOn && (
+          <div className="mx-4 mt-4">
+            <Link
+              href="/ranking"
+              className="s-card flex items-center justify-between rounded-2xl p-4 font-semibold hover:opacity-90 sm:p-5"
+            >
+              <span>🏆 Ver ranking da turma</span>
+              <span aria-hidden>→</span>
+            </Link>
+          </div>
+        )}
         {vazio ? (
           <div className="s-card s-muted mx-4 mt-8 rounded-2xl p-8 text-center">
             {allowed && allowed.length === 0

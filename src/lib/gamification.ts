@@ -86,6 +86,40 @@ function dayKey(d: Date): string {
   }).format(d);
 }
 
+// Ranking (placar) por tenant — Onda 2, Fatia 4. Soma o XP de cada aluno do
+// tenant e ordena. Considera apenas alunos (role STUDENT) ativos.
+export type RankingRow = { userId: string; name: string; xp: number; rank: number };
+
+export async function getRanking(
+  tenantId: string,
+  currentUserId: string,
+  top = 10
+): Promise<{ rows: RankingRow[]; me: RankingRow | null }> {
+  const grouped = await prisma.gamificationEvent.groupBy({
+    by: ["userId"],
+    where: { tenantId },
+    _sum: { points: true },
+  });
+
+  const students = await prisma.user.findMany({
+    where: { tenantId, role: "STUDENT", active: true },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(students.map((u) => [u.id, u.name]));
+  const xpById = new Map(grouped.map((g) => [g.userId, g._sum.points ?? 0]));
+
+  const ranked = students
+    .map((u) => ({ userId: u.id, name: u.name, xp: xpById.get(u.id) ?? 0 }))
+    .sort((a, b) => b.xp - a.xp)
+    .map((r, i) => ({ ...r, rank: i + 1 }));
+
+  const rows = ranked.slice(0, top);
+  const me = ranked.find((r) => r.userId === currentUserId) ?? null;
+  // Garante o nome no me mesmo se ficou de fora do map de alunos por algum motivo.
+  if (me && !me.name) me.name = nameById.get(currentUserId) ?? "Você";
+  return { rows, me };
+}
+
 export async function getStreak(userId: string): Promise<number> {
   const events = await prisma.gamificationEvent.findMany({
     where: { userId },
