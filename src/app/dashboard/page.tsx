@@ -8,6 +8,8 @@ import AppShell from "@/components/AppShell";
 import Row from "@/components/Row";
 import PosterCard from "@/components/PosterCard";
 import HeroCarousel from "@/components/HeroCarousel";
+import XpCard from "@/components/XpCard";
+import { getGamificationStatus } from "@/lib/gamification";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -72,6 +74,9 @@ export default async function DashboardPage() {
     vitrineLock.set(v.id, r.unlocked ? null : r.reason);
   });
 
+  // Gamificação: status de XP/nível do aluno (só para STUDENT).
+  const gami = isStudent ? await getGamificationStatus(user.id) : null;
+
   const banner = user.tenant.bannerUrl;
   const nome = user.name.split(" ")[0];
   const vitrinesComConteudo = vitrines.filter((v) => v.trilhas.length > 0);
@@ -105,6 +110,7 @@ export default async function DashboardPage() {
       )}
 
       <div className="mx-auto max-w-6xl pb-16">
+        {gami && <XpCard status={gami} />}
         {vazio ? (
           <div className="s-card s-muted mx-4 mt-8 rounded-2xl p-8 text-center">
             {allowed && allowed.length === 0
