@@ -13,6 +13,7 @@ import {
   createTrilha,
   togglePublish,
   updateBranding,
+  updateGamificationSettings,
   createDaughter,
   updateDaughter,
   saveDaughterGrants,
@@ -557,6 +558,46 @@ export default async function AdminPage() {
               />
               <input name="certificateSignature" defaultValue={user.tenant.certificateSignature ?? ""} className="input" placeholder="Assinatura do certificado" />
               <SubmitButton pendingText="Salvando…">Salvar aparência</SubmitButton>
+            </form>
+          </div>
+
+          {/* Gamificação (Onda 2, Fatia 5) */}
+          <div className="card">
+            <h2 className="mb-1 font-semibold">Gamificação</h2>
+            <p className="mb-4 text-xs text-slate-500">
+              XP, níveis, conquistas e ofensiva no painel do aluno. O ranking
+              mostra o nome dos alunos — desligue se preferir manter privado.
+            </p>
+            <form action={updateGamificationSettings} className="space-y-3">
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50">
+                <input
+                  type="checkbox"
+                  name="gamificationEnabled"
+                  defaultChecked={user.tenant.gamificationEnabled}
+                  className="h-4 w-4"
+                />
+                <span>
+                  <span className="font-medium">Ativar gamificação</span>
+                  <span className="block text-xs text-slate-400">
+                    XP, níveis, conquistas e ofensiva.
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50">
+                <input
+                  type="checkbox"
+                  name="rankingEnabled"
+                  defaultChecked={user.tenant.rankingEnabled}
+                  className="h-4 w-4"
+                />
+                <span>
+                  <span className="font-medium">Mostrar ranking da turma</span>
+                  <span className="block text-xs text-slate-400">
+                    Placar por XP com nomes dos alunos.
+                  </span>
+                </span>
+              </label>
+              <SubmitButton pendingText="Salvando…">Salvar gamificação</SubmitButton>
             </form>
           </div>
 
