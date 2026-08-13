@@ -22,9 +22,11 @@ do piloto interno) e **completo** (antes da virada definitiva com clientes).
 
 ## Gate LEVE — antes do piloto interno
 
-- [ ] **Backup do banco (Neon)**: confirmar o *point-in-time restore* do plano
-      atual e **testar uma restauração** numa branch do Neon. Se o plano não
-      cobrir o retention desejado, avaliar upgrade ou export periódico (`pg_dump`).
+- [x] **Backup do banco (Neon)**: *point-in-time restore* **validado** — branch
+      criada a partir de um ponto no passado trouxe os dados reais (usuários,
+      etc.). Plano **Free** → janela de histórico de **até 24h** (suficiente para
+      o piloto interno). **Antes da virada com clientes reais**, subir de plano
+      para ter ~7 dias de retenção (ou configurar export periódico `pg_dump`).
 - [ ] **Monitor de uptime** apontando para `/api/health` (alerta por e-mail).
 - [x] **Monitoramento de erros (Sentry)**: integrado e **validado em produção**
       (evento de teste confirmado no painel). `NEXT_PUBLIC_SENTRY_DSN` definido
