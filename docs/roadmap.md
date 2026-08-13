@@ -25,12 +25,15 @@ plugar um monitor de uptime em `/api/health`.
 - [x] **Fatia 2 — Conquistas (badges).** 6 badges (primeira aula, maratonista,
       primeira trilha, colecionador, gabaritou, nível 5); concessão automática
       idempotente e vitrine de conquistas no dashboard.
-- [ ] **Fatia 3 — Ofensiva (streak).** Dias consecutivos de estudo; destaque no
-      dashboard e badge por sequência.
-- [ ] **Fatia 4 — Ranking.** Placar por filha (semanal/geral), opt-in por tenant
-      (privacidade), com pódio.
-- [ ] **Fatia 5 — Admin da gamificação.** Ligar/desligar por filha, ajustar
-      pontos, ver engajamento.
+- [x] **Fatia 3 — Ofensiva (streak).** Dias consecutivos de estudo (fuso de
+      Brasília), card no dashboard e badge 🔥 por 7 dias seguidos.
+- [x] **Fatia 4 — Ranking.** Placar por filha (por XP), com pódio e a posição do
+      próprio aluno; configurável por filha (privacidade).
+- [x] **Fatia 5 — Admin da gamificação.** Toggles no admin para ligar/desligar
+      gamificação e ranking por filha.
+
+**Onda 2 concluída.** Evolução futura (backlog): ajuste de pontos por filha,
+painel de engajamento, badges personalizadas pelo admin.
 
 ## 🔒 Gate COMPLETO — antes da virada com clientes reais
 Pré-requisito para migrar da Cademi e receber dados de clientes de verdade.

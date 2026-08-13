@@ -741,6 +741,21 @@ export async function updateBranding(formData: FormData) {
   revalidatePath("/admin");
 }
 
+// --- Gamificação do próprio tenant (Onda 2, Fatia 5) --------------------
+export async function updateGamificationSettings(formData: FormData) {
+  const user = await requireAdmin();
+  await prisma.tenant.update({
+    where: { id: user.tenantId },
+    data: {
+      // Checkbox ausente = desmarcado = false.
+      gamificationEnabled: formData.get("gamificationEnabled") != null,
+      rankingEnabled: formData.get("rankingEnabled") != null,
+    },
+  });
+  revalidatePath("/admin");
+  revalidatePath("/dashboard");
+}
+
 // --- Hero / banner rotativo da home (Fatia 2 visual) --------------------
 export async function createHeroSlide(formData: FormData) {
   const user = await requireAdmin();
