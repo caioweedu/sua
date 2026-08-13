@@ -187,6 +187,7 @@ model User {
   aulaProgress AulaProgress[]
   authTokens   AuthToken[]
   gamification GamificationEvent[]
+  badges       UserBadge[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -210,6 +211,22 @@ model GamificationEvent {
   createdAt DateTime @default(now())
 
   @@unique([userId, type, refId])
+  @@index([userId])
+  @@index([tenantId])
+}
+
+// Conquistas (badges) conquistadas pelo aluno — Onda 2, Fatia 2.
+// O catálogo de badges vive em código (src/lib/badges.ts); aqui guardamos só
+// quais o aluno já ganhou. Único por (userId, badgeKey) → concessão idempotente.
+model UserBadge {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId String
+  badgeKey String
+  earnedAt DateTime @default(now())
+
+  @@unique([userId, badgeKey])
   @@index([userId])
   @@index([tenantId])
 }
