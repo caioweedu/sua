@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { issueCertificateForPlacement } from "@/lib/certificate";
+import { awardXp } from "@/lib/gamification";
 
 export type GradeResult = {
   ok: boolean;
@@ -71,6 +72,11 @@ export async function gradeExam(
     },
   });
 
+  // Gamificação: XP por aprovação na prova (idempotente por exame).
+  if (passed) {
+    await awardXp(user.id, user.tenantId, "PROVA_APROVADA", exam.id);
+  }
+
   let certificateCode: string | undefined;
 
   // Emissão de certificado só para prova final do produto (Fase 1).
@@ -117,6 +123,11 @@ export async function gradeExam(
         });
         certificateCode = cert.code;
       }
+    }
+
+    // Gamificação: XP por certificado (idempotente por trilha).
+    if (certificateCode) {
+      await awardXp(user.id, user.tenantId, "CERTIFICADO", trilhaId);
     }
   }
 

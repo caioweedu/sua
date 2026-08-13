@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { contentTenantIds } from "@/lib/access";
 import { issueCertificateForPlacement } from "@/lib/certificate";
+import { awardXp } from "@/lib/gamification";
 
 // Matricula o aluno na trilha (idempotente).
 export async function enroll(trilhaId: string) {
@@ -60,6 +61,7 @@ export async function toggleAulaComplete(
       update: {},
       create: { userId: user.id, aulaId },
     });
+    await awardXp(user.id, user.tenantId, "AULA_CONCLUIDA", aulaId);
   } else {
     await prisma.aulaProgress.deleteMany({ where: { userId: user.id, aulaId } });
   }
@@ -93,6 +95,7 @@ export async function completeAndGo(
     update: {},
     create: { userId: user.id, aulaId },
   });
+  await awardXp(user.id, user.tenantId, "AULA_CONCLUIDA", aulaId);
 
   revalidatePath(`/trilhas/${trilhaId}`);
   redirect(nextAulaId ? `/trilhas/${trilhaId}?a=${nextAulaId}` : `/trilhas/${trilhaId}`);

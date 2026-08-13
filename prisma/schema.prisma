@@ -186,8 +186,31 @@ model User {
   certificates Certificate[]
   aulaProgress AulaProgress[]
   authTokens   AuthToken[]
+  gamification GamificationEvent[]
 
   @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// GAMIFICAÇÃO — Onda 2, Fatia 1 (XP + níveis)
+// ---------------------------------------------------------------------------
+// Ledger append-only de pontos. O XP total do aluno é a soma dos `points`;
+// o nível é derivado do XP (ver src/lib/gamification.ts). A unicidade
+// (userId, type, refId) garante idempotência: concluir a MESMA aula/prova de
+// novo não concede pontos duas vezes.
+model GamificationEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId  String
+  type      String // AULA_CONCLUIDA | PROVA_APROVADA | CERTIFICADO
+  points    Int
+  refId     String // id do recurso (aulaId, examId, certificateId) para idempotência
+  createdAt DateTime @default(now())
+
+  @@unique([userId, type, refId])
+  @@index([userId])
   @@index([tenantId])
 }
 
