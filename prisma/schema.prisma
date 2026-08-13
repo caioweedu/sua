@@ -48,6 +48,11 @@ model Tenant {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
+  // Gamificação (Onda 2). Ligada por padrão; o ranking é configurável por filha
+  // para respeitar a privacidade (aparece o nome dos alunos).
+  gamificationEnabled Boolean @default(true)
+  rankingEnabled      Boolean @default(true)
+
   users                User[]
   trilhas              Trilha[]
   vitrines             Vitrine[]
