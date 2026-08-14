@@ -15,10 +15,11 @@ export const XP_POINTS: Record<GamificationType, number> = {
   CERTIFICADO: 100,
 };
 
-// XP acumulado necessário para ESTAR no nível L: 50 * L * (L-1).
-//   L1=0, L2=100, L3=300, L4=600, L5=1000, L6=1500...
+// XP acumulado necessário para ESTAR no nível L: 20 * (L-1)^2.
+// Curva suave no começo (engaja rápido) e aspiracional no topo:
+//   L1=0, L2=20, L3=80, L4=180, L5=320, L10=1620, L15=3920, L20=7220.
 function cumulativeXpForLevel(level: number): number {
-  return 50 * level * (level - 1);
+  return 20 * (level - 1) * (level - 1);
 }
 
 export type GamificationStatus = {
