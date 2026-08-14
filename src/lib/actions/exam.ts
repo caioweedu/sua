@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { issueCertificateForPlacement } from "@/lib/certificate";
 import { awardXp } from "@/lib/gamification";
 import { evaluateBadges } from "@/lib/badges";
+import { contentTenantIds } from "@/lib/access";
 
 export type GradeResult = {
   ok: boolean;
@@ -43,7 +44,9 @@ export async function gradeExam(
     where: { id: placementId },
     include: { exam: true, trilha: { select: { id: true, title: true } } },
   });
-  if (!placement || placement.exam.tenantId !== user.tenantId) {
+  // O aluno pode fazer provas do próprio tenant OU herdadas da mãe (white-label).
+  // Igualdade estrita quebrava provas da mãe usadas por alunos da filha.
+  if (!placement || !contentTenantIds(user.tenant).includes(placement.exam.tenantId)) {
     return { ok: false, score: 0, passed: false, passingScore: 0, error: "Prova não encontrada." };
   }
   const exam = placement.exam;

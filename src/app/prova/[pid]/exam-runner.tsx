@@ -133,6 +133,27 @@ export default function ExamRunner({
     );
   }
 
+  // Falha na correção: mostra a mensagem em vez de voltar em silêncio ao form.
+  if (result && !result.ok) {
+    return (
+      <div className="card space-y-4 text-center">
+        <div className="text-5xl">⚠️</div>
+        <h2 className="text-xl font-bold">Não foi possível corrigir</h2>
+        <p className="text-slate-500">
+          {result.error ?? "Tente novamente em instantes."}
+        </p>
+        <div className="flex justify-center gap-3">
+          <button className="btn-brand" onClick={() => setResult(null)}>
+            Tentar novamente
+          </button>
+          <a href={backHref} className="btn-outline">
+            Voltar
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {questions.map((q, i) => (
