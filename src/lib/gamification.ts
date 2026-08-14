@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "./db";
+import { MAX_LEVEL } from "./levelBadges";
 
 // ---------------------------------------------------------------------------
 // Gamificação — Onda 2, Fatia 1 (XP + níveis)
@@ -32,13 +33,18 @@ export type GamificationStatus = {
 
 export function levelFromXp(xp: number): GamificationStatus {
   let level = 1;
-  while (cumulativeXpForLevel(level + 1) <= xp) level++;
+  while (level < MAX_LEVEL && cumulativeXpForLevel(level + 1) <= xp) level++;
 
+  const atMax = level >= MAX_LEVEL;
   const levelFloor = cumulativeXpForLevel(level);
-  const nextLevelAt = cumulativeXpForLevel(level + 1);
-  const levelSpan = nextLevelAt - levelFloor;
+  const nextLevelAt = atMax ? levelFloor : cumulativeXpForLevel(level + 1);
+  const levelSpan = atMax ? 0 : nextLevelAt - levelFloor;
   const intoLevel = xp - levelFloor;
-  const progressPct = levelSpan > 0 ? Math.round((intoLevel / levelSpan) * 100) : 0;
+  const progressPct = atMax
+    ? 100
+    : levelSpan > 0
+      ? Math.round((intoLevel / levelSpan) * 100)
+      : 0;
 
   return { xp, level, levelFloor, nextLevelAt, intoLevel, levelSpan, progressPct };
 }
