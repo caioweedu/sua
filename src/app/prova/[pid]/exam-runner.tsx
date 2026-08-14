@@ -62,7 +62,15 @@ export default function ExamRunner({
                 Concluir
               </a>
             ) : (
-              <button className="btn-brand" onClick={() => router.refresh()}>
+              <button
+                className="btn-brand"
+                onClick={() => {
+                  // Volta ao formulário E re-sorteia as questões no servidor.
+                  setAnswers({});
+                  setResult(null);
+                  router.refresh();
+                }}
+              >
                 Tentar novamente
               </button>
             )}
