@@ -13,6 +13,7 @@ import BadgesStrip from "@/components/BadgesStrip";
 import StreakCard from "@/components/StreakCard";
 import { getGamificationStatus, getStreak } from "@/lib/gamification";
 import { getBadgeShowcase } from "@/lib/badges";
+import { getLevelIconMap } from "@/lib/levelIcons";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -81,13 +82,14 @@ export default async function DashboardPage() {
   // quando a filha tem gamificação habilitada).
   const gamiOn = isStudent && user.tenant.gamificationEnabled;
   const rankingOn = gamiOn && user.tenant.rankingEnabled;
-  const [gami, streak, badges] = gamiOn
+  const [gami, streak, badges, levelIcons] = gamiOn
     ? await Promise.all([
         getGamificationStatus(user.id),
         getStreak(user.id),
         getBadgeShowcase(user.id),
+        getLevelIconMap(),
       ])
-    : [null, null, null];
+    : [null, null, null, null];
 
   const banner = user.tenant.bannerUrl;
   const nome = user.name.split(" ")[0];
@@ -122,7 +124,7 @@ export default async function DashboardPage() {
       )}
 
       <div className="mx-auto max-w-6xl pb-16">
-        {gami && <XpCard status={gami} />}
+        {gami && <XpCard status={gami} iconUrl={levelIcons?.get(gami.level)} />}
         {streak != null && <StreakCard streak={streak} />}
         {badges && <BadgesStrip badges={badges} />}
         {rankingOn && (
