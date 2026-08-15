@@ -236,6 +236,14 @@ model UserBadge {
   @@index([tenantId])
 }
 
+// Ícone (arte) por nível — Onda 2. Global (definido pela Weedu/mãe); as filhas
+// herdam. Sem arte cadastrada, a UI cai no emoji padrão do catálogo em código.
+model LevelIcon {
+  id      String @id @default(cuid())
+  level   Int    @unique
+  iconUrl String
+}
+
 // Token de uso único para o aluno DEFINIR/REDEFINIR a senha por um link
 // (convite de acesso ou "esqueci a senha" disparado pelo admin). O mesmo
 // mecanismo serve para os dois casos — muda só o texto do e-mail (purpose).

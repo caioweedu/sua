@@ -599,6 +599,14 @@ export default async function AdminPage() {
               </label>
               <SubmitButton pendingText="Salvando…">Salvar gamificação</SubmitButton>
             </form>
+            {user.role === "SUPER_ADMIN" && (
+              <Link
+                href="/admin/niveis"
+                className="mt-3 inline-block text-sm font-medium text-slate-600 hover:text-slate-900"
+              >
+                🎨 Personalizar ícones dos níveis →
+              </Link>
+            )}
           </div>
 
           {/* Banner rotativo da home (hero) */}

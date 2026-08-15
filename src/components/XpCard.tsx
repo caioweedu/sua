@@ -4,7 +4,13 @@ import { getLevelBadge, MAX_LEVEL } from "@/lib/levelBadges";
 
 // Cartão de XP + nível do aluno (Gamificação — Onda 2, Fatia 1).
 // Mostra o badge temático do nível atual (nome + cor + emoji).
-export default function XpCard({ status }: { status: GamificationStatus }) {
+export default function XpCard({
+  status,
+  iconUrl,
+}: {
+  status: GamificationStatus;
+  iconUrl?: string;
+}) {
   const { xp, level, intoLevel, levelSpan, nextLevelAt, progressPct } = status;
   const faltam = Math.max(0, nextLevelAt - xp);
   const badge = getLevelBadge(level);
@@ -12,16 +18,25 @@ export default function XpCard({ status }: { status: GamificationStatus }) {
 
   return (
     <div className="s-card mx-4 mt-8 flex items-center gap-4 rounded-2xl p-4 sm:p-5">
-      {/* Selo do nível, com a cor do badge */}
-      <div
-        className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-xl shadow-inner"
-        style={{ background: badge.color, color: badge.fg }}
-      >
-        <span className="text-2xl leading-none">{badge.emoji}</span>
-        <span className="mt-0.5 text-[10px] font-bold uppercase leading-none tracking-wide opacity-90">
-          Nv {level}
-        </span>
-      </div>
+      {/* Selo do nível: arte cadastrada ou, na falta, cor + emoji */}
+      {iconUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={iconUrl}
+          alt={`Nível ${level} — ${badge.name}`}
+          className="h-16 w-16 shrink-0 rounded-xl object-contain"
+        />
+      ) : (
+        <div
+          className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-xl shadow-inner"
+          style={{ background: badge.color, color: badge.fg }}
+        >
+          <span className="text-2xl leading-none">{badge.emoji}</span>
+          <span className="mt-0.5 text-[10px] font-bold uppercase leading-none tracking-wide opacity-90">
+            Nv {level}
+          </span>
+        </div>
+      )}
 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser, isAdmin, hashPassword } from "@/lib/auth";
+import { MAX_LEVEL } from "@/lib/levelBadges";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
@@ -739,6 +740,29 @@ export async function updateBranding(formData: FormData) {
     },
   });
   revalidatePath("/admin");
+}
+
+// --- Ícones dos níveis (arte global da Weedu) — SUPER_ADMIN --------------
+export async function saveLevelIcons(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "SUPER_ADMIN") throw new Error("Sem permissão.");
+
+  for (let level = 1; level <= MAX_LEVEL; level++) {
+    const url = String(formData.get(`icon_${level}`) ?? "").trim();
+    if (url) {
+      await prisma.levelIcon.upsert({
+        where: { level },
+        update: { iconUrl: url },
+        create: { level, iconUrl: url },
+      });
+    } else {
+      // Campo vazio = usar o emoji padrão (remove a arte cadastrada).
+      await prisma.levelIcon.deleteMany({ where: { level } });
+    }
+  }
+  revalidatePath("/admin/niveis");
+  revalidatePath("/dashboard");
+  revalidatePath("/niveis");
 }
 
 // --- Gamificação do próprio tenant (Onda 2, Fatia 5) --------------------
