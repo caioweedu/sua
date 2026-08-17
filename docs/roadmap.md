@@ -1,6 +1,6 @@
 # Roadmap — Plataforma de Treinamento (Weedu)
 
-Atualizado em 13/08/2026.
+Atualizado em 17/08/2026.
 
 ## ✅ Onda 1 — Plataforma base (concluída)
 Multi-tenant mãe/filha, autenticação, trilhas/aulas/módulos, biblioteca de
@@ -31,9 +31,19 @@ plugar um monitor de uptime em `/api/health`.
       próprio aluno; configurável por filha (privacidade).
 - [x] **Fatia 5 — Admin da gamificação.** Toggles no admin para ligar/desligar
       gamificação e ranking por filha.
+- [x] **Fatia 6 — Níveis temáticos + arte de boton.** 20 níveis nomeados
+      (jornada de gestão de resultados) com cor própria; ícone/arte personalizada
+      por nível (PNG/SVG), exibida redonda (formato de boton), com fallback para
+      o emoji. Upload pela interface em `/admin/niveis` (SUPER_ADMIN, arte global
+      da Weedu herdada pelas filhas) + guia de tamanhos/formatos e HEX das cores.
+- [x] **Fatia 7 — Gate por nível.** A gamificação passa a **destravar conteúdo**:
+      novo requisito `AFTER_LEVEL` no motor de liberação (E/OU) — vitrine,
+      produto, módulo, prova e certificado podem exigir um nível mínimo.
 
 **Onda 2 concluída.** Evolução futura (backlog): ajuste de pontos por filha,
-painel de engajamento, badges personalizadas pelo admin.
+painel de engajamento, badges personalizadas pelo admin, exportar a paleta dos
+20 níveis (CSV/PDF) para briefing de arte, e um exemplo de gate por nível no
+seed de demonstração.
 
 ## 🔒 Gate COMPLETO — antes da virada com clientes reais
 Pré-requisito para migrar da Cademi e receber dados de clientes de verdade.
