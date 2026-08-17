@@ -24,7 +24,7 @@ export default function XpCard({
         <img
           src={iconUrl}
           alt={`Nível ${level} — ${badge.name}`}
-          className="h-16 w-16 shrink-0 rounded-xl object-contain"
+          className="h-16 w-16 shrink-0 rounded-full object-cover shadow-inner ring-2 ring-black/5"
         />
       ) : (
         <div

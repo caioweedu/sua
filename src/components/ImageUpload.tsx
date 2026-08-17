@@ -47,6 +47,7 @@ export default function ImageUpload({
   aspect = "16 / 9",
   maxW = 1920,
   maxH = 1920,
+  round = false,
 }: {
   name: string;
   label: string;
@@ -56,6 +57,7 @@ export default function ImageUpload({
   aspect?: string;
   maxW?: number;
   maxH?: number;
+  round?: boolean;
 }) {
   const [url, setUrl] = useState(defaultValue);
   const [busy, setBusy] = useState(false);
@@ -108,7 +110,9 @@ export default function ImageUpload({
 
       <div className="flex items-start gap-3">
         <div
-          className="flex w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-slate-300"
+          className={`flex w-28 shrink-0 items-center justify-center overflow-hidden border border-slate-200 bg-slate-50 text-slate-300 ${
+            round ? "rounded-full" : "rounded-lg"
+          }`}
           style={{ aspectRatio: aspect }}
         >
           {url ? (
