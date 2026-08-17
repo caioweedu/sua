@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "./db";
+import { levelFromXp } from "./gamification";
 
 // Motor de condição de liberação (Fase 2 + regra composta Fase 4B). Avalia se um
 // item (vitrine, produto, módulo, colocação de prova/certificado) está liberado
@@ -14,6 +15,7 @@ export const CLAUSE_TYPES = [
   "AFTER_TRILHA_COMPLETED",
   "AFTER_PERCENT",
   "AFTER_DAYS",
+  "AFTER_LEVEL",
 ] as const;
 export type ClauseType = (typeof CLAUSE_TYPES)[number];
 
@@ -27,6 +29,7 @@ export type ClauseData = {
   minScore: number | null;
   percent: number | null;
   days: number | null;
+  minLevel: number | null;
 };
 
 // Uma regra = combinação (ALL/ANY) de cláusulas.
@@ -42,11 +45,12 @@ const lock = (reason: string): UnlockResult => ({ unlocked: false, reason });
 
 // Snapshot do progresso do aluno, montado uma vez por request.
 export async function loadProgress(userId: string) {
-  const [completedEnroll, passedAttempts, aulaProg, enrolls] = await Promise.all([
+  const [completedEnroll, passedAttempts, aulaProg, enrolls, xpAgg] = await Promise.all([
     prisma.enrollment.findMany({ where: { userId, status: "COMPLETED" }, select: { trilhaId: true } }),
     prisma.examAttempt.findMany({ where: { userId, passed: true }, select: { placementId: true, score: true } }),
     prisma.aulaProgress.findMany({ where: { userId }, select: { aulaId: true } }),
     prisma.enrollment.findMany({ where: { userId }, select: { trilhaId: true, createdAt: true } }),
+    prisma.gamificationEvent.aggregate({ where: { userId }, _sum: { points: true } }),
   ]);
   const passedPlacements = new Set<string>();
   const bestScore = new Map<string, number>();
@@ -61,6 +65,7 @@ export async function loadProgress(userId: string) {
     bestScore,
     doneAulas: new Set(aulaProg.map((a) => a.aulaId)),
     enrolledAt: new Map(enrolls.map((e) => [e.trilhaId, e.createdAt])),
+    level: levelFromXp(xpAgg._sum.points ?? 0).level,
   };
 }
 export type Progress = Awaited<ReturnType<typeof loadProgress>>;
@@ -146,6 +151,14 @@ async function evalClause(c: ClauseData, ctx: ItemCtx, prog: Progress): Promise<
       return elapsed >= days ? OK : lock(`Disponível em ${Math.ceil(days - elapsed)} dia(s).`);
     }
 
+    case "AFTER_LEVEL": {
+      const min = c.minLevel ?? 0;
+      if (min <= 1) return OK; // nível 1 é o inicial → nunca trava
+      return prog.level >= min
+        ? OK
+        : lock(`Alcance o nível ${min} para liberar (você está no nível ${prog.level}).`);
+    }
+
     default:
       return OK;
   }
@@ -190,6 +203,8 @@ function describeClause(c: ClauseData): string {
       return `${c.percent ?? 0}% do produto`;
     case "AFTER_DAYS":
       return `${c.days ?? 0} dia(s) após a matrícula`;
+    case "AFTER_LEVEL":
+      return `alcançar o nível ${c.minLevel ?? 0}`;
     default:
       return "requisito";
   }

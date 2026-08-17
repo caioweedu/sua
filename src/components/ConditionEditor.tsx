@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import SubmitButton from "./SubmitButton";
+import { LEVEL_BADGES } from "@/lib/levelBadges";
 
 export type CondOption = { id: string; label: string };
 
@@ -15,6 +16,7 @@ type Clause = {
   minScore?: string;
   percent?: string;
   days?: string;
+  minLevel?: string;
 };
 
 export type RuleData = {
@@ -28,6 +30,7 @@ export type RuleData = {
     minScore: number | null;
     percent: number | null;
     days: number | null;
+    minLevel: number | null;
   }[];
 } | null;
 
@@ -39,6 +42,7 @@ const TYPE_LABELS: Record<string, string> = {
   AFTER_TRILHA_COMPLETED: "Concluir um produto",
   AFTER_PERCENT: "Concluir % do produto",
   AFTER_DAYS: "Após X dias da matrícula",
+  AFTER_LEVEL: "Alcançar um nível (gamificação)",
 };
 const TYPE_ORDER = Object.keys(TYPE_LABELS);
 
@@ -73,6 +77,7 @@ export default function ConditionEditor({
       minScore: c.minScore != null ? String(c.minScore) : undefined,
       percent: c.percent != null ? String(c.percent) : undefined,
       days: c.days != null ? String(c.days) : undefined,
+      minLevel: c.minLevel != null ? String(c.minLevel) : undefined,
     }));
 
   const [logic, setLogic] = useState(current?.logic === "ANY" ? "ANY" : "ALL");
@@ -113,6 +118,7 @@ export default function ConditionEditor({
       minScore: c.minScore ? Number(c.minScore) : null,
       percent: c.percent ? Number(c.percent) : null,
       days: c.days ? Number(c.days) : null,
+      minLevel: c.minLevel ? Number(c.minLevel) : null,
     })),
   });
 
@@ -193,6 +199,16 @@ export default function ConditionEditor({
             )}
             {c.type === "AFTER_DAYS" && (
               <input type="number" min={0} value={c.days ?? ""} onChange={(e) => update(i, { days: e.target.value })} className={`${inputCls} mt-1.5`} placeholder="Dias após a matrícula" />
+            )}
+            {c.type === "AFTER_LEVEL" && (
+              <select value={c.minLevel ?? ""} onChange={(e) => update(i, { minLevel: e.target.value })} className={`${inputCls} mt-1.5`}>
+                <option value="" disabled>Selecione o nível mínimo…</option>
+                {LEVEL_BADGES.map((b) => (
+                  <option key={b.level} value={b.level}>
+                    Nível {b.level} — {b.name}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
         ))}

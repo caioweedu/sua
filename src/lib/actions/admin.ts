@@ -331,6 +331,7 @@ const CLAUSE_TYPES = new Set([
   "AFTER_TRILHA_COMPLETED",
   "AFTER_PERCENT",
   "AFTER_DAYS",
+  "AFTER_LEVEL",
 ]);
 
 function intOrNull(v: unknown): number | null {
@@ -376,6 +377,7 @@ export async function setReleaseCondition(
         minScore: type === "AFTER_EXAM_PASSED" ? intOrNull(c.minScore) : null,
         percent: type === "AFTER_PERCENT" ? intOrNull(c.percent) : null,
         days: type === "AFTER_DAYS" ? intOrNull(c.days) : null,
+        minLevel: type === "AFTER_LEVEL" ? intOrNull(c.minLevel) : null,
         order: i,
       };
     })

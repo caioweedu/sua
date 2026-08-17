@@ -496,6 +496,7 @@ model ReleaseClause {
   minScore Int?
   percent  Int?
   days     Int?
+  minLevel Int? // AFTER_LEVEL — nível mínimo de gamificação
   order    Int  @default(0)
 
   @@index([conditionId])

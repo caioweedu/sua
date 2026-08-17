@@ -74,6 +74,9 @@ export default async function AdminNiveisPage() {
                     Nível {b.level}
                   </p>
                   <p className="truncate text-sm font-semibold">{b.name}</p>
+                  <p className="select-all font-mono text-[11px] text-slate-400" title="Cor do nível — use ao pedir a arte">
+                    {b.color.toUpperCase()}
+                  </p>
                 </div>
               </div>
               <ImageUpload
