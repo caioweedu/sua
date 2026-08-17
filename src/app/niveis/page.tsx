@@ -50,7 +50,7 @@ export default async function NiveisPage() {
                   <img
                     src={icons.get(b.level)}
                     alt={`Nível ${b.level} — ${b.name}`}
-                    className="h-16 w-16 object-contain"
+                    className="h-16 w-16 rounded-full object-cover shadow-inner ring-2 ring-black/5"
                   />
                 ) : (
                   <div

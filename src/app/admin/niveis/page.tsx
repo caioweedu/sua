@@ -23,11 +23,40 @@ export default async function AdminNiveisPage() {
         ← Administração
       </Link>
       <h1 className="mt-2 mb-1 text-2xl font-bold">Ícones dos níveis</h1>
-      <p className="mb-6 text-sm text-slate-500">
-        Suba a arte de cada nível (PNG com transparência ou SVG, quadrado ~
-        512×512). Sem arte, a plataforma usa o emoji padrão. Vale para a Weedu e
+      <p className="mb-4 text-sm text-slate-500">
+        A arte é exibida <strong>redonda</strong> (formato de boton). Sem arte
+        cadastrada, a plataforma usa o emoji padrão do nível. Vale para a Weedu e
         todas as filhas.
       </p>
+
+      {/* Especificação do arquivo — o que a arte deve seguir */}
+      <div className="card mb-6 border-slate-200 bg-slate-50/60">
+        <p className="mb-2 text-sm font-semibold">Como preparar a arte</p>
+        <ul className="grid gap-x-8 gap-y-1.5 text-sm text-slate-600 sm:grid-cols-2">
+          <li>
+            <strong>Formato:</strong> PNG (fundo transparente) ou SVG (vetor —
+            ideal, escala sem perder nitidez).
+          </li>
+          <li>
+            <strong>Proporção:</strong> quadrada (1:1). O sistema recorta em
+            círculo automaticamente.
+          </li>
+          <li>
+            <strong>Tamanho na tela:</strong> 512×512 px (mínimo 256×256).
+          </li>
+          <li>
+            <strong>Para o boton físico:</strong> guarde também uma versão em
+            alta — 1024×1024 px ou o SVG — e mande essa pra gráfica.
+          </li>
+          <li>
+            <strong>Área de segurança:</strong> deixe uma folga nas bordas; o
+            que ficar fora do círculo é cortado.
+          </li>
+          <li>
+            <strong>Peso:</strong> até ~1 MB (o sistema já otimiza no envio).
+          </li>
+        </ul>
+      </div>
 
       <form action={saveLevelIcons} className="space-y-6">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -54,8 +83,9 @@ export default async function AdminNiveisPage() {
                 defaultValue={icons.get(b.level) ?? ""}
                 slot={`nivel-${b.level}`}
                 aspect="1 / 1"
-                maxW={512}
-                maxH={512}
+                round
+                maxW={1024}
+                maxH={1024}
               />
             </div>
           ))}
