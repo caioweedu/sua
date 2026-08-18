@@ -54,6 +54,30 @@ export async function deleteVitrine(vitrineId: string) {
   revalidatePath("/admin");
 }
 
+// Edita uma vitrine já criada: nome, descrição, capa (card) e banner (topo da
+// página da vitrine). É o que faltava — antes só dava para definir a imagem na
+// criação. Campos de imagem em branco = remover a imagem.
+export async function updateVitrine(vitrineId: string, formData: FormData) {
+  const user = await requireAdmin();
+  const v = await prisma.vitrine.findFirst({
+    where: { id: vitrineId, tenantId: user.tenantId },
+    select: { id: true },
+  });
+  if (!v) return;
+  const name = String(formData.get("name") ?? "").trim();
+  await prisma.vitrine.update({
+    where: { id: vitrineId },
+    data: {
+      ...(name ? { name } : {}),
+      description: String(formData.get("description") ?? "").trim() || null,
+      coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
+      bannerUrl: String(formData.get("bannerUrl") ?? "").trim() || null,
+    },
+  });
+  revalidatePath("/admin");
+  revalidatePath(`/vitrines/${vitrineId}`);
+}
+
 // --- Produtos (trilhas) --------------------------------------------------
 export async function createTrilha(formData: FormData) {
   const user = await requireAdmin();
@@ -667,6 +691,10 @@ export async function updateDaughter(daughterId: string, formData: FormData) {
   const customDomain = String(formData.get("customDomain") ?? "").trim().toLowerCase() || null;
   const brandColor = String(formData.get("brandColor") ?? "").trim();
   const active = formData.get("active") != null;
+  // Módulos LIBERADOS pela mãe para esta filha (entitlement — nível 1). Hoje:
+  // gamificação; o módulo de RH entra aqui no mesmo formato. A filha ainda
+  // liga/desliga dentro do que foi liberado (nível 2).
+  const gamificationEntitled = formData.get("gamificationEntitled") != null;
 
   // Slug é único e não pode ser um endereço reservado.
   if (slug) {
@@ -686,6 +714,7 @@ export async function updateDaughter(daughterId: string, formData: FormData) {
       customDomain,
       ...(brandColor ? { brandColor } : {}),
       active,
+      gamificationEntitled,
     },
   });
   revalidatePath("/admin");
@@ -770,6 +799,9 @@ export async function saveLevelIcons(formData: FormData) {
 // --- Gamificação do próprio tenant (Onda 2, Fatia 5) --------------------
 export async function updateGamificationSettings(formData: FormData) {
   const user = await requireAdmin();
+  // Nível 2: a filha só configura se a mãe LIBEROU o módulo (nível 1). Se não
+  // liberado, ignora — a filha não pode se auto-conceder o módulo.
+  if (!user.tenant.gamificationEntitled) return;
   await prisma.tenant.update({
     where: { id: user.tenantId },
     data: {

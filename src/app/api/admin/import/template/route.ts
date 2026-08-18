@@ -52,6 +52,14 @@ const TEMPLATES: Record<string, { file: string; rows: string[][] }> = {
       ],
     ],
   },
+  usuarios: {
+    file: "modelo-usuarios.csv",
+    rows: [
+      ["Nome", "E-mail", "Telefone", "Perfil de acesso", "Equipe", "Senha (opcional)"],
+      ["Maria Souza", "maria@empresa.com", "(11) 98888-0001", "Time Operacional", "Comercial", ""],
+      ["João Lima", "joao@empresa.com", "(11) 98888-0002", "", "Vendas SP", ""],
+    ],
+  },
   provas: {
     file: "modelo-provas.csv",
     rows: [

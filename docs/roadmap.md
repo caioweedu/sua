@@ -1,6 +1,6 @@
 # Roadmap — Plataforma de Treinamento (Weedu)
 
-Atualizado em 17/08/2026.
+Atualizado em 18/08/2026.
 
 ## ✅ Onda 1 — Plataforma base (concluída)
 Multi-tenant mãe/filha, autenticação, trilhas/aulas/módulos, biblioteca de
@@ -45,6 +45,13 @@ painel de engajamento, badges personalizadas pelo admin, exportar a paleta dos
 20 níveis (CSV/PDF) para briefing de arte, e um exemplo de gate por nível no
 seed de demonstração.
 
+**Gamificação como módulo (entitlement de dois níveis).** A gamificação virou o
+primeiro **módulo liberável**: a **Weedu (mãe) libera** por filha
+(`gamificationEntitled`) e a **filha liga/desliga** dentro do que foi liberado
+(`gamificationEnabled`) — efetivo = liberado **E** ligado. Se não liberado, a
+filha nem vê a opção. Isso **valida na prática o formato que o módulo de RH vai
+usar** (`rhEntitled`): um padrão único de módulos vendáveis por plano.
+
 ## 🔒 Gate COMPLETO — antes da virada com clientes reais
 Pré-requisito para migrar da Cademi e receber dados de clientes de verdade.
 
@@ -62,7 +69,99 @@ Pré-requisito para migrar da Cademi e receber dados de clientes de verdade.
 - [ ] **2FA/senha forte** para admins (recomendável).
 - [ ] **Rotação de segredos** e revisão final de variáveis de ambiente.
 
-## 🚀 Onda 3 — Pós-virada (backlog)
+## 🏢 Onda 3 — Gestão de Equipes & RH (nova frente)
+Transforma a plataforma de "cursos para alunos" em "gestão de treinamento de um
+time". Hoje sabemos **o que a pessoa vê** (perfil de acesso) e **como ela
+progride** (matrículas, provas, certificados, XP); falta a camada de **quem é
+quem na empresa** — a quem a pessoa pertence e quem a acompanha.
+
+**Duas dimensões ortogonais (não se misturam):**
+- **Perfil de acesso** (já existe) = *o que a pessoa vê* (conteúdo).
+- **Equipe / organograma** (novo) = *a quem pertence e quem a acompanha* (RH,
+  gestor, supervisor). Cada pessoa tem os dois.
+
+### 🎯 Diferencial (posicionamento)
+Não competir como "mais um LMS". Duas apostas, ancoradas no que já temos:
+
+1. **Universidade corporativa como MOTOR (engine) white-label — modelo B2B2B /
+   OEM.** Já somos multi-tenant white-label por subdomínio — então o modelo
+   "parceiro" vira produto de primeira classe: um parceiro (ex.: uma Solidés,
+   uma consultoria de RH, uma software house) oferece a solução de universidade
+   corporativa **da marca dele** aos **clientes corporativos dele**, usando a
+   nossa plataforma como engine. É **revenda de plataforma (B2B2B)**, não de
+   curso (B2B2C). Estrutura: um **nível de parceiro** na árvore — Weedu ▸
+   Parceiro ▸ empresas-cliente do parceiro — com painel do parceiro (ele
+   gerencia seus próprios clientes), conteúdo liberado de cima para baixo, RH
+   por cliente e — na evolução — **API/embed + SSO** para plugar no produto do
+   parceiro. Comercialmente, esta é a **fase 13 (engine B2B2B)** do plano.
+2. **Matriz de Competências viva + prova de impacto.** O mercado (WEF Future of
+   Jobs 2025: ~39% das competências mudam até 2030) corre para *skills-based
+   learning*. Poucas ferramentas de PME no Brasil fazem bem. Mapear
+   treinamento → competência → expectativa por equipe/cargo dá ao RH uma visão
+   de **lacunas de competência por time** (não só "% concluído") e, com o
+   professor de IA que já temos, **recomendação de trilha pela lacuna**.
+
+Referências de mercado (RH/UC bem estruturada): CYPHER Learning (multi-tenant +
+analytics por portal), D2L Brightspace (white-label + integrações Workday/ADP/
+BambooHR/SuccessFactors), Cornerstone (compliance + skill gaps), Absorb,
+iSpring. Boas práticas: níveis de proficiência ancorados em comportamento
+observável e modelo de maturidade de analytics (ligar treino a competência →
+fechar lacuna → provar ROI ligando a KPIs de negócio).
+
+### Modelo de dados (aditivo, sem quebrar nada)
+- `Team` — unidade organizacional em **árvore** via `parentId` (Departamento ▸
+  Setor ▸ Turma), por tenant.
+- `TeamLead` — liderança (`userId`, `teamId`, `role` MANAGER | SUPERVISOR).
+- `User.teamId` — a qual equipe a pessoa pertence (nulo = sem equipe).
+
+### Fatias
+- [x] **F0 — Fundação (organograma).** `Team`/`TeamLead`/`User.teamId` +
+      `/admin/equipes` (montar a árvore, definir gestor/supervisor, alocar
+      pessoas) + seletor de equipe na edição do aluno. Migração aditiva, sem
+      risco. **Entregue** — começa a acumular o organograma desde já.
+- [ ] **F1 — Cockpit do RH.** Papel **RH** + visão empresa e por-equipe
+      (drill-down na árvore), com métricas de adesão/conclusão/aprovação e
+      certificados, só leitura, reusando o analytics atual.
+- [ ] **F2 — Gestor & Supervisor (painel de acompanhamento).** Dashboard do
+      líder com **métricas da equipe**: avanço nas trilhas, conclusão/aprovação,
+      **ranking da equipe** e pendências — foco em acompanhar o desenvolvimento
+      do time, não só listar pessoas. **Escopo de visibilidade (segurança da
+      informação, alinhado à LGPD), aplicado no backend:** o **gestor** vê a sua
+      equipe e toda a subárvore abaixo; o **supervisor** vê apenas a própria
+      equipe. Ninguém enxerga dados fora do seu escopo. Requisito reforçado pelo
+      teste da F0. **Navegação em drill-down:** o gestor vê no topo a performance
+      **agregada por subequipe** (a equipe de cada supervisor) e desce a árvore
+      para chegar ao **progresso individual** — tem acesso ao individual de
+      qualquer pessoa da sua subárvore, por ser responsável pelo avanço dela. O
+      **supervisor** entra direto no individual da própria equipe.
+  - **Regra do ranking:** o ranking visto pelo **colaborador** mostra apenas os
+    **pares** (demais colaboradores da empresa) — gestor, supervisor e RH **não
+    aparecem**, e o colaborador não vê "para cima". Os líderes têm o **ranking da
+    própria equipe** no painel deles (finalidade diferente: acompanhar o time).
+    Implementação barata: excluir da consulta do ranking quem é **TeamLead** (já
+    existe desde a F0) e papéis não-aluno. **Escopo decidido: empresa inteira**
+    (todos os colaboradores da filha). Um "ranking da minha equipe" fica como
+    opção futura, não obrigatória.
+- [ ] **F3 — Agenda de treinamentos, obrigatórios & competências.**
+  - **Agenda de treinamentos (PDI):** o RH/gestor define, por colaborador ou
+    equipe, **quais treinamentos** e **até quando** (prazo) — uma agenda de
+    desenvolvimento planejada.
+  - **Visão do colaborador:** uma área *"Meus treinamentos planejados"* onde ele
+    vê as demandas, os prazos e o quanto avançou/falta em cada uma.
+  - **Compliance:** treinamentos obrigatórios com prazo, lista de atrasados,
+    exportação e (com a Fase 6) lembretes automáticos.
+  - **Competências:** matriz treino → competência → expectativa por equipe/cargo,
+    com lacunas por time.
+  Reaproveita as matrículas e o motor de liberação (regra "X dias após" = prazo).
+- [ ] **F4 — Ações de gestão.** Matrícula em massa por equipe, metas por time e
+      recomendação de trilha por lacuna (IA). Guiada por um cliente-piloto. (O
+      motor white-label para parceiros — API/embed + SSO + camada de parceiro —
+      é a **fase 13, engine B2B2B**, tratada como frente comercial à parte.)
+
+**Ordem sugerida:** F0 pode entrar cedo (feito); F1–F3 na pós-virada, de
+preferência construídas junto de um cliente-piloto de RH.
+
+## 🚀 Onda 3 — Pós-virada (outros itens de backlog)
 Migração da Cademi, WhatsApp (Fase 6 — aguarda templates no Twilio), PWA/app,
 SSO, relatórios avançados, e o que o piloto revelar como prioridade.
 

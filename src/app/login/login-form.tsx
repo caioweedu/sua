@@ -49,6 +49,12 @@ export default function LoginForm() {
       <button type="submit" disabled={pending} className="btn-brand w-full">
         {pending ? "Entrando..." : "Entrar"}
       </button>
+
+      <p className="text-center text-sm">
+        <a href="/esqueci-senha" className="text-slate-500 hover:text-ink hover:underline">
+          Esqueci minha senha
+        </a>
+      </p>
     </form>
   );
 }

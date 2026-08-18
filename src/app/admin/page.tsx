@@ -4,6 +4,7 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
 import ImportCard from "./import-card";
+import ImportUsersCard from "./import-users-card";
 import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
@@ -19,6 +20,7 @@ import {
   saveDaughterGrants,
   createVitrine,
   deleteVitrine,
+  updateVitrine,
   setReleaseCondition,
   attachExamToVitrine,
   detachExamPlacement,
@@ -159,6 +161,9 @@ export default async function AdminPage() {
           <Link href="/admin/analytics" className="btn-outline text-sm">
             📊 Resultados
           </Link>
+          <Link href="/admin/equipes" className="btn-outline text-sm">
+            🏢 Equipes
+          </Link>
           <Link href="/admin/provas" className="btn-outline text-sm">
             📝 Biblioteca de provas
           </Link>
@@ -201,6 +206,34 @@ export default async function AdminPage() {
                       <button className="shrink-0 text-xs text-red-500 hover:underline" type="submit">remover</button>
                     </form>
                   </div>
+
+                  {/* Editar vitrine (nome, descrição, capa e banner) */}
+                  <details className="border-b border-slate-100 px-3 py-2">
+                    <summary className="cursor-pointer text-xs font-semibold text-slate-500">
+                      Editar vitrine (nome, capa e banner)
+                    </summary>
+                    <form action={updateVitrine.bind(null, v.id)} className="mt-2 space-y-2">
+                      <input name="name" defaultValue={v.name} className="input py-1.5 text-sm" placeholder="Nome da vitrine" />
+                      <textarea name="description" defaultValue={v.description ?? ""} className="input py-1.5 text-sm" rows={2} placeholder="Descrição (opcional)" />
+                      <ImageUpload
+                        name="coverUrl"
+                        label="Capa (card da vitrine)"
+                        hint="16:9 · recomendado 1600×900px · JPG/WebP."
+                        defaultValue={v.coverUrl ?? ""}
+                        slot="vitrine"
+                        aspect="16 / 9"
+                      />
+                      <ImageUpload
+                        name="bannerUrl"
+                        label="Banner (topo da página da vitrine)"
+                        hint="16:9 · recomendado 1600×900px · JPG/WebP."
+                        defaultValue={v.bannerUrl ?? ""}
+                        slot="vitrine"
+                        aspect="16 / 9"
+                      />
+                      <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">Salvar vitrine</SubmitButton>
+                    </form>
+                  </details>
 
                   {/* Produtos da vitrine */}
                   <ul className="divide-y divide-slate-50">
@@ -492,6 +525,7 @@ export default async function AdminPage() {
         {/* Importação + Aparência + filhas */}
         <section className="space-y-4">
           <ImportCard />
+          <ImportUsersCard />
 
           <div className="card">
             <h2 className="mb-4 font-semibold">Aparência</h2>
@@ -568,37 +602,44 @@ export default async function AdminPage() {
               XP, níveis, conquistas e ofensiva no painel do aluno. O ranking
               mostra o nome dos alunos — desligue se preferir manter privado.
             </p>
-            <form action={updateGamificationSettings} className="space-y-3">
-              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50">
-                <input
-                  type="checkbox"
-                  name="gamificationEnabled"
-                  defaultChecked={user.tenant.gamificationEnabled}
-                  className="h-4 w-4"
-                />
-                <span>
-                  <span className="font-medium">Ativar gamificação</span>
-                  <span className="block text-xs text-slate-400">
-                    XP, níveis, conquistas e ofensiva.
+            {user.tenant.gamificationEntitled ? (
+              <form action={updateGamificationSettings} className="space-y-3">
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    name="gamificationEnabled"
+                    defaultChecked={user.tenant.gamificationEnabled}
+                    className="h-4 w-4"
+                  />
+                  <span>
+                    <span className="font-medium">Ativar gamificação</span>
+                    <span className="block text-xs text-slate-400">
+                      XP, níveis, conquistas e ofensiva.
+                    </span>
                   </span>
-                </span>
-              </label>
-              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50">
-                <input
-                  type="checkbox"
-                  name="rankingEnabled"
-                  defaultChecked={user.tenant.rankingEnabled}
-                  className="h-4 w-4"
-                />
-                <span>
-                  <span className="font-medium">Mostrar ranking da turma</span>
-                  <span className="block text-xs text-slate-400">
-                    Placar por XP com nomes dos alunos.
+                </label>
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50">
+                  <input
+                    type="checkbox"
+                    name="rankingEnabled"
+                    defaultChecked={user.tenant.rankingEnabled}
+                    className="h-4 w-4"
+                  />
+                  <span>
+                    <span className="font-medium">Mostrar ranking da turma</span>
+                    <span className="block text-xs text-slate-400">
+                      Placar por XP com nomes dos alunos.
+                    </span>
                   </span>
-                </span>
-              </label>
-              <SubmitButton pendingText="Salvando…">Salvar gamificação</SubmitButton>
-            </form>
+                </label>
+                <SubmitButton pendingText="Salvando…">Salvar gamificação</SubmitButton>
+              </form>
+            ) : (
+              <p className="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500">
+                🔒 O módulo de gamificação não está liberado para esta universidade.
+                Fale com a Weedu para habilitar.
+              </p>
+            )}
             {user.role === "SUPER_ADMIN" && (
               <Link
                 href="/admin/niveis"
@@ -757,6 +798,15 @@ export default async function AdminPage() {
                             <label className="ml-3 flex items-center gap-1.5 text-sm text-slate-600">
                               <input type="checkbox" name="active" defaultChecked={d.active} /> Ativa
                             </label>
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Módulos liberados</p>
+                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                              <input type="checkbox" name="gamificationEntitled" defaultChecked={d.gamificationEntitled} /> 🎮 Gamificação (liberada)
+                            </label>
+                            <p className="mt-1 text-[11px] text-slate-400">
+                              O módulo de RH aparecerá aqui no mesmo formato quando for lançado.
+                            </p>
                           </div>
                           <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">Salvar filha</SubmitButton>
                         </form>

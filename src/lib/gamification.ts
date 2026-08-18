@@ -6,6 +6,24 @@ import { MAX_LEVEL } from "./levelBadges";
 // Gamificação — Onda 2, Fatia 1 (XP + níveis)
 // ---------------------------------------------------------------------------
 
+// Entitlement de dois níveis: a gamificação só está ativa quando a MÃE liberou
+// (gamificationEntitled) E a filha ligou (gamificationEnabled). O ranking exige,
+// além disso, rankingEnabled.
+export function gamificationActive(t: {
+  gamificationEntitled: boolean;
+  gamificationEnabled: boolean;
+}): boolean {
+  return t.gamificationEntitled && t.gamificationEnabled;
+}
+
+export function rankingActive(t: {
+  gamificationEntitled: boolean;
+  gamificationEnabled: boolean;
+  rankingEnabled: boolean;
+}): boolean {
+  return gamificationActive(t) && t.rankingEnabled;
+}
+
 export type GamificationType = "AULA_CONCLUIDA" | "PROVA_APROVADA" | "CERTIFICADO";
 
 // Quantos pontos cada evento concede.

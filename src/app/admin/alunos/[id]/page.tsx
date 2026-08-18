@@ -34,9 +34,19 @@ export default async function StudentDetailPage({
     orderBy: { createdAt: "asc" },
     select: { id: true, name: true },
   });
-  const currentProfileId =
-    (await prisma.user.findUnique({ where: { id }, select: { accessProfileId: true } }))
-      ?.accessProfileId ?? "";
+  const dbUser = await prisma.user.findUnique({
+    where: { id },
+    select: { accessProfileId: true, teamId: true },
+  });
+  const currentProfileId = dbUser?.accessProfileId ?? "";
+  const currentTeamId = dbUser?.teamId ?? "";
+
+  // Equipes do tenant (organograma) para alocar o aluno.
+  const teams = await prisma.team.findMany({
+    where: { tenantId: user.tenantId },
+    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+    select: { id: true, name: true },
+  });
 
   return (
     <AppShell user={user} tenant={user.tenant}>
@@ -176,6 +186,19 @@ export default async function StudentDetailPage({
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+            </div>
+            <div>
+              <label className="label">Equipe (organograma)</label>
+              <select name="teamId" defaultValue={currentTeamId} className="input">
+                <option value="">Sem equipe</option>
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-400">
+                Independente do perfil de acesso. Defina a árvore em{" "}
+                <Link href="/admin/equipes" className="text-brand hover:underline">Equipes</Link>.
+              </p>
             </div>
             <label className="flex items-center gap-2 text-sm text-slate-600">
               <input type="checkbox" name="active" defaultChecked={student.active} /> Aluno ativo (pode acessar)
