@@ -76,14 +76,17 @@ quem na empresa** — a quem a pessoa pertence e quem a acompanha.
 ### 🎯 Diferencial (posicionamento)
 Não competir como "mais um LMS". Duas apostas, ancoradas no que já temos:
 
-1. **Universidade corporativa como MOTOR (engine) white-label.** Já somos
-   multi-tenant white-label por subdomínio — então o modelo "parceiro" vira
-   produto de primeira classe: um parceiro (ex.: uma Solidés) oferece a
-   plataforma de conteúdo **da marca dele** aos clientes dele, usando a nossa
-   como engine. Estrutura: parceiro (mãe) ▸ muitos clientes (filhas), conteúdo
-   liberado de cima para baixo, RH por cliente, e — na evolução — **API/embed +
-   SSO** para plugar no produto do parceiro. É a mesma árvore mãe/filha, agora
-   com organograma de RH dentro de cada filha.
+1. **Universidade corporativa como MOTOR (engine) white-label — modelo B2B2B /
+   OEM.** Já somos multi-tenant white-label por subdomínio — então o modelo
+   "parceiro" vira produto de primeira classe: um parceiro (ex.: uma Solidés,
+   uma consultoria de RH, uma software house) oferece a solução de universidade
+   corporativa **da marca dele** aos **clientes corporativos dele**, usando a
+   nossa plataforma como engine. É **revenda de plataforma (B2B2B)**, não de
+   curso (B2B2C). Estrutura: um **nível de parceiro** na árvore — Weedu ▸
+   Parceiro ▸ empresas-cliente do parceiro — com painel do parceiro (ele
+   gerencia seus próprios clientes), conteúdo liberado de cima para baixo, RH
+   por cliente e — na evolução — **API/embed + SSO** para plugar no produto do
+   parceiro. Comercialmente, esta é a **fase 13 (engine B2B2B)** do plano.
 2. **Matriz de Competências viva + prova de impacto.** O mercado (WEF Future of
    Jobs 2025: ~39% das competências mudam até 2030) corre para *skills-based
    learning*. Poucas ferramentas de PME no Brasil fazem bem. Mapear
@@ -117,9 +120,10 @@ fechar lacuna → provar ROI ligando a KPIs de negócio).
       competência → expectativa por equipe/cargo), lacunas por time,
       treinamentos obrigatórios com prazo, lista de atrasados, exportação, e
       (com a Fase 6) lembretes automáticos.
-- [ ] **F4 — Engine white-label + ações.** Camada de parceiro (API/embed + SSO
-      para o modelo Solidés), matrícula em massa por equipe, metas por time,
-      recomendação de trilha por lacuna (IA). Guiada por um cliente-piloto.
+- [ ] **F4 — Ações de gestão.** Matrícula em massa por equipe, metas por time e
+      recomendação de trilha por lacuna (IA). Guiada por um cliente-piloto. (O
+      motor white-label para parceiros — API/embed + SSO + camada de parceiro —
+      é a **fase 13, engine B2B2B**, tratada como frente comercial à parte.)
 
 **Ordem sugerida:** F0 pode entrar cedo (feito); F1–F3 na pós-virada, de
 preferência construídas junto de um cliente-piloto de RH.
