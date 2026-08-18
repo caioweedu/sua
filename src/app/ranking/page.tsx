@@ -2,15 +2,15 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import AppShell from "@/components/AppShell";
-import { getRanking } from "@/lib/gamification";
+import { getRanking, rankingActive } from "@/lib/gamification";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 export default async function RankingPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  // Ranking respeita as configurações da filha (privacidade).
-  if (!user.tenant.gamificationEnabled || !user.tenant.rankingEnabled) {
+  // Ranking respeita a liberação da mãe + as configurações da filha (privacidade).
+  if (!rankingActive(user.tenant)) {
     redirect("/dashboard");
   }
 

@@ -80,7 +80,7 @@ export default async function DashboardPage() {
 
   // Gamificação: XP/nível + ofensiva + conquistas do aluno (só para STUDENT e
   // quando a filha tem gamificação habilitada).
-  const gamiOn = isStudent && user.tenant.gamificationEnabled;
+  const gamiOn = isStudent && gamificationActive(user.tenant);
   const rankingOn = gamiOn && user.tenant.rankingEnabled;
   const [gami, streak, badges, levelIcons] = gamiOn
     ? await Promise.all([

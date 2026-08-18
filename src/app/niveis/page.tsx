@@ -2,14 +2,14 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import AppShell from "@/components/AppShell";
-import { getGamificationStatus } from "@/lib/gamification";
+import { getGamificationStatus, gamificationActive } from "@/lib/gamification";
 import { LEVEL_BADGES } from "@/lib/levelBadges";
 import { getLevelIconMap } from "@/lib/levelIcons";
 
 export default async function NiveisPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!user.tenant.gamificationEnabled) redirect("/dashboard");
+  if (!gamificationActive(user.tenant)) redirect("/dashboard");
 
   const [status, icons] = await Promise.all([
     getGamificationStatus(user.id),

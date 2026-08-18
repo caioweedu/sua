@@ -691,9 +691,10 @@ export async function updateDaughter(daughterId: string, formData: FormData) {
   const customDomain = String(formData.get("customDomain") ?? "").trim().toLowerCase() || null;
   const brandColor = String(formData.get("brandColor") ?? "").trim();
   const active = formData.get("active") != null;
-  // Módulos liberados pela mãe para esta filha (entitlement). Hoje: gamificação;
-  // o módulo de RH entra aqui no mesmo formato quando for construído.
-  const gamificationEnabled = formData.get("gamificationEnabled") != null;
+  // Módulos LIBERADOS pela mãe para esta filha (entitlement — nível 1). Hoje:
+  // gamificação; o módulo de RH entra aqui no mesmo formato. A filha ainda
+  // liga/desliga dentro do que foi liberado (nível 2).
+  const gamificationEntitled = formData.get("gamificationEntitled") != null;
 
   // Slug é único e não pode ser um endereço reservado.
   if (slug) {
@@ -713,7 +714,7 @@ export async function updateDaughter(daughterId: string, formData: FormData) {
       customDomain,
       ...(brandColor ? { brandColor } : {}),
       active,
-      gamificationEnabled,
+      gamificationEntitled,
     },
   });
   revalidatePath("/admin");
@@ -798,6 +799,9 @@ export async function saveLevelIcons(formData: FormData) {
 // --- Gamificação do próprio tenant (Onda 2, Fatia 5) --------------------
 export async function updateGamificationSettings(formData: FormData) {
   const user = await requireAdmin();
+  // Nível 2: a filha só configura se a mãe LIBEROU o módulo (nível 1). Se não
+  // liberado, ignora — a filha não pode se auto-conceder o módulo.
+  if (!user.tenant.gamificationEntitled) return;
   await prisma.tenant.update({
     where: { id: user.tenantId },
     data: {

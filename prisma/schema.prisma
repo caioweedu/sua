@@ -48,10 +48,15 @@ model Tenant {
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  // Gamificação (Onda 2). Ligada por padrão; o ranking é configurável por filha
-  // para respeitar a privacidade (aparece o nome dos alunos).
-  gamificationEnabled Boolean @default(true)
-  rankingEnabled      Boolean @default(true)
+  // Gamificação (Onda 2) — modelo de ENTITLEMENT de dois níveis:
+  //   gamificationEntitled = a MÃE (Weedu) libera o módulo para esta filha;
+  //   gamificationEnabled  = a FILHA liga/desliga dentro do que foi liberado.
+  // Efetivo = entitled && enabled (ver lib/gamification.ts). Mesmo formato que o
+  // módulo de RH usará. Ligado por padrão para não mudar o comportamento atual.
+  gamificationEntitled Boolean @default(true)
+  gamificationEnabled  Boolean @default(true)
+  // Ranking configurável por filha (aparece o nome dos alunos — privacidade).
+  rankingEnabled       Boolean @default(true)
 
   users                User[]
   trilhas              Trilha[]
