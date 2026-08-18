@@ -691,6 +691,9 @@ export async function updateDaughter(daughterId: string, formData: FormData) {
   const customDomain = String(formData.get("customDomain") ?? "").trim().toLowerCase() || null;
   const brandColor = String(formData.get("brandColor") ?? "").trim();
   const active = formData.get("active") != null;
+  // Módulos liberados pela mãe para esta filha (entitlement). Hoje: gamificação;
+  // o módulo de RH entra aqui no mesmo formato quando for construído.
+  const gamificationEnabled = formData.get("gamificationEnabled") != null;
 
   // Slug é único e não pode ser um endereço reservado.
   if (slug) {
@@ -710,6 +713,7 @@ export async function updateDaughter(daughterId: string, formData: FormData) {
       customDomain,
       ...(brandColor ? { brandColor } : {}),
       active,
+      gamificationEnabled,
     },
   });
   revalidatePath("/admin");

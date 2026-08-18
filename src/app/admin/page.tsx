@@ -792,6 +792,15 @@ export default async function AdminPage() {
                               <input type="checkbox" name="active" defaultChecked={d.active} /> Ativa
                             </label>
                           </div>
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Módulos liberados</p>
+                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                              <input type="checkbox" name="gamificationEnabled" defaultChecked={d.gamificationEnabled} /> 🎮 Gamificação
+                            </label>
+                            <p className="mt-1 text-[11px] text-slate-400">
+                              O módulo de RH aparecerá aqui no mesmo formato quando for lançado.
+                            </p>
+                          </div>
                           <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">Salvar filha</SubmitButton>
                         </form>
                       </details>
