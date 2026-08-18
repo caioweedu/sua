@@ -11,7 +11,7 @@ import HeroCarousel from "@/components/HeroCarousel";
 import XpCard from "@/components/XpCard";
 import BadgesStrip from "@/components/BadgesStrip";
 import StreakCard from "@/components/StreakCard";
-import { getGamificationStatus, getStreak } from "@/lib/gamification";
+import { getGamificationStatus, getStreak, gamificationActive } from "@/lib/gamification";
 import { getBadgeShowcase } from "@/lib/badges";
 import { getLevelIconMap } from "@/lib/levelIcons";
 
