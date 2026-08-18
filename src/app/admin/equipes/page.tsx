@@ -59,6 +59,9 @@ export default async function EquipesPage() {
 
   // Opções de "equipe-mãe" para criar subequipe (todas as equipes existentes).
   const teamOptions = teams.map((t) => ({ id: t.id, name: t.name }));
+  // Nome da equipe atual de cada pessoa (para o seletor de alocação deixar claro
+  // que alocar em outra equipe é uma TRANSFERÊNCIA — cada pessoa fica em uma só).
+  const teamNameById = new Map(teams.map((t) => [t.id, t.name] as const));
 
   function renderNode(team: (typeof teams)[number], depth: number) {
     const kids = childrenOf.get(team.id) ?? [];
@@ -168,16 +171,32 @@ export default async function EquipesPage() {
                 <form action={assignMember.bind(null, team.id)} className="flex flex-wrap items-center gap-1">
                   <select name="userId" required defaultValue="" className="input py-1.5 text-xs">
                     <option value="" disabled>Escolher pessoa…</option>
-                    {people
-                      .filter((p) => p.teamId !== team.id)
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}{p.teamId ? " (mudar de equipe)" : ""}
-                        </option>
-                      ))}
+                    {people.some((p) => !p.teamId) && (
+                      <optgroup label="Sem equipe">
+                        {people
+                          .filter((p) => !p.teamId)
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                      </optgroup>
+                    )}
+                    {people.some((p) => p.teamId && p.teamId !== team.id) && (
+                      <optgroup label="Transferir de outra equipe">
+                        {people
+                          .filter((p) => p.teamId && p.teamId !== team.id)
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} — hoje em {teamNameById.get(p.teamId!) ?? "outra equipe"}
+                            </option>
+                          ))}
+                      </optgroup>
+                    )}
                   </select>
                   <SubmitButton className="btn-outline px-2 py-1.5 text-xs" pendingText="…">alocar</SubmitButton>
                 </form>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Cada pessoa fica em <b>uma</b> equipe: alocar alguém de outra equipe a <b>transfere</b> (não duplica).
+                </p>
 
                 {/* Renomear + subequipe */}
                 <form action={renameTeam.bind(null, team.id)} className="mt-3 flex items-center gap-1">

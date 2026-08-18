@@ -113,9 +113,16 @@ fechar lacuna → provar ROI ligando a KPIs de negócio).
       pessoas) + seletor de equipe na edição do aluno. Migração aditiva, sem
       risco. **Entregue** — começa a acumular o organograma desde já.
 - [ ] **F1 — Cockpit do RH.** Papel **RH** + visão empresa e por-equipe
-      (drill-down na árvore), só leitura, reusando o analytics atual.
-- [ ] **F2 — Gestor & Supervisor.** Papéis com dashboard recortado à própria
-      equipe e subequipes (gestor herda a subárvore; supervisor vê só a dele).
+      (drill-down na árvore), com métricas de adesão/conclusão/aprovação e
+      certificados, só leitura, reusando o analytics atual.
+- [ ] **F2 — Gestor & Supervisor (painel de acompanhamento).** Dashboard do
+      líder com **métricas da equipe**: avanço nas trilhas, conclusão/aprovação,
+      **ranking da equipe** e pendências — foco em acompanhar o desenvolvimento
+      do time, não só listar pessoas. **Escopo de visibilidade (segurança da
+      informação, alinhado à LGPD), aplicado no backend:** o **gestor** vê a sua
+      equipe e toda a subárvore abaixo; o **supervisor** vê apenas a própria
+      equipe. Ninguém enxerga dados fora do seu escopo. Requisito reforçado pelo
+      teste da F0.
 - [ ] **F3 — Competências & compliance.** Matriz de competências (treino →
       competência → expectativa por equipe/cargo), lacunas por time,
       treinamentos obrigatórios com prazo, lista de atrasados, exportação, e
