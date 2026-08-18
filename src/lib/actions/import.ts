@@ -1,8 +1,9 @@
 "use server";
 
+import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, isAdmin, hashPassword } from "@/lib/auth";
 import { parseCsv } from "@/lib/csv";
 
 export type ImportResult = {
@@ -284,6 +285,118 @@ export async function importContent(
   return {
     ok: true,
     message: "Importação concluída.",
+    stats,
+    avisos: avisos.length ? avisos : undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// IMPORTAÇÃO DE USUÁRIOS (planilha)
+// ---------------------------------------------------------------------------
+// Colunas: Nome · E-mail · Telefone · Perfil de acesso · Equipe · Senha (opc.).
+// Perfil e Equipe são casados pelo NOME dentro do tenant (se não existir, o
+// usuário é criado sem eles e um aviso é registrado). Re-subir a mesma planilha
+// atualiza os usuários (casados por e-mail) sem apagar dados deixados em branco.
+
+export type ImportUsersResult = {
+  ok: boolean;
+  message?: string;
+  error?: string;
+  stats?: { criados: number; atualizados: number };
+  avisos?: string[];
+};
+
+export async function importUsers(
+  _prev: ImportUsersResult,
+  formData: FormData
+): Promise<ImportUsersResult> {
+  const user = await getCurrentUser();
+  if (!user || !isAdmin(user.role)) {
+    return { ok: false, error: "Sem permissão." };
+  }
+
+  const csv = await readFile(formData.get("usuarios"));
+  if (!csv) return { ok: false, error: "Envie a planilha de usuários." };
+
+  const tenantId = user.tenantId;
+  const rows = parseCsv(csv);
+  if (rows.length < 2) return { ok: false, error: "Planilha de usuários sem linhas de dados." };
+
+  const stats = { criados: 0, atualizados: 0 };
+  const avisos: string[] = [];
+
+  // Casa perfil/equipe pelo nome (uma consulta só).
+  const [profiles, teams] = await Promise.all([
+    prisma.accessProfile.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+    prisma.team.findMany({ where: { tenantId }, select: { id: true, name: true } }),
+  ]);
+  const profileByName = new Map(profiles.map((p) => [p.name.toLowerCase(), p.id]));
+  const teamByName = new Map(teams.map((t) => [t.name.toLowerCase(), t.id]));
+
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i].map((c) => (c ?? "").trim());
+    const [nome = "", email = "", telefone = "", perfilName = "", equipeName = "", senha = ""] = r;
+
+    if (!nome || !email) {
+      avisos.push(`Linha ${i + 1} ignorada: falta nome ou e-mail.`);
+      continue;
+    }
+    const emailLc = email.toLowerCase();
+
+    let accessProfileId: string | null = null;
+    if (perfilName) {
+      accessProfileId = profileByName.get(perfilName.toLowerCase()) ?? null;
+      if (!accessProfileId) avisos.push(`Linha ${i + 1}: perfil "${perfilName}" não encontrado (ignorado).`);
+    }
+    let teamId: string | null = null;
+    if (equipeName) {
+      teamId = teamByName.get(equipeName.toLowerCase()) ?? null;
+      if (!teamId) avisos.push(`Linha ${i + 1}: equipe "${equipeName}" não encontrada (ignorada).`);
+    }
+
+    const existing = await prisma.user.findFirst({
+      where: { tenantId, email: emailLc },
+      select: { id: true },
+    });
+
+    if (existing) {
+      // Atualiza só o que veio preenchido — não apaga dados deixados em branco.
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          name: nome,
+          ...(telefone ? { phone: telefone } : {}),
+          ...(perfilName && accessProfileId ? { accessProfileId } : {}),
+          ...(equipeName && teamId ? { teamId } : {}),
+          ...(senha ? { passwordHash: await hashPassword(senha) } : {}),
+        },
+      });
+      stats.atualizados++;
+    } else {
+      // Sem senha na planilha: cria uma aleatória (o acesso é definido depois
+      // pelo convite/"esqueci minha senha").
+      const pwd = senha || crypto.randomBytes(9).toString("base64url");
+      await prisma.user.create({
+        data: {
+          tenantId,
+          name: nome,
+          email: emailLc,
+          phone: telefone || null,
+          role: "STUDENT",
+          accessProfileId,
+          teamId,
+          passwordHash: await hashPassword(pwd),
+        },
+      });
+      stats.criados++;
+    }
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/equipes");
+  return {
+    ok: true,
+    message: "Importação de usuários concluída.",
     stats,
     avisos: avisos.length ? avisos : undefined,
   };

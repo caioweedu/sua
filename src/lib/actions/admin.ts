@@ -54,6 +54,30 @@ export async function deleteVitrine(vitrineId: string) {
   revalidatePath("/admin");
 }
 
+// Edita uma vitrine já criada: nome, descrição, capa (card) e banner (topo da
+// página da vitrine). É o que faltava — antes só dava para definir a imagem na
+// criação. Campos de imagem em branco = remover a imagem.
+export async function updateVitrine(vitrineId: string, formData: FormData) {
+  const user = await requireAdmin();
+  const v = await prisma.vitrine.findFirst({
+    where: { id: vitrineId, tenantId: user.tenantId },
+    select: { id: true },
+  });
+  if (!v) return;
+  const name = String(formData.get("name") ?? "").trim();
+  await prisma.vitrine.update({
+    where: { id: vitrineId },
+    data: {
+      ...(name ? { name } : {}),
+      description: String(formData.get("description") ?? "").trim() || null,
+      coverUrl: String(formData.get("coverUrl") ?? "").trim() || null,
+      bannerUrl: String(formData.get("bannerUrl") ?? "").trim() || null,
+    },
+  });
+  revalidatePath("/admin");
+  revalidatePath(`/vitrines/${vitrineId}`);
+}
+
 // --- Produtos (trilhas) --------------------------------------------------
 export async function createTrilha(formData: FormData) {
   const user = await requireAdmin();
