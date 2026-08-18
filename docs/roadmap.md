@@ -122,7 +122,11 @@ fechar lacuna → provar ROI ligando a KPIs de negócio).
       informação, alinhado à LGPD), aplicado no backend:** o **gestor** vê a sua
       equipe e toda a subárvore abaixo; o **supervisor** vê apenas a própria
       equipe. Ninguém enxerga dados fora do seu escopo. Requisito reforçado pelo
-      teste da F0.
+      teste da F0. **Navegação em drill-down:** o gestor vê no topo a performance
+      **agregada por subequipe** (a equipe de cada supervisor) e desce a árvore
+      para chegar ao **progresso individual** — tem acesso ao individual de
+      qualquer pessoa da sua subárvore, por ser responsável pelo avanço dela. O
+      **supervisor** entra direto no individual da própria equipe.
 - [ ] **F3 — Competências & compliance.** Matriz de competências (treino →
       competência → expectativa por equipe/cargo), lacunas por time,
       treinamentos obrigatórios com prazo, lista de atrasados, exportação, e
