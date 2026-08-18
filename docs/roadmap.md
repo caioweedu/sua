@@ -127,6 +127,12 @@ fechar lacuna → provar ROI ligando a KPIs de negócio).
       para chegar ao **progresso individual** — tem acesso ao individual de
       qualquer pessoa da sua subárvore, por ser responsável pelo avanço dela. O
       **supervisor** entra direto no individual da própria equipe.
+  - **Regra do ranking:** o ranking visto pelo **colaborador** mostra apenas os
+    **pares** (demais colaboradores da empresa) — gestor, supervisor e RH **não
+    aparecem**, e o colaborador não vê "para cima". Os líderes têm o **ranking da
+    própria equipe** no painel deles (finalidade diferente: acompanhar o time).
+    Implementação barata: excluir da consulta do ranking quem é **TeamLead** (já
+    existe desde a F0) e papéis não-aluno.
 - [ ] **F3 — Agenda de treinamentos, obrigatórios & competências.**
   - **Agenda de treinamentos (PDI):** o RH/gestor define, por colaborador ou
     equipe, **quais treinamentos** e **até quando** (prazo) — uma agenda de
