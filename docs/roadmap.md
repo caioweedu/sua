@@ -132,7 +132,9 @@ fechar lacuna → provar ROI ligando a KPIs de negócio).
     aparecem**, e o colaborador não vê "para cima". Os líderes têm o **ranking da
     própria equipe** no painel deles (finalidade diferente: acompanhar o time).
     Implementação barata: excluir da consulta do ranking quem é **TeamLead** (já
-    existe desde a F0) e papéis não-aluno.
+    existe desde a F0) e papéis não-aluno. **Escopo decidido: empresa inteira**
+    (todos os colaboradores da filha). Um "ranking da minha equipe" fica como
+    opção futura, não obrigatória.
 - [ ] **F3 — Agenda de treinamentos, obrigatórios & competências.**
   - **Agenda de treinamentos (PDI):** o RH/gestor define, por colaborador ou
     equipe, **quais treinamentos** e **até quando** (prazo) — uma agenda de
