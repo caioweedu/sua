@@ -45,6 +45,13 @@ painel de engajamento, badges personalizadas pelo admin, exportar a paleta dos
 20 níveis (CSV/PDF) para briefing de arte, e um exemplo de gate por nível no
 seed de demonstração.
 
+**Gamificação como módulo (entitlement de dois níveis).** A gamificação virou o
+primeiro **módulo liberável**: a **Weedu (mãe) libera** por filha
+(`gamificationEntitled`) e a **filha liga/desliga** dentro do que foi liberado
+(`gamificationEnabled`) — efetivo = liberado **E** ligado. Se não liberado, a
+filha nem vê a opção. Isso **valida na prática o formato que o módulo de RH vai
+usar** (`rhEntitled`): um padrão único de módulos vendáveis por plano.
+
 ## 🔒 Gate COMPLETO — antes da virada com clientes reais
 Pré-requisito para migrar da Cademi e receber dados de clientes de verdade.
 
