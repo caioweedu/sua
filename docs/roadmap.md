@@ -127,10 +127,17 @@ fechar lacuna → provar ROI ligando a KPIs de negócio).
       para chegar ao **progresso individual** — tem acesso ao individual de
       qualquer pessoa da sua subárvore, por ser responsável pelo avanço dela. O
       **supervisor** entra direto no individual da própria equipe.
-- [ ] **F3 — Competências & compliance.** Matriz de competências (treino →
-      competência → expectativa por equipe/cargo), lacunas por time,
-      treinamentos obrigatórios com prazo, lista de atrasados, exportação, e
-      (com a Fase 6) lembretes automáticos.
+- [ ] **F3 — Agenda de treinamentos, obrigatórios & competências.**
+  - **Agenda de treinamentos (PDI):** o RH/gestor define, por colaborador ou
+    equipe, **quais treinamentos** e **até quando** (prazo) — uma agenda de
+    desenvolvimento planejada.
+  - **Visão do colaborador:** uma área *"Meus treinamentos planejados"* onde ele
+    vê as demandas, os prazos e o quanto avançou/falta em cada uma.
+  - **Compliance:** treinamentos obrigatórios com prazo, lista de atrasados,
+    exportação e (com a Fase 6) lembretes automáticos.
+  - **Competências:** matriz treino → competência → expectativa por equipe/cargo,
+    com lacunas por time.
+  Reaproveita as matrículas e o motor de liberação (regra "X dias após" = prazo).
 - [ ] **F4 — Ações de gestão.** Matrícula em massa por equipe, metas por time e
       recomendação de trilha por lacuna (IA). Guiada por um cliente-piloto. (O
       motor white-label para parceiros — API/embed + SSO + camada de parceiro —
