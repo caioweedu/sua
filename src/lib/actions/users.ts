@@ -34,6 +34,16 @@ export async function updateUser(userId: string, formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const phone = String(formData.get("phone") ?? "").trim() || null;
   const accessProfileId = String(formData.get("accessProfileId") ?? "").trim() || null;
+  // Equipe (organograma). "" = sem equipe. Só aceita equipe do mesmo tenant.
+  const teamRaw = String(formData.get("teamId") ?? "").trim() || null;
+  let teamId: string | null = null;
+  if (teamRaw) {
+    const team = await prisma.team.findFirst({
+      where: { id: teamRaw, tenantId: admin.tenantId },
+      select: { id: true },
+    });
+    teamId = team?.id ?? null;
+  }
   const active = formData.get("active") != null;
 
   if (!name || !email) return;
@@ -47,7 +57,7 @@ export async function updateUser(userId: string, formData: FormData) {
 
   await prisma.user.update({
     where: { id: userId, tenantId: admin.tenantId },
-    data: { name, email, phone, accessProfileId, active },
+    data: { name, email, phone, accessProfileId, teamId, active },
   });
   revalidatePath("/admin");
   revalidatePath(`/admin/alunos/${userId}`);

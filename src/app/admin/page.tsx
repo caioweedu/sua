@@ -159,6 +159,9 @@ export default async function AdminPage() {
           <Link href="/admin/analytics" className="btn-outline text-sm">
             📊 Resultados
           </Link>
+          <Link href="/admin/equipes" className="btn-outline text-sm">
+            🏢 Equipes
+          </Link>
           <Link href="/admin/provas" className="btn-outline text-sm">
             📝 Biblioteca de provas
           </Link>

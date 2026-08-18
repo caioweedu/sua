@@ -57,6 +57,8 @@ model Tenant {
   trilhas              Trilha[]
   vitrines             Vitrine[]
   accessProfiles       AccessProfile[]
+  // Organograma (Onda 3 — Gestão de Equipes & RH).
+  teams                Team[]
   // Biblioteca de provas reutilizáveis do tenant.
   exams                Exam[]
   // Condições de liberação (motor de gating unificado, Fase 2).
@@ -150,6 +152,53 @@ model AccessProfile {
   @@index([tenantId])
 }
 
+// ---------------------------------------------------------------------------
+// EQUIPES / ORGANOGRAMA (Onda 3 — Gestão de Equipes & RH · Fatia F0)
+// ---------------------------------------------------------------------------
+// Um Team é uma unidade organizacional (ex.: Departamento ▸ Setor ▸ Turma),
+// em ÁRVORE via `parentId` (mesma ideia da hierarquia de tenants mãe/filha).
+// É ORTOGONAL ao AccessProfile: o perfil define O QUE a pessoa vê (conteúdo);
+// a equipe define A QUEM ela pertence e QUEM a acompanha. Cada pessoa pode ter
+// os dois. Escopo sempre por tenant (a filha monta o próprio organograma).
+model Team {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  // Árvore: nulo = raiz (ex.: um departamento). Aponta para a equipe-mãe.
+  parentId  String?
+  parent    Team?    @relation("TeamHierarchy", fields: [parentId], references: [id])
+  children  Team[]   @relation("TeamHierarchy")
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  // Pessoas que pertencem a esta equipe.
+  members User[]     @relation("TeamMembers")
+  // Lideranças (gestor/supervisor) desta equipe.
+  leads   TeamLead[]
+
+  @@index([tenantId])
+  @@index([parentId])
+}
+
+// Liderança de uma equipe. Um usuário pode liderar várias equipes; uma equipe
+// pode ter gestor e supervisor. Visibilidade (a ser usada nos dashboards de
+// F1/F2): MANAGER (gestor) enxerga a equipe E toda a subárvore abaixo dela;
+// SUPERVISOR enxerga apenas a própria equipe.
+model TeamLead {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("TeamLeadUser", fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("MANAGER") // MANAGER | SUPERVISOR
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
 // Liberação de conteúdo compartilhado (white-label): a MÃE (Weedu) decide quais
 // vitrines dela cada filha recebe. Por padrão nada é compartilhado — cada linha
 // aqui LIBERA uma vitrine da mãe para uma filha específica. Só o conteúdo
@@ -185,6 +234,14 @@ model User {
   // Perfil de acesso (define quais vitrines o aluno enxerga). Nulo = todas.
   accessProfileId String?
   accessProfile   AccessProfile? @relation(fields: [accessProfileId], references: [id])
+
+  // Equipe (organograma) a que a pessoa pertence — ORTOGONAL ao perfil de
+  // acesso: o perfil define O QUE ela vê (conteúdo); a equipe define A QUEM ela
+  // pertence e QUEM a acompanha (gestor/supervisor/RH). Nulo = sem equipe.
+  teamId String?
+  team   Team?   @relation("TeamMembers", fields: [teamId], references: [id])
+  // Equipes que esta pessoa lidera (gestor/supervisor).
+  teamLeads TeamLead[] @relation("TeamLeadUser")
 
   enrollments  Enrollment[]
   attempts     ExamAttempt[]

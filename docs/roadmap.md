@@ -1,6 +1,6 @@
 # Roadmap — Plataforma de Treinamento (Weedu)
 
-Atualizado em 17/08/2026.
+Atualizado em 18/08/2026.
 
 ## ✅ Onda 1 — Plataforma base (concluída)
 Multi-tenant mãe/filha, autenticação, trilhas/aulas/módulos, biblioteca de
@@ -62,7 +62,69 @@ Pré-requisito para migrar da Cademi e receber dados de clientes de verdade.
 - [ ] **2FA/senha forte** para admins (recomendável).
 - [ ] **Rotação de segredos** e revisão final de variáveis de ambiente.
 
-## 🚀 Onda 3 — Pós-virada (backlog)
+## 🏢 Onda 3 — Gestão de Equipes & RH (nova frente)
+Transforma a plataforma de "cursos para alunos" em "gestão de treinamento de um
+time". Hoje sabemos **o que a pessoa vê** (perfil de acesso) e **como ela
+progride** (matrículas, provas, certificados, XP); falta a camada de **quem é
+quem na empresa** — a quem a pessoa pertence e quem a acompanha.
+
+**Duas dimensões ortogonais (não se misturam):**
+- **Perfil de acesso** (já existe) = *o que a pessoa vê* (conteúdo).
+- **Equipe / organograma** (novo) = *a quem pertence e quem a acompanha* (RH,
+  gestor, supervisor). Cada pessoa tem os dois.
+
+### 🎯 Diferencial (posicionamento)
+Não competir como "mais um LMS". Duas apostas, ancoradas no que já temos:
+
+1. **Universidade corporativa como MOTOR (engine) white-label.** Já somos
+   multi-tenant white-label por subdomínio — então o modelo "parceiro" vira
+   produto de primeira classe: um parceiro (ex.: uma Solidés) oferece a
+   plataforma de conteúdo **da marca dele** aos clientes dele, usando a nossa
+   como engine. Estrutura: parceiro (mãe) ▸ muitos clientes (filhas), conteúdo
+   liberado de cima para baixo, RH por cliente, e — na evolução — **API/embed +
+   SSO** para plugar no produto do parceiro. É a mesma árvore mãe/filha, agora
+   com organograma de RH dentro de cada filha.
+2. **Matriz de Competências viva + prova de impacto.** O mercado (WEF Future of
+   Jobs 2025: ~39% das competências mudam até 2030) corre para *skills-based
+   learning*. Poucas ferramentas de PME no Brasil fazem bem. Mapear
+   treinamento → competência → expectativa por equipe/cargo dá ao RH uma visão
+   de **lacunas de competência por time** (não só "% concluído") e, com o
+   professor de IA que já temos, **recomendação de trilha pela lacuna**.
+
+Referências de mercado (RH/UC bem estruturada): CYPHER Learning (multi-tenant +
+analytics por portal), D2L Brightspace (white-label + integrações Workday/ADP/
+BambooHR/SuccessFactors), Cornerstone (compliance + skill gaps), Absorb,
+iSpring. Boas práticas: níveis de proficiência ancorados em comportamento
+observável e modelo de maturidade de analytics (ligar treino a competência →
+fechar lacuna → provar ROI ligando a KPIs de negócio).
+
+### Modelo de dados (aditivo, sem quebrar nada)
+- `Team` — unidade organizacional em **árvore** via `parentId` (Departamento ▸
+  Setor ▸ Turma), por tenant.
+- `TeamLead` — liderança (`userId`, `teamId`, `role` MANAGER | SUPERVISOR).
+- `User.teamId` — a qual equipe a pessoa pertence (nulo = sem equipe).
+
+### Fatias
+- [x] **F0 — Fundação (organograma).** `Team`/`TeamLead`/`User.teamId` +
+      `/admin/equipes` (montar a árvore, definir gestor/supervisor, alocar
+      pessoas) + seletor de equipe na edição do aluno. Migração aditiva, sem
+      risco. **Entregue** — começa a acumular o organograma desde já.
+- [ ] **F1 — Cockpit do RH.** Papel **RH** + visão empresa e por-equipe
+      (drill-down na árvore), só leitura, reusando o analytics atual.
+- [ ] **F2 — Gestor & Supervisor.** Papéis com dashboard recortado à própria
+      equipe e subequipes (gestor herda a subárvore; supervisor vê só a dele).
+- [ ] **F3 — Competências & compliance.** Matriz de competências (treino →
+      competência → expectativa por equipe/cargo), lacunas por time,
+      treinamentos obrigatórios com prazo, lista de atrasados, exportação, e
+      (com a Fase 6) lembretes automáticos.
+- [ ] **F4 — Engine white-label + ações.** Camada de parceiro (API/embed + SSO
+      para o modelo Solidés), matrícula em massa por equipe, metas por time,
+      recomendação de trilha por lacuna (IA). Guiada por um cliente-piloto.
+
+**Ordem sugerida:** F0 pode entrar cedo (feito); F1–F3 na pós-virada, de
+preferência construídas junto de um cliente-piloto de RH.
+
+## 🚀 Onda 3 — Pós-virada (outros itens de backlog)
 Migração da Cademi, WhatsApp (Fase 6 — aguarda templates no Twilio), PWA/app,
 SSO, relatórios avançados, e o que o piloto revelar como prioridade.
 
