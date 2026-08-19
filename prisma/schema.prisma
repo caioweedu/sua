@@ -64,6 +64,8 @@ model Tenant {
   accessProfiles       AccessProfile[]
   // Organograma (Onda 3 — Gestão de Equipes & RH).
   teams                Team[]
+  // Agenda de treinamentos / PDI (Onda 3 · F3).
+  trainingAssignments  TrainingAssignment[]
   // Biblioteca de provas reutilizáveis do tenant.
   exams                Exam[]
   // Condições de liberação (motor de gating unificado, Fase 2).
@@ -181,6 +183,8 @@ model Team {
   members User[]     @relation("TeamMembers")
   // Lideranças (gestor/supervisor) desta equipe.
   leads   TeamLead[]
+  // Treinamentos atribuídos a esta equipe (agenda/PDI).
+  assignments TrainingAssignment[]
 
   @@index([tenantId])
   @@index([parentId])
@@ -202,6 +206,35 @@ model TeamLead {
   @@unique([teamId, userId])
   @@index([teamId])
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// AGENDA DE TREINAMENTOS / PDI (Onda 3 · F3)
+// ---------------------------------------------------------------------------
+// O RH/gestor define quais treinamentos (produtos) uma PESSOA ou uma EQUIPE
+// deve fazer e até quando. O colaborador vê a agenda dele em "Meus treinamentos
+// planejados". Exatamente UM de userId/teamId é preenchido. Atribuição a uma
+// equipe vale para os membros dela (resolvido na leitura).
+model TrainingAssignment {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  trilhaId    String
+  trilha      Trilha    @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  // Alvo (exatamente um):
+  userId      String?
+  user        User?     @relation("AssignmentTarget", fields: [userId], references: [id], onDelete: Cascade)
+  teamId      String?
+  team        Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  dueDate     DateTime? // prazo (nulo = sem prazo)
+  required    Boolean   @default(true) // obrigatório?
+  createdById String? // quem atribuiu (id solto, sem FK)
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId])
+  @@index([trilhaId])
+  @@index([userId])
+  @@index([teamId])
 }
 
 // Liberação de conteúdo compartilhado (white-label): a MÃE (Weedu) decide quais
@@ -247,6 +280,8 @@ model User {
   team   Team?   @relation("TeamMembers", fields: [teamId], references: [id])
   // Equipes que esta pessoa lidera (gestor/supervisor).
   teamLeads TeamLead[] @relation("TeamLeadUser")
+  // Treinamentos atribuídos diretamente a esta pessoa (agenda/PDI).
+  assignments TrainingAssignment[] @relation("AssignmentTarget")
 
   enrollments  Enrollment[]
   attempts     ExamAttempt[]
@@ -359,6 +394,8 @@ model Trilha {
   flashcards            Flashcard[]
   enrollments           Enrollment[]
   certificates          Certificate[]
+  // Atribuições de agenda que apontam para este produto (Onda 3 · F3).
+  assignments           TrainingAssignment[]
 
   @@index([tenantId])
   @@index([vitrineId])

@@ -146,12 +146,14 @@ fechar lacuna → provar ROI ligando a KPIs de negócio).
     existe desde a F0) e papéis não-aluno. **Escopo decidido: empresa inteira**
     (todos os colaboradores da filha). Um "ranking da minha equipe" fica como
     opção futura, não obrigatória.
-- [ ] **F3 — Agenda de treinamentos, obrigatórios & competências.**
-  - **Agenda de treinamentos (PDI):** o RH/gestor define, por colaborador ou
-    equipe, **quais treinamentos** e **até quando** (prazo) — uma agenda de
-    desenvolvimento planejada.
-  - **Visão do colaborador:** uma área *"Meus treinamentos planejados"* onde ele
-    vê as demandas, os prazos e o quanto avançou/falta em cada uma.
+- [~] **F3 — Agenda de treinamentos, obrigatórios & competências.** *(F3a
+      entregue: agenda por pessoa + visão do colaborador.)*
+  - [x] **Agenda de treinamentos (PDI):** o RH/gestor define **quais
+    treinamentos** e **até quando** (prazo). **Entregue** por pessoa (na ficha
+    do aluno); atribuição por equipe inteira é o próximo passo (F3b). Schema
+    `TrainingAssignment` (user OU team, prazo, obrigatório).
+  - [x] **Visão do colaborador:** área *"Meus treinamentos planejados"* no
+    dashboard, com prazos, atrasos e progresso. **Entregue.**
   - **Compliance:** treinamentos obrigatórios com prazo, lista de atrasados,
     exportação e (com a Fase 6) lembretes automáticos.
   - **Competências:** matriz treino → competência → expectativa por equipe/cargo,

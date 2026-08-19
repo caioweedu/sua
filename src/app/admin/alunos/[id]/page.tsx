@@ -6,6 +6,8 @@ import { loadStudentDetail } from "@/lib/analytics";
 import { contentTenantIds } from "@/lib/access";
 import { emailConfigured } from "@/lib/email";
 import { updateUser, resetUserPassword } from "@/lib/actions/users";
+import { assignTraining, removeAssignment } from "@/lib/actions/agenda";
+import { loadUserAgenda } from "@/lib/agenda";
 import AppShell from "@/components/AppShell";
 import SubmitButton from "@/components/SubmitButton";
 import StudentAccessCard from "./student-access-card";
@@ -48,6 +50,20 @@ export default async function StudentDetailPage({
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     select: { id: true, name: true },
   });
+
+  // Agenda de treinamentos (F3): produtos disponíveis + a agenda atual do aluno.
+  const contentIds = contentTenantIds(user.tenant);
+  const [agendaTrilhas, agenda] = await Promise.all([
+    prisma.trilha.findMany({
+      where: { tenantId: { in: contentIds }, published: true },
+      orderBy: { title: "asc" },
+      select: { id: true, title: true },
+    }),
+    loadUserAgenda(id, user.tenantId, currentTeamId || null, contentIds),
+  ]);
+
+  const fmtDue = (d: Date | null) =>
+    d ? new Date(d).toLocaleDateString("pt-BR") : "sem prazo";
 
   return (
     <AppShell user={user} tenant={user.tenant}>
@@ -159,6 +175,65 @@ export default async function StudentDetailPage({
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      {/* Agenda de treinamentos (F3 — PDI) */}
+      <div className="card mt-6">
+        <h2 className="mb-1 font-semibold">Agenda de treinamentos</h2>
+        <p className="mb-4 text-xs text-slate-500">
+          Defina quais treinamentos esta pessoa deve fazer e até quando. Ela vê
+          isso em “Meus treinamentos planejados”. Atribuições herdadas da equipe
+          aparecem marcadas como (equipe).
+        </p>
+
+        {agenda.length > 0 && (
+          <ul className="mb-4 divide-y divide-slate-100">
+            {agenda.map((a) => (
+              <li key={a.trilhaId} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                <div className="min-w-0">
+                  <span className="font-medium text-ink">{a.title}</span>
+                  {a.required && (
+                    <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">obrigatório</span>
+                  )}
+                  {a.source === "team" && (
+                    <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-600">equipe</span>
+                  )}
+                  <p className="text-xs text-slate-500">
+                    Prazo: <span className={a.overdue ? "font-semibold text-red-600" : ""}>{fmtDue(a.dueDate)}</span>
+                    {a.overdue ? " · atrasado" : ""} · progresso {a.progressPct}%
+                    {a.completed ? " · concluído ✓" : ""}
+                  </p>
+                </div>
+                {a.source === "you" ? (
+                  <form action={removeAssignment.bind(null, a.assignmentId)}>
+                    <button className="text-xs text-red-500 hover:underline" type="submit">remover</button>
+                  </form>
+                ) : (
+                  <span className="text-[11px] text-slate-400">gerido na equipe</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {agendaTrilhas.length === 0 ? (
+          <p className="text-sm text-slate-500">Nenhum treinamento publicado para atribuir.</p>
+        ) : (
+          <form action={assignTraining} className="grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-[1fr_auto_auto_auto]">
+            <input type="hidden" name="userId" value={student.id} />
+            <select name="trilhaId" required defaultValue="" className="input py-1.5 text-sm">
+              <option value="" disabled>Escolher treinamento…</option>
+              {agendaTrilhas.map((t) => (
+                <option key={t.id} value={t.id}>{t.title}</option>
+              ))}
+            </select>
+            <input name="dueDate" type="date" className="input py-1.5 text-sm" title="Prazo (opcional)" />
+            <label className="flex items-center gap-1.5 whitespace-nowrap px-1 text-sm text-slate-600">
+              <input type="checkbox" name="required" defaultChecked /> obrigatório
+            </label>
+            <SubmitButton className="btn-brand text-sm" pendingText="Atribuindo…">Atribuir</SubmitButton>
+          </form>
         )}
       </div>
 
