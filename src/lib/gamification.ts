@@ -126,8 +126,22 @@ export async function getRanking(
     _sum: { points: true },
   });
 
+  // Ranking é entre PARES: a liderança (gestor/supervisor) não aparece no
+  // placar dos colaboradores, e o colaborador não vê "para cima". Papéis
+  // não-aluno já ficam de fora pelo filtro de role. Escopo: empresa inteira.
+  const leadRows = await prisma.teamLead.findMany({
+    where: { team: { tenantId } },
+    select: { userId: true },
+  });
+  const leaderIds = leadRows.map((r) => r.userId);
+
   const students = await prisma.user.findMany({
-    where: { tenantId, role: "STUDENT", active: true },
+    where: {
+      tenantId,
+      role: "STUDENT",
+      active: true,
+      ...(leaderIds.length ? { id: { notIn: leaderIds } } : {}),
+    },
     select: { id: true, name: true },
   });
   const nameById = new Map(students.map((u) => [u.id, u.name]));

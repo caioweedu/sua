@@ -92,6 +92,13 @@ export default async function DashboardPage() {
     : [null, null, null, null];
 
   const banner = user.tenant.bannerUrl;
+  // Atalho para o painel de acompanhamento (RH, gestor ou supervisor).
+  const teamPanel =
+    user.role === "HR" ||
+    (await prisma.teamLead.count({
+      where: { userId: user.id, team: { tenantId: user.tenantId } },
+    })) > 0;
+
   const nome = user.name.split(" ")[0];
   const vitrinesComConteudo = vitrines.filter((v) => v.trilhas.length > 0);
   const vazio = vitrinesComConteudo.length === 0 && soltos.length === 0;
@@ -124,6 +131,19 @@ export default async function DashboardPage() {
       )}
 
       <div className="mx-auto max-w-6xl pb-16">
+        {teamPanel && (
+          <div className="px-4 pt-6">
+            <Link
+              href="/minha-equipe"
+              className="s-card flex items-center justify-between gap-3 rounded-2xl px-5 py-4 transition hover:brightness-110"
+            >
+              <span className="s-fg font-semibold">
+                🧑‍💼 {user.role === "HR" ? "Painel de RH" : "Acompanhar minha equipe"}
+              </span>
+              <span className="s-muted text-sm">ver progresso →</span>
+            </Link>
+          </div>
+        )}
         {gami && <XpCard status={gami} iconUrl={levelIcons?.get(gami.level)} />}
         {streak != null && <StreakCard streak={streak} />}
         {badges && <BadgesStrip badges={badges} />}

@@ -45,6 +45,10 @@ export async function updateUser(userId: string, formData: FormData) {
     teamId = team?.id ?? null;
   }
   const active = formData.get("active") != null;
+  // Papel: só alterna entre STUDENT e HR por aqui (não escala para admin). RH é
+  // read-only sobre pessoas (painel em /minha-equipe), não edita conteúdo.
+  const roleRaw = String(formData.get("role") ?? "").trim();
+  const role = roleRaw === "HR" ? "HR" : roleRaw === "STUDENT" ? "STUDENT" : undefined;
 
   if (!name || !email) return;
 
@@ -57,7 +61,7 @@ export async function updateUser(userId: string, formData: FormData) {
 
   await prisma.user.update({
     where: { id: userId, tenantId: admin.tenantId },
-    data: { name, email, phone, accessProfileId, teamId, active },
+    data: { name, email, phone, accessProfileId, teamId, active, ...(role ? { role } : {}) },
   });
   revalidatePath("/admin");
   revalidatePath(`/admin/alunos/${userId}`);
