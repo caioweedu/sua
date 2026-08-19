@@ -87,7 +87,7 @@ export default async function AdminPage() {
   });
 
   const students = await prisma.user.findMany({
-    where: { tenantId: user.tenantId, role: "STUDENT" },
+    where: { tenantId: user.tenantId, role: { in: ["STUDENT", "HR"] } },
     orderBy: { createdAt: "asc" },
     include: { accessProfile: { select: { id: true, name: true } } },
   });
@@ -163,6 +163,9 @@ export default async function AdminPage() {
           </Link>
           <Link href="/admin/equipes" className="btn-outline text-sm">
             🏢 Equipes
+          </Link>
+          <Link href="/admin/rh" className="btn-outline text-sm">
+            🧑‍💼 Painel RH
           </Link>
           <Link href="/admin/provas" className="btn-outline text-sm">
             📝 Biblioteca de provas

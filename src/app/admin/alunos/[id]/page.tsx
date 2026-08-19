@@ -36,10 +36,11 @@ export default async function StudentDetailPage({
   });
   const dbUser = await prisma.user.findUnique({
     where: { id },
-    select: { accessProfileId: true, teamId: true },
+    select: { accessProfileId: true, teamId: true, role: true },
   });
   const currentProfileId = dbUser?.accessProfileId ?? "";
   const currentTeamId = dbUser?.teamId ?? "";
+  const currentRole = dbUser?.role ?? "STUDENT";
 
   // Equipes do tenant (organograma) para alocar o aluno.
   const teams = await prisma.team.findMany({
@@ -197,6 +198,19 @@ export default async function StudentDetailPage({
               </select>
               <p className="mt-1 text-xs text-slate-400">
                 Independente do perfil de acesso. Defina a árvore em{" "}
+                <Link href="/admin/equipes" className="text-brand hover:underline">Equipes</Link>.
+              </p>
+            </div>
+            <div>
+              <label className="label">Papel</label>
+              <select name="role" defaultValue={currentRole === "HR" ? "HR" : "STUDENT"} className="input">
+                <option value="STUDENT">Aluno (colaborador)</option>
+                <option value="HR">RH (vê o painel de pessoas da empresa)</option>
+              </select>
+              <p className="mt-1 text-xs text-slate-400">
+                RH é só leitura sobre pessoas (painel em{" "}
+                <Link href="/minha-equipe" className="text-brand hover:underline">Minha equipe</Link>) — não edita conteúdo.
+                Gestor/supervisor são definidos em{" "}
                 <Link href="/admin/equipes" className="text-brand hover:underline">Equipes</Link>.
               </p>
             </div>

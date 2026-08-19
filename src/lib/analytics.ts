@@ -193,7 +193,7 @@ export async function loadStudentDetail(
   contentIds: string[] = [tenantId]
 ) {
   const student = await prisma.user.findFirst({
-    where: { id: userId, tenantId, role: "STUDENT" },
+    where: { id: userId, tenantId, role: { in: ["STUDENT", "HR"] } },
     select: {
       id: true,
       name: true,
