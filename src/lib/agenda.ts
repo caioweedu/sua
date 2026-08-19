@@ -8,6 +8,7 @@ export type AgendaItem = {
   assignmentId: string;
   trilhaId: string;
   title: string;
+  startDate: Date | null;
   dueDate: Date | null;
   required: boolean;
   source: "you" | "team"; // atribuição direta ou herdada da equipe
@@ -85,6 +86,7 @@ export async function loadUserAgenda(
       assignmentId: source === "you" ? a.id : prev?.assignmentId ?? a.id,
       trilhaId: t.id,
       title: t.title,
+      startDate: prev?.startDate ?? a.startDate ?? null,
       dueDate,
       required: (prev?.required ?? false) || a.required,
       source: prev?.source === "you" ? "you" : source,

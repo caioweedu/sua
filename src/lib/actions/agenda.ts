@@ -17,20 +17,24 @@ async function requireAdmin() {
 
 export async function assignTraining(formData: FormData) {
   const admin = await requireAdmin();
-  const trilhaId = String(formData.get("trilhaId") ?? "").trim();
   const userId = String(formData.get("userId") ?? "").trim() || null;
   const teamId = String(formData.get("teamId") ?? "").trim() || null;
+  const startRaw = String(formData.get("startDate") ?? "").trim();
   const dueRaw = String(formData.get("dueDate") ?? "").trim();
   const required = formData.get("required") != null;
-  // Exatamente um alvo, e um produto válido.
-  if (!trilhaId || (!userId && !teamId) || (userId && teamId)) return;
 
-  const trilha = await prisma.trilha.findFirst({
-    where: { id: trilhaId, tenantId: { in: contentTenantIds(admin.tenant) } },
-    select: { id: true },
-  });
-  if (!trilha) return;
+  // Produtos: um ou vários (checkboxes por vitrine) — aceita também o campo
+  // único legado `trilhaId`.
+  const ids = [
+    ...formData.getAll("trilhaIds").map((v) => String(v).trim()),
+    String(formData.get("trilhaId") ?? "").trim(),
+  ].filter(Boolean);
+  const trilhaIds = [...new Set(ids)];
 
+  // Exatamente um alvo, e ao menos um produto.
+  if (trilhaIds.length === 0 || (!userId && !teamId) || (userId && teamId)) return;
+
+  // Alvo precisa ser do tenant.
   if (userId) {
     const u = await prisma.user.findFirst({
       where: { id: userId, tenantId: admin.tenantId },
@@ -46,19 +50,32 @@ export async function assignTraining(formData: FormData) {
     if (!t) return;
   }
 
-  const dueDate = dueRaw ? new Date(dueRaw) : null;
-
-  // Não duplica a mesma atribuição (produto + alvo): atualiza prazo/obrigatório.
-  const existing = await prisma.trainingAssignment.findFirst({
-    where: { tenantId: admin.tenantId, trilhaId, userId, teamId },
+  // Produtos válidos dentro do escopo de conteúdo do tenant.
+  const validTrilhas = await prisma.trilha.findMany({
+    where: { id: { in: trilhaIds }, tenantId: { in: contentTenantIds(admin.tenant) } },
     select: { id: true },
   });
-  if (existing) {
-    await prisma.trainingAssignment.update({ where: { id: existing.id }, data: { dueDate, required } });
-  } else {
-    await prisma.trainingAssignment.create({
-      data: { tenantId: admin.tenantId, trilhaId, userId, teamId, dueDate, required, createdById: admin.id },
+  if (validTrilhas.length === 0) return;
+
+  const startDate = startRaw ? new Date(startRaw) : null;
+  const dueDate = dueRaw ? new Date(dueRaw) : null;
+
+  for (const t of validTrilhas) {
+    // Não duplica a mesma atribuição (produto + alvo): atualiza as datas.
+    const existing = await prisma.trainingAssignment.findFirst({
+      where: { tenantId: admin.tenantId, trilhaId: t.id, userId, teamId },
+      select: { id: true },
     });
+    if (existing) {
+      await prisma.trainingAssignment.update({
+        where: { id: existing.id },
+        data: { startDate, dueDate, required },
+      });
+    } else {
+      await prisma.trainingAssignment.create({
+        data: { tenantId: admin.tenantId, trilhaId: t.id, userId, teamId, startDate, dueDate, required, createdById: admin.id },
+      });
+    }
   }
 
   revalidatePath("/admin");

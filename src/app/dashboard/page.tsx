@@ -108,14 +108,14 @@ export default async function DashboardPage() {
       where: { userId: user.id, team: { tenantId: user.tenantId } },
     })) > 0;
 
-  const agendaStatus = (a: (typeof agenda)[number]) =>
-    a.completed
-      ? "Concluído ✓"
-      : `${
-          a.dueDate
-            ? (a.overdue ? "Atrasado" : "Prazo") + ": " + new Date(a.dueDate).toLocaleDateString("pt-BR")
-            : "Sem prazo"
-        } · ${a.progressPct}%`;
+  const dstr = (d: Date | null) => (d ? new Date(d).toLocaleDateString("pt-BR") : null);
+  const agendaStatus = (a: (typeof agenda)[number]) => {
+    if (a.completed) return "Concluído ✓";
+    const s = dstr(a.startDate);
+    const e = dstr(a.dueDate);
+    const periodo = s && e ? `${s} → ${e}` : e ? `Prazo: ${e}` : s ? `A partir de ${s}` : "Sem prazo";
+    return `${a.overdue ? "Atrasado · " : ""}${periodo} · ${a.progressPct}%`;
+  };
 
   const nome = user.name.split(" ")[0];
   const vitrinesComConteudo = vitrines.filter((v) => v.trilhas.length > 0);

@@ -226,7 +226,8 @@ model TrainingAssignment {
   user        User?     @relation("AssignmentTarget", fields: [userId], references: [id], onDelete: Cascade)
   teamId      String?
   team        Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  dueDate     DateTime? // prazo (nulo = sem prazo)
+  startDate   DateTime? // início previsto (nulo = sem início definido)
+  dueDate     DateTime? // fim previsto / prazo (nulo = sem prazo)
   required    Boolean   @default(true) // obrigatório?
   createdById String? // quem atribuiu (id solto, sem FK)
   createdAt   DateTime  @default(now())

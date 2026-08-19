@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { loadStudentDetail } from "@/lib/analytics";
-import { contentTenantIds } from "@/lib/access";
+import { contentTenantIds, visibleVitrineWhere } from "@/lib/access";
 import { emailConfigured } from "@/lib/email";
 import { updateUser, resetUserPassword } from "@/lib/actions/users";
 import { assignTraining, removeAssignment } from "@/lib/actions/agenda";
@@ -51,19 +51,43 @@ export default async function StudentDetailPage({
     select: { id: true, name: true },
   });
 
-  // Agenda de treinamentos (F3): produtos disponíveis + a agenda atual do aluno.
+  // Agenda de treinamentos (F3): produtos disponíveis (por vitrine) + a agenda
+  // atual do aluno. As vitrines respeitam o white-label (próprias + liberadas).
   const contentIds = contentTenantIds(user.tenant);
-  const [agendaTrilhas, agenda] = await Promise.all([
+  const vitrineWhere = await visibleVitrineWhere(user.tenant);
+  const [agendaVitrines, agendaOrphans, agenda] = await Promise.all([
+    prisma.vitrine.findMany({
+      where: vitrineWhere,
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        trilhas: {
+          where: { published: true },
+          orderBy: [{ order: "asc" }, { title: "asc" }],
+          select: { id: true, title: true },
+        },
+      },
+    }),
     prisma.trilha.findMany({
-      where: { tenantId: { in: contentIds }, published: true },
+      where: { tenantId: user.tenantId, published: true, vitrineId: null },
       orderBy: { title: "asc" },
       select: { id: true, title: true },
     }),
     loadUserAgenda(id, user.tenantId, currentTeamId || null, contentIds),
   ]);
+  const vitrinesComProduto = agendaVitrines.filter((v) => v.trilhas.length > 0);
+  const temProdutos = vitrinesComProduto.length > 0 || agendaOrphans.length > 0;
 
-  const fmtDue = (d: Date | null) =>
-    d ? new Date(d).toLocaleDateString("pt-BR") : "sem prazo";
+  const fmtD = (d: Date | null) => (d ? new Date(d).toLocaleDateString("pt-BR") : null);
+  const fmtPeriodo = (s: Date | null, e: Date | null) => {
+    const si = fmtD(s);
+    const ei = fmtD(e);
+    if (si && ei) return `${si} → ${ei}`;
+    if (ei) return `até ${ei}`;
+    if (si) return `a partir de ${si}`;
+    return "sem prazo";
+  };
 
   return (
     <AppShell user={user} tenant={user.tenant}>
@@ -182,9 +206,9 @@ export default async function StudentDetailPage({
       <div className="card mt-6">
         <h2 className="mb-1 font-semibold">Agenda de treinamentos</h2>
         <p className="mb-4 text-xs text-slate-500">
-          Defina quais treinamentos esta pessoa deve fazer e até quando. Ela vê
-          isso em “Meus treinamentos planejados”. Atribuições herdadas da equipe
-          aparecem marcadas como (equipe).
+          Escolha os treinamentos (por vitrine — todos ou alguns) e o período
+          previsto. A pessoa vê isso em “Meus treinamentos planejados”. Itens
+          herdados da equipe aparecem marcados como (equipe).
         </p>
 
         {agenda.length > 0 && (
@@ -200,7 +224,7 @@ export default async function StudentDetailPage({
                     <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-600">equipe</span>
                   )}
                   <p className="text-xs text-slate-500">
-                    Prazo: <span className={a.overdue ? "font-semibold text-red-600" : ""}>{fmtDue(a.dueDate)}</span>
+                    Período: <span className={a.overdue ? "font-semibold text-red-600" : ""}>{fmtPeriodo(a.startDate, a.dueDate)}</span>
                     {a.overdue ? " · atrasado" : ""} · progresso {a.progressPct}%
                     {a.completed ? " · concluído ✓" : ""}
                   </p>
@@ -217,22 +241,55 @@ export default async function StudentDetailPage({
           </ul>
         )}
 
-        {agendaTrilhas.length === 0 ? (
+        {!temProdutos ? (
           <p className="text-sm text-slate-500">Nenhum treinamento publicado para atribuir.</p>
         ) : (
-          <form action={assignTraining} className="grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-[1fr_auto_auto_auto]">
+          <form action={assignTraining} className="space-y-3 border-t border-slate-100 pt-4">
             <input type="hidden" name="userId" value={student.id} />
-            <select name="trilhaId" required defaultValue="" className="input py-1.5 text-sm">
-              <option value="" disabled>Escolher treinamento…</option>
-              {agendaTrilhas.map((t) => (
-                <option key={t.id} value={t.id}>{t.title}</option>
+            <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-slate-200 p-3">
+              {vitrinesComProduto.map((v) => (
+                <div key={v.id}>
+                  <p className="mb-1 text-xs font-semibold text-slate-500">🗂️ {v.name}</p>
+                  <div className="grid gap-1 sm:grid-cols-2">
+                    {v.trilhas.map((t) => (
+                      <label key={t.id} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="trilhaIds" value={t.id} className="h-4 w-4 rounded border-slate-300" />
+                        {t.title}
+                      </label>
+                    ))}
+                  </div>
+                </div>
               ))}
-            </select>
-            <input name="dueDate" type="date" className="input py-1.5 text-sm" title="Prazo (opcional)" />
-            <label className="flex items-center gap-1.5 whitespace-nowrap px-1 text-sm text-slate-600">
-              <input type="checkbox" name="required" defaultChecked /> obrigatório
-            </label>
-            <SubmitButton className="btn-brand text-sm" pendingText="Atribuindo…">Atribuir</SubmitButton>
+              {agendaOrphans.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-slate-500">Sem vitrine</p>
+                  <div className="grid gap-1 sm:grid-cols-2">
+                    {agendaOrphans.map((t) => (
+                      <label key={t.id} className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="trilhaIds" value={t.id} className="h-4 w-4 rounded border-slate-300" />
+                        {t.title}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div>
+                <label className="label text-xs">Início previsto (opcional)</label>
+                <input name="startDate" type="date" className="input py-1.5 text-sm" />
+              </div>
+              <div>
+                <label className="label text-xs">Fim previsto / prazo (opcional)</label>
+                <input name="dueDate" type="date" className="input py-1.5 text-sm" />
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="flex items-center gap-1.5 text-sm text-slate-600">
+                <input type="checkbox" name="required" defaultChecked /> obrigatório
+              </label>
+              <SubmitButton className="btn-brand text-sm" pendingText="Atribuindo…">Atribuir selecionados</SubmitButton>
+            </div>
           </form>
         )}
       </div>
