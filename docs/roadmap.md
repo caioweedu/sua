@@ -119,9 +119,11 @@ fechar lacuna → provar ROI ligando a KPIs de negócio).
       `/admin/equipes` (montar a árvore, definir gestor/supervisor, alocar
       pessoas) + seletor de equipe na edição do aluno. Migração aditiva, sem
       risco. **Entregue** — começa a acumular o organograma desde já.
-- [ ] **F1 — Cockpit do RH.** Papel **RH** + visão empresa e por-equipe
-      (drill-down na árvore), com métricas de adesão/conclusão/aprovação e
-      certificados, só leitura, reusando o analytics atual.
+- [x] **F1 — Cockpit do RH.** Página `/admin/rh` (só leitura): tiles da empresa
+      (pessoas, adesão, conclusão, certificados) + por-equipe com **drill-down na
+      árvore** (rollup de subequipes) e progresso individual por pessoa. Reusa o
+      analytics existente. **Entregue** — acessível ao admin nesta fatia; o papel
+      **RH** dedicado + o escopo por gestor/supervisor entram no F2.
 - [ ] **F2 — Gestor & Supervisor (painel de acompanhamento).** Dashboard do
       líder com **métricas da equipe**: avanço nas trilhas, conclusão/aprovação,
       **ranking da equipe** e pendências — foco em acompanhar o desenvolvimento
