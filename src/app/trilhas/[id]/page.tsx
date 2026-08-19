@@ -70,7 +70,20 @@ export default async function TrilhaPage({
   }
 
   const allowed = await allowedVitrineIds(user);
-  if (!canAccessVitrine(allowed, trilha.vitrineId)) notFound();
+  if (!canAccessVitrine(allowed, trilha.vitrineId)) {
+    // Exceção: um treinamento ATRIBUÍDO à pessoa (agenda/PDI) é sempre
+    // acessível, mesmo que o perfil de acesso não inclua a vitrine — senão o
+    // link de "Meus treinamentos planejados" cairia em 404.
+    const assigned = await prisma.trainingAssignment.findFirst({
+      where: {
+        tenantId: user.tenantId,
+        trilhaId: trilha.id,
+        OR: [{ userId: user.id }, ...(user.teamId ? [{ teamId: user.teamId }] : [])],
+      },
+      select: { id: true },
+    });
+    if (!assigned) notFound();
+  }
 
   // Tema da área do aluno (escuro imersivo por padrão), igual à home.
   const light = user.tenant.theme === "light";
