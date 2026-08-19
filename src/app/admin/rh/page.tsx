@@ -47,6 +47,7 @@ export default async function RhCockpitPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/admin/planejamento" className="btn-brand text-sm">🗓️ Planejamento</Link>
           <Link href="/admin/equipes" className="btn-outline text-sm">🏢 Equipes</Link>
           <Link href="/admin/analytics" className="btn-outline text-sm">📊 Resultados (por conteúdo)</Link>
         </div>

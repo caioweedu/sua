@@ -60,6 +60,14 @@ const TEMPLATES: Record<string, { file: string; rows: string[][] }> = {
       ["João Lima", "joao@empresa.com", "(11) 98888-0002", "", "Vendas SP", ""],
     ],
   },
+  planejamento: {
+    file: "modelo-planejamento.csv",
+    rows: [
+      ["E-mail do colaborador", "Equipe", "Treinamento (produto)", "Início (AAAA-MM-DD)", "Fim (AAAA-MM-DD)", "Obrigatório (sim/não)"],
+      ["maria@empresa.com", "", "Gestão de Resultados", "2026-09-01", "2026-09-30", "sim"],
+      ["", "Comercial", "Indicadores e Metas", "", "2026-10-15", "sim"],
+    ],
+  },
   provas: {
     file: "modelo-provas.csv",
     rows: [
