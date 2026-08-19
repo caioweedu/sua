@@ -4,6 +4,7 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { contentTenantIds } from "@/lib/access";
 import { loadPlanningOverview } from "@/lib/planning";
 import AppShell from "@/components/AppShell";
+import GestorNav from "@/components/GestorNav";
 import ImportPlanningCard from "./import-planning-card";
 
 // Onda 3 · F3b — Painel de planejamento (RH): lista de colaboradores com o
@@ -31,9 +32,10 @@ export default async function PlanejamentoPage() {
 
   return (
     <AppShell user={user} tenant={user.tenant}>
+      <GestorNav active="planejamento" />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link href="/admin/rh" className="text-sm text-slate-500 hover:text-ink">← Painel de RH</Link>
+          <Link href="/admin" className="text-sm text-slate-500 hover:text-ink">← Administração</Link>
           <h1 className="mt-1 text-2xl font-bold">Planejamento de treinamentos</h1>
           <p className="text-sm text-slate-500">
             {rows.length} colaborador(es) · {comAtraso} com atraso · {semPlano} sem plano.

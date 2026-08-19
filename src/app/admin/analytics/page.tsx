@@ -4,6 +4,7 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { loadAnalytics } from "@/lib/analytics";
 import { grantedSharedVitrineIds } from "@/lib/access";
 import AppShell from "@/components/AppShell";
+import GestorNav from "@/components/GestorNav";
 
 function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
@@ -31,6 +32,7 @@ export default async function AnalyticsPage() {
 
   return (
     <AppShell user={user} tenant={user.tenant}>
+      <GestorNav active="analytics" />
       <div className="mb-6 flex items-center justify-between">
         <div>
           <Link href="/admin" className="text-sm text-slate-500 hover:text-ink">← Administração</Link>

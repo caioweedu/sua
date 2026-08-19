@@ -158,17 +158,8 @@ export default async function AdminPage() {
           <Link href="/admin/copiloto" className="btn-brand text-sm">
             ✨ Copiloto de criação
           </Link>
-          <Link href="/admin/analytics" className="btn-outline text-sm">
-            📊 Resultados
-          </Link>
-          <Link href="/admin/equipes" className="btn-outline text-sm">
-            🏢 Equipes
-          </Link>
           <Link href="/admin/rh" className="btn-outline text-sm">
-            🧑‍💼 Painel RH
-          </Link>
-          <Link href="/admin/planejamento" className="btn-outline text-sm">
-            🗓️ Planejamento
+            🧑‍💼 Painel Gestor
           </Link>
           <Link href="/admin/provas" className="btn-outline text-sm">
             📝 Biblioteca de provas
