@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import AppShell from "@/components/AppShell";
+import AdminShell from "@/components/AdminShell";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
 import {
@@ -26,7 +26,7 @@ export default async function CertificadosBibliotecaPage() {
   });
 
   return (
-    <AppShell user={user} tenant={user.tenant}>
+    <AdminShell user={user} tenant={user.tenant}>
       <Link href="/admin" className="text-sm text-slate-500 hover:text-slate-900">
         ← Administração
       </Link>
@@ -89,6 +89,6 @@ export default async function CertificadosBibliotecaPage() {
           </form>
         </section>
       </div>
-    </AppShell>
+    </AdminShell>
   );
 }

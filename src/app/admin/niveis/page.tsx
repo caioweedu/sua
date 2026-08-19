@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import AppShell from "@/components/AppShell";
+import AdminShell from "@/components/AdminShell";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
 import { LEVEL_BADGES } from "@/lib/levelBadges";
@@ -18,7 +18,7 @@ export default async function AdminNiveisPage() {
   const icons = await getLevelIconMap();
 
   return (
-    <AppShell user={user} tenant={user.tenant}>
+    <AdminShell user={user} tenant={user.tenant}>
       <Link href="/admin" className="text-sm text-slate-500 hover:text-slate-900">
         ← Administração
       </Link>
@@ -95,6 +95,6 @@ export default async function AdminNiveisPage() {
         </div>
         <SubmitButton pendingText="Salvando…">Salvar ícones</SubmitButton>
       </form>
-    </AppShell>
+    </AdminShell>
   );
 }

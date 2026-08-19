@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { contentTenantIds } from "@/lib/access";
 import { loadPlanningOverview } from "@/lib/planning";
-import AppShell from "@/components/AppShell";
+import AdminShell from "@/components/AdminShell";
 import GestorNav from "@/components/GestorNav";
 import ImportPlanningCard from "./import-planning-card";
 
@@ -31,7 +31,7 @@ export default async function PlanejamentoPage() {
   const semPlano = rows.filter((r) => r.total === 0).length;
 
   return (
-    <AppShell user={user} tenant={user.tenant}>
+    <AdminShell user={user} tenant={user.tenant}>
       <GestorNav active="planejamento" />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -81,6 +81,6 @@ export default async function PlanejamentoPage() {
           <ImportPlanningCard />
         </section>
       </div>
-    </AppShell>
+    </AdminShell>
   );
 }

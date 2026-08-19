@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { loadAnalytics } from "@/lib/analytics";
 import { grantedSharedVitrineIds } from "@/lib/access";
-import AppShell from "@/components/AppShell";
+import AdminShell from "@/components/AdminShell";
 import GestorNav from "@/components/GestorNav";
 
 function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
@@ -31,7 +31,7 @@ export default async function AnalyticsPage() {
   const maxDay = Math.max(1, ...a.engagement.days.map((d) => d.count));
 
   return (
-    <AppShell user={user} tenant={user.tenant}>
+    <AdminShell user={user} tenant={user.tenant}>
       <GestorNav active="analytics" />
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -181,6 +181,6 @@ export default async function AnalyticsPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </AdminShell>
   );
 }

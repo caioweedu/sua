@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { describeCondition } from "@/lib/release";
-import AppShell from "@/components/AppShell";
+import AdminShell from "@/components/AdminShell";
 import SubmitButton from "@/components/SubmitButton";
 import {
   updateExam,
@@ -52,7 +52,7 @@ export default async function EditExamPage({
   if (!exam) notFound();
 
   return (
-    <AppShell user={user} tenant={user.tenant}>
+    <AdminShell user={user} tenant={user.tenant}>
       <Link href="/admin/provas" className="text-sm text-slate-500 hover:text-slate-900">
         ← Biblioteca de provas
       </Link>
@@ -166,6 +166,6 @@ export default async function EditExamPage({
           <GerarQuestoesCard examId={exam.id} />
         </section>
       </div>
-    </AppShell>
+    </AdminShell>
   );
 }

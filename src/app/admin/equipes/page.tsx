@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import AppShell from "@/components/AppShell";
+import AdminShell from "@/components/AdminShell";
 import GestorNav from "@/components/GestorNav";
 import SubmitButton from "@/components/SubmitButton";
 import {
@@ -223,7 +223,7 @@ export default async function EquipesPage() {
   }
 
   return (
-    <AppShell user={user} tenant={user.tenant}>
+    <AdminShell user={user} tenant={user.tenant}>
       <GestorNav active="equipes" />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -308,6 +308,6 @@ export default async function EquipesPage() {
           </div>
         </section>
       </div>
-    </AppShell>
+    </AdminShell>
   );
 }
