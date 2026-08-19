@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { contentTenantIds, visibleVitrineWhere } from "@/lib/access";
+import { contentTenantIds, visibleVitrineWhere, allowedVitrineIds } from "@/lib/access";
 import { loadUserAgenda } from "@/lib/agenda";
 import AgendaEditor from "@/components/AgendaEditor";
 import AppShell from "@/components/AppShell";
@@ -20,9 +20,13 @@ export default async function PlanejamentoPessoaPage({
 
   const student = await prisma.user.findFirst({
     where: { id, tenantId: user.tenantId, role: { in: ["STUDENT", "HR"] } },
-    select: { id: true, name: true, email: true, teamId: true },
+    select: { id: true, name: true, email: true, teamId: true, role: true, accessProfileId: true },
   });
   if (!student) notFound();
+
+  // Só oferecemos para agendamento os treinamentos que a pessoa realmente
+  // enxerga pelo PERFIL DE ACESSO dela. Sem perfil (null) = vê todas as vitrines.
+  const allowed = await allowedVitrineIds({ role: student.role, accessProfileId: student.accessProfileId });
 
   const contentIds = contentTenantIds(user.tenant);
   const vitrineWhere = await visibleVitrineWhere(user.tenant);
@@ -48,6 +52,11 @@ export default async function PlanejamentoPessoaPage({
     loadUserAgenda(id, user.tenantId, student.teamId, contentIds),
   ]);
 
+  // Recorta pelo perfil de acesso do colaborador.
+  const scopedVitrines = allowed === null ? vitrines : vitrines.filter((v) => allowed.includes(v.id));
+  const scopedOrphans = allowed === null ? orphans : [];
+  const perfilRestrito = allowed !== null;
+
   return (
     <AppShell user={user} tenant={user.tenant}>
       <div className="mb-6">
@@ -63,8 +72,11 @@ export default async function PlanejamentoPessoaPage({
         <p className="mb-4 text-xs text-slate-500">
           Escolha os treinamentos (por vitrine — todos ou alguns) e o período
           previsto. Itens herdados da equipe aparecem como (equipe).
+          {perfilRestrito && (
+            <> Mostrando apenas as vitrines do <strong>perfil de acesso</strong> desta pessoa.</>
+          )}
         </p>
-        <AgendaEditor student={{ id: student.id, name: student.name }} agenda={agenda} vitrines={vitrines} orphans={orphans} />
+        <AgendaEditor student={{ id: student.id, name: student.name }} agenda={agenda} vitrines={scopedVitrines} orphans={scopedOrphans} />
       </div>
     </AppShell>
   );
