@@ -13,10 +13,14 @@ export default function TeamCockpit({
   data,
   roots,
   mode,
+  // Base do link "ficha →" de cada pessoa. Admin usa a ficha editável
+  // (/admin/alunos); gestor/supervisor/RH usam a ficha só leitura (/minha-equipe).
+  fichaBase = "/admin/alunos",
 }: {
   data: TeamCockpitData;
   roots: TeamNode[];
   mode: "tree" | "direct";
+  fichaBase?: string;
 }) {
   const { byId, directMembers, childrenOf } = data;
 
@@ -54,7 +58,7 @@ export default function TeamCockpit({
                   <td className="py-1.5 pr-4 tabular-nums">{r.examsPassed}</td>
                   <td className="py-1.5 pr-4 tabular-nums">{r.certificates}</td>
                   <td className="py-1.5">
-                    <Link href={`/admin/alunos/${r.id}`} className="text-xs text-brand hover:underline">
+                    <Link href={`${fichaBase}/${r.id}`} className="text-xs text-brand hover:underline">
                       ficha →
                     </Link>
                   </td>

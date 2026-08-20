@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import AppShell from "@/components/AppShell";
+import GestorNav from "@/components/GestorNav";
 import SubmitButton from "@/components/SubmitButton";
 import {
   createTeam,
@@ -222,7 +222,8 @@ export default async function EquipesPage() {
   }
 
   return (
-    <AppShell user={user} tenant={user.tenant}>
+    <>
+      <GestorNav active="equipes" />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href="/admin" className="text-sm text-slate-500 hover:text-ink">← Administração</Link>
@@ -306,6 +307,6 @@ export default async function EquipesPage() {
           </div>
         </section>
       </div>
-    </AppShell>
+    </>
   );
 }

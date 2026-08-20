@@ -6,7 +6,6 @@ import { loadStudentDetail } from "@/lib/analytics";
 import { contentTenantIds } from "@/lib/access";
 import { emailConfigured } from "@/lib/email";
 import { updateUser, resetUserPassword } from "@/lib/actions/users";
-import AppShell from "@/components/AppShell";
 import SubmitButton from "@/components/SubmitButton";
 import StudentAccessCard from "./student-access-card";
 
@@ -50,7 +49,7 @@ export default async function StudentDetailPage({
   });
 
   return (
-    <AppShell user={user} tenant={user.tenant}>
+    <>
       <div className="mb-6">
         <Link href="/admin/analytics" className="text-sm text-slate-500 hover:text-ink">
           ← Resultados
@@ -162,6 +161,18 @@ export default async function StudentDetailPage({
         )}
       </div>
 
+      {/* Agenda de treinamentos (F3 — gerida no painel de RH) */}
+      <div className="card mt-6">
+        <h2 className="mb-1 font-semibold">Agenda de treinamentos</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          O planejamento de treinamentos desta pessoa (o que fazer e até quando)
+          fica no painel de RH.
+        </p>
+        <Link href={`/admin/planejamento/${student.id}`} className="btn-outline text-sm">
+          🗓️ Abrir planejamento de {student.name.split(" ")[0]}
+        </Link>
+      </div>
+
       {/* Edição + acesso */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="card">
@@ -234,6 +245,6 @@ export default async function StudentDetailPage({
 
         <StudentAccessCard userId={student.id} studentEmail={student.email} emailConfigured={emailConfigured()} />
       </div>
-    </AppShell>
+    </>
   );
 }

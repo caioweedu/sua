@@ -2,9 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import AppShell from "@/components/AppShell";
 import ImportCard from "./import-card";
-import ImportUsersCard from "./import-users-card";
 import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
@@ -13,11 +11,6 @@ import { grantedSharedVitrineIds } from "@/lib/access";
 import {
   createTrilha,
   togglePublish,
-  updateBranding,
-  updateGamificationSettings,
-  createDaughter,
-  updateDaughter,
-  saveDaughterGrants,
   createVitrine,
   deleteVitrine,
   updateVitrine,
@@ -27,12 +20,6 @@ import {
   createAccessProfile,
   updateAccessProfile,
   deleteAccessProfile,
-  createUser,
-  deleteUser,
-  createHeroSlide,
-  updateHeroSlide,
-  deleteHeroSlide,
-  moveHeroSlide,
 } from "@/lib/actions/admin";
 
 export default async function AdminPage() {
@@ -86,17 +73,6 @@ export default async function AdminPage() {
     },
   });
 
-  const students = await prisma.user.findMany({
-    where: { tenantId: user.tenantId, role: { in: ["STUDENT", "HR"] } },
-    orderBy: { createdAt: "asc" },
-    include: { accessProfile: { select: { id: true, name: true } } },
-  });
-
-  const heroSlides = await prisma.heroSlide.findMany({
-    where: { tenantId: user.tenantId },
-    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-  });
-
   // Conteúdo herdado da mãe (só para filhas): vitrines compartilhadas pela
   // Weedu, exibidas em modo leitura e disponíveis para os perfis de acesso.
   const isDaughter = user.tenant.type === "DAUGHTER" && !!user.tenant.parentId;
@@ -128,52 +104,16 @@ export default async function AdminPage() {
     ...receivedVitrines.map((v) => ({ id: v.id, label: `${v.name} (Weedu)` })),
   ];
 
-  const isSuper = user.role === "SUPER_ADMIN";
-  const daughters = isSuper
-    ? await prisma.tenant.findMany({
-        where: { type: "DAUGHTER" },
-        orderBy: { createdAt: "desc" },
-        include: { _count: { select: { users: true, trilhas: true } } },
-      })
-    : [];
-  // Liberações de conteúdo por filha (para o painel da Weedu): filha → set de
-  // ids de vitrines da mãe liberadas.
-  const grantsByDaughter = new Map<string, Set<string>>();
-  if (isSuper && daughters.length > 0) {
-    const grants = await prisma.sharedVitrineGrant.findMany({
-      where: { tenantId: { in: daughters.map((d) => d.id) } },
-      select: { tenantId: true, vitrineId: true },
-    });
-    for (const g of grants) {
-      if (!grantsByDaughter.has(g.tenantId)) grantsByDaughter.set(g.tenantId, new Set());
-      grantsByDaughter.get(g.tenantId)!.add(g.vitrineId);
-    }
-  }
-
   return (
-    <AppShell user={user} tenant={user.tenant}>
+    <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Administração</h1>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/admin/copiloto" className="btn-brand text-sm">
-            ✨ Copiloto de criação
-          </Link>
-          <Link href="/admin/analytics" className="btn-outline text-sm">
-            📊 Resultados
-          </Link>
-          <Link href="/admin/equipes" className="btn-outline text-sm">
-            🏢 Equipes
-          </Link>
-          <Link href="/admin/rh" className="btn-outline text-sm">
-            🧑‍💼 Painel RH
-          </Link>
-          <Link href="/admin/provas" className="btn-outline text-sm">
-            📝 Biblioteca de provas
-          </Link>
-          <Link href="/admin/certificados" className="btn-outline text-sm">
-            🏆 Modelos de certificado
-          </Link>
+        <div>
+          <h1 className="text-2xl font-bold">Conteúdo</h1>
+          <p className="text-sm text-slate-500">Vitrines, produtos e perfis de acesso.</p>
         </div>
+        <Link href="/admin/copiloto" className="btn-brand text-sm">
+          ✨ Copiloto de criação
+        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -474,403 +414,13 @@ export default async function AdminPage() {
             </form>
           </div>
 
-          {/* Usuários */}
-          <div className="card">
-            <h2 className="mb-1 font-semibold">Usuários (alunos)</h2>
-            <p className="mb-4 text-xs text-slate-500">
-              Vincule cada aluno a um perfil para controlar o que ele acessa.
-            </p>
-            {students.length === 0 && (
-              <p className="mb-4 text-sm text-slate-500">Nenhum aluno ainda.</p>
-            )}
-            <ul className="mb-4 divide-y divide-slate-100">
-              {students.map((s) => (
-                <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                  <div className="min-w-0">
-                    <span className="font-medium">{s.name}</span>
-                    {!s.active && (
-                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">inativo</span>
-                    )}
-                    <p className="truncate text-xs text-slate-500">
-                      {s.email} · {s.accessProfile?.name ?? "Acesso total"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Link href={`/admin/alunos/${s.id}`} className="btn-outline px-2 py-1 text-xs">
-                      editar
-                    </Link>
-                    <form action={deleteUser.bind(null, s.id)}>
-                      <button className="text-xs text-red-500 hover:underline" type="submit">
-                        remover
-                      </button>
-                    </form>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <form action={createUser} className="grid gap-2 border-t border-slate-100 pt-4 sm:grid-cols-2">
-              <input name="name" required className="input" placeholder="Nome do aluno" />
-              <input name="email" type="email" required className="input" placeholder="E-mail" />
-              <input name="password" type="password" required minLength={6} className="input" placeholder="Senha (mín. 6)" />
-              <select name="accessProfileId" className="input" defaultValue="">
-                <option value="">Acesso total (sem perfil)</option>
-                {profiles.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              <div className="sm:col-span-2">
-                <SubmitButton pendingText="Criando…">Criar aluno</SubmitButton>
-              </div>
-            </form>
-          </div>
         </section>
 
-        {/* Importação + Aparência + filhas */}
+        {/* Importação de conteúdo */}
         <section className="space-y-4">
           <ImportCard />
-          <ImportUsersCard />
-
-          <div className="card">
-            <h2 className="mb-4 font-semibold">Aparência</h2>
-            <form action={updateBranding} className="space-y-3">
-              <div>
-                <label className="label">Cor principal</label>
-                <input name="brandColor" type="color" defaultValue={user.tenant.brandColor} className="h-10 w-full rounded-lg border border-slate-300" />
-              </div>
-              <div>
-                <label className="label">Cor do texto sobre a cor principal</label>
-                <input name="brandFgColor" type="color" defaultValue={user.tenant.brandFgColor} className="h-10 w-full rounded-lg border border-slate-300" />
-              </div>
-              <div>
-                <label className="label">Tema da área do aluno</label>
-                <p className="-mt-1 mb-2 text-xs text-slate-500">
-                  Escuro = imersivo estilo streaming. Claro = fundo branco.
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { v: "dark", t: "Escuro", desc: "Netflix/Prime" },
-                    { v: "light", t: "Claro", desc: "Fundo branco" },
-                  ].map((o) => (
-                    <label
-                      key={o.v}
-                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50"
-                    >
-                      <input
-                        type="radio"
-                        name="theme"
-                        value={o.v}
-                        defaultChecked={(user.tenant.theme ?? "dark") === o.v}
-                      />
-                      <span>
-                        <span className="font-medium">{o.t}</span>
-                        <span className="block text-xs text-slate-400">{o.desc}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <ImageUpload
-                name="logoUrl"
-                label="Logo"
-                hint="PNG com fundo transparente · altura ~64px · até 400×120px."
-                defaultValue={user.tenant.logoUrl ?? ""}
-                slot="logo"
-                aspect="3 / 1"
-              />
-              <ImageUpload
-                name="bannerUrl"
-                label="Banner de entrada (home)"
-                hint="16:9 · recomendado 1600×900px (mín. 1280×720) · JPG/WebP."
-                defaultValue={user.tenant.bannerUrl ?? ""}
-                slot="banner"
-                aspect="16 / 9"
-              />
-              <ImageUpload
-                name="certificateBg"
-                label="Fundo do certificado"
-                hint="A4 paisagem · 3508×2480px (300dpi) · PNG/JPG."
-                defaultValue={user.tenant.certificateBg ?? ""}
-                slot="certificado"
-                aspect="1.414 / 1"
-              />
-              <input name="certificateSignature" defaultValue={user.tenant.certificateSignature ?? ""} className="input" placeholder="Assinatura do certificado" />
-              <SubmitButton pendingText="Salvando…">Salvar aparência</SubmitButton>
-            </form>
-          </div>
-
-          {/* Gamificação (Onda 2, Fatia 5) */}
-          <div className="card">
-            <h2 className="mb-1 font-semibold">Gamificação</h2>
-            <p className="mb-4 text-xs text-slate-500">
-              XP, níveis, conquistas e ofensiva no painel do aluno. O ranking
-              mostra o nome dos alunos — desligue se preferir manter privado.
-            </p>
-            {user.tenant.gamificationEntitled ? (
-              <form action={updateGamificationSettings} className="space-y-3">
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50">
-                  <input
-                    type="checkbox"
-                    name="gamificationEnabled"
-                    defaultChecked={user.tenant.gamificationEnabled}
-                    className="h-4 w-4"
-                  />
-                  <span>
-                    <span className="font-medium">Ativar gamificação</span>
-                    <span className="block text-xs text-slate-400">
-                      XP, níveis, conquistas e ofensiva.
-                    </span>
-                  </span>
-                </label>
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50">
-                  <input
-                    type="checkbox"
-                    name="rankingEnabled"
-                    defaultChecked={user.tenant.rankingEnabled}
-                    className="h-4 w-4"
-                  />
-                  <span>
-                    <span className="font-medium">Mostrar ranking da turma</span>
-                    <span className="block text-xs text-slate-400">
-                      Placar por XP com nomes dos alunos.
-                    </span>
-                  </span>
-                </label>
-                <SubmitButton pendingText="Salvando…">Salvar gamificação</SubmitButton>
-              </form>
-            ) : (
-              <p className="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500">
-                🔒 O módulo de gamificação não está liberado para esta universidade.
-                Fale com a Weedu para habilitar.
-              </p>
-            )}
-            {user.role === "SUPER_ADMIN" && (
-              <Link
-                href="/admin/niveis"
-                className="mt-3 inline-block text-sm font-medium text-slate-600 hover:text-slate-900"
-              >
-                🎨 Personalizar ícones dos níveis →
-              </Link>
-            )}
-          </div>
-
-          {/* Banner rotativo da home (hero) */}
-          <div className="card">
-            <h2 className="mb-1 font-semibold">Banner rotativo da home</h2>
-            <p className="mb-4 text-xs text-slate-500">
-              Slides que giram no topo da home do aluno. Imagem + texto e link
-              opcionais. Recomendado 1600×900px (16:9).
-            </p>
-
-            {heroSlides.length > 0 && (
-              <ul className="mb-4 space-y-3">
-                {heroSlides.map((s, idx) => (
-                  <li key={s.id} className="rounded-xl border border-slate-200 p-3">
-                    <div className="flex items-start gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={s.imageUrl}
-                        alt=""
-                        className="h-14 w-24 shrink-0 rounded-lg object-cover"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
-                          {s.title || <span className="text-slate-400">(sem título)</span>}
-                          {!s.active && (
-                            <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">
-                              oculto
-                            </span>
-                          )}
-                        </p>
-                        {s.subtitle && <p className="truncate text-xs text-slate-500">{s.subtitle}</p>}
-                        {s.ctaHref && (
-                          <p className="truncate text-xs text-brand">
-                            {s.ctaLabel ? `${s.ctaLabel} → ` : "→ "}
-                            {s.ctaHref}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        <div className="flex gap-1">
-                          <form action={moveHeroSlide.bind(null, s.id, "up")}>
-                            <button className="rounded border border-slate-200 px-1.5 text-xs disabled:opacity-30" disabled={idx === 0} type="submit">↑</button>
-                          </form>
-                          <form action={moveHeroSlide.bind(null, s.id, "down")}>
-                            <button className="rounded border border-slate-200 px-1.5 text-xs disabled:opacity-30" disabled={idx === heroSlides.length - 1} type="submit">↓</button>
-                          </form>
-                          <form action={deleteHeroSlide.bind(null, s.id)}>
-                            <button className="rounded border border-slate-200 px-1.5 text-xs text-red-500" type="submit">remover</button>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Editar slide */}
-                    <details className="mt-2">
-                      <summary className="cursor-pointer text-xs text-slate-500">editar</summary>
-                      <form action={updateHeroSlide.bind(null, s.id)} className="mt-2 space-y-2">
-                        <ImageUpload
-                          name="imageUrl"
-                          label="Imagem do slide"
-                          hint="16:9 · 1600×900px · JPG/WebP."
-                          defaultValue={s.imageUrl}
-                          slot="hero"
-                          aspect="16 / 9"
-                        />
-                        <input name="title" defaultValue={s.title ?? ""} className="input" placeholder="Título (opcional)" />
-                        <input name="subtitle" defaultValue={s.subtitle ?? ""} className="input" placeholder="Subtítulo (opcional)" />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input name="ctaLabel" defaultValue={s.ctaLabel ?? ""} className="input" placeholder="Texto do botão" />
-                          <input name="ctaHref" defaultValue={s.ctaHref ?? ""} className="input" placeholder="Link (ex.: /vitrines/... ou https://)" />
-                        </div>
-                        <label className="flex items-center gap-2 text-sm text-slate-600">
-                          <input type="checkbox" name="active" defaultChecked={s.active} /> Ativo (visível na home)
-                        </label>
-                        <SubmitButton pendingText="Salvando…">Salvar slide</SubmitButton>
-                      </form>
-                    </details>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {/* Novo slide */}
-            <form action={createHeroSlide} className="space-y-2 border-t border-slate-100 pt-4">
-              <p className="text-sm font-medium">Novo slide</p>
-              <ImageUpload
-                name="imageUrl"
-                label="Imagem do slide"
-                hint="16:9 · 1600×900px · JPG/WebP."
-                slot="hero"
-                aspect="16 / 9"
-              />
-              <input name="title" className="input" placeholder="Título (opcional)" />
-              <input name="subtitle" className="input" placeholder="Subtítulo (opcional)" />
-              <div className="grid grid-cols-2 gap-2">
-                <input name="ctaLabel" className="input" placeholder="Texto do botão (opcional)" />
-                <input name="ctaHref" className="input" placeholder="Link (ex.: /vitrines/ID ou https://)" />
-              </div>
-              <SubmitButton pendingText="Adicionando…">+ Adicionar slide</SubmitButton>
-            </form>
-          </div>
-
-          {isSuper && (
-            <>
-              <div className="card">
-                <h2 className="mb-1 font-semibold">Universidades filhas</h2>
-                <p className="mb-4 text-xs text-slate-500">
-                  {daughters.length} cliente(s) white-label
-                </p>
-                <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-                  Clique em <span className="font-medium">Acessar</span> para entrar como aquela
-                  filha (você vê e edita o painel dela). Um aviso aparece no topo com o botão
-                  <span className="font-medium"> Voltar para a Weedu</span> para sair.
-                </p>
-                <ul className="divide-y divide-slate-100 text-sm">
-                  {daughters.map((d) => (
-                    <li key={d.id} className="py-2.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <span className="font-medium">{d.name}</span>
-                          {!d.active && (
-                            <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">inativa</span>
-                          )}
-                          <span className="text-slate-400"> · {d.slug}</span>
-                          <p className="text-xs text-slate-500">
-                            {d._count.users} usuário(s) · {d._count.trilhas} produto(s)
-                            {d.customDomain && ` · ${d.customDomain}`}
-                          </p>
-                        </div>
-                        <a
-                          href={`/admin?tenant=${d.slug}`}
-                          className="btn-outline shrink-0 px-2 py-1 text-xs"
-                        >
-                          Acessar ↗
-                        </a>
-                      </div>
-
-                      {/* Editar filha */}
-                      <details className="mt-1.5">
-                        <summary className="cursor-pointer text-xs font-medium text-brand">editar</summary>
-                        <form action={updateDaughter.bind(null, d.id)} className="mt-2 space-y-2">
-                          <input name="name" defaultValue={d.name} required className="input py-1.5 text-sm" placeholder="Nome da filha" />
-                          <input name="slug" defaultValue={d.slug} required className="input py-1.5 text-sm" placeholder="slug (ex: cliente-x)" />
-                          <input name="customDomain" defaultValue={d.customDomain ?? ""} className="input py-1.5 text-sm" placeholder="Domínio próprio (opcional)" />
-                          <div className="flex items-center gap-2">
-                            <label className="label mb-0 text-xs">Cor</label>
-                            <input name="brandColor" type="color" defaultValue={d.brandColor} className="h-8 w-12 rounded border border-slate-300" />
-                            <label className="ml-3 flex items-center gap-1.5 text-sm text-slate-600">
-                              <input type="checkbox" name="active" defaultChecked={d.active} /> Ativa
-                            </label>
-                          </div>
-                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
-                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Módulos liberados</p>
-                            <label className="flex items-center gap-2 text-sm text-slate-700">
-                              <input type="checkbox" name="gamificationEntitled" defaultChecked={d.gamificationEntitled} /> 🎮 Gamificação (liberada)
-                            </label>
-                            <p className="mt-1 text-[11px] text-slate-400">
-                              O módulo de RH aparecerá aqui no mesmo formato quando for lançado.
-                            </p>
-                          </div>
-                          <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">Salvar filha</SubmitButton>
-                        </form>
-                      </details>
-
-                      {/* Conteúdo liberado para esta filha (controle da Weedu) */}
-                      <details className="mt-1">
-                        <summary className="cursor-pointer text-xs font-medium text-indigo-600">
-                          conteúdo liberado ({grantsByDaughter.get(d.id)?.size ?? 0})
-                        </summary>
-                        {vitrines.length === 0 ? (
-                          <p className="mt-2 text-xs text-slate-500">
-                            Crie vitrines na Weedu para poder liberá-las.
-                          </p>
-                        ) : (
-                          <form action={saveDaughterGrants.bind(null, d.id)} className="mt-2 space-y-2">
-                            <p className="text-xs text-slate-500">
-                              Marque as vitrines da Weedu que <strong>{d.name}</strong> recebe.
-                            </p>
-                            <div className="grid gap-1.5">
-                              {vitrines.map((v) => (
-                                <label key={v.id} className="flex items-center gap-2 text-sm">
-                                  <input
-                                    type="checkbox"
-                                    name="grantVitrineIds"
-                                    value={v.id}
-                                    defaultChecked={grantsByDaughter.get(d.id)?.has(v.id) ?? false}
-                                    className="h-4 w-4 rounded border-slate-300"
-                                  />
-                                  {v.name}
-                                </label>
-                              ))}
-                            </div>
-                            <SubmitButton className="btn-outline text-sm" pendingText="Salvando…">
-                              Salvar liberação
-                            </SubmitButton>
-                          </form>
-                        )}
-                      </details>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="card">
-                <h2 className="mb-4 font-semibold">Nova filha (white-label)</h2>
-                <form action={createDaughter} className="space-y-3">
-                  <input name="name" required className="input" placeholder="Nome da universidade" />
-                  <input name="slug" required className="input" placeholder="slug (ex: cliente-x)" />
-                  <input name="customDomain" className="input" placeholder="Domínio próprio (opcional)" />
-                  <input name="brandColor" type="color" defaultValue="#2563eb" className="h-10 w-full rounded-lg border border-slate-300" />
-                  <hr className="border-slate-100" />
-                  <input name="adminEmail" type="email" required className="input" placeholder="E-mail do admin da filha" />
-                  <input name="adminPassword" type="password" required minLength={6} className="input" placeholder="Senha do admin (mín. 6)" />
-                  <SubmitButton pendingText="Criando…">Criar filha</SubmitButton>
-                </form>
-              </div>
-            </>
-          )}
         </section>
       </div>
-    </AppShell>
+    </>
   );
 }

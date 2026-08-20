@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { allowedVitrineIds, visibleVitrineWhere } from "@/lib/access";
+import { allowedVitrineIds, visibleVitrineWhere, contentTenantIds } from "@/lib/access";
+import { loadUserAgenda } from "@/lib/agenda";
 import { loadProgress, isUnlocked } from "@/lib/release";
 import { prisma } from "@/lib/db";
 import AppShell from "@/components/AppShell";
@@ -92,12 +93,29 @@ export default async function DashboardPage() {
     : [null, null, null, null];
 
   const banner = user.tenant.bannerUrl;
+  // Agenda de treinamentos planejados para esta pessoa (F3).
+  const agenda = await loadUserAgenda(
+    user.id,
+    user.tenantId,
+    user.teamId,
+    contentTenantIds(user.tenant)
+  );
+
   // Atalho para o painel de acompanhamento (RH, gestor ou supervisor).
   const teamPanel =
     user.role === "HR" ||
     (await prisma.teamLead.count({
       where: { userId: user.id, team: { tenantId: user.tenantId } },
     })) > 0;
+
+  const dstr = (d: Date | null) => (d ? new Date(d).toLocaleDateString("pt-BR") : null);
+  const agendaStatus = (a: (typeof agenda)[number]) => {
+    if (a.completed) return "Concluído ✓";
+    const s = dstr(a.startDate);
+    const e = dstr(a.dueDate);
+    const periodo = s && e ? `${s} → ${e}` : e ? `Prazo: ${e}` : s ? `A partir de ${s}` : "Sem prazo";
+    return `${a.overdue ? "Atrasado · " : ""}${periodo} · ${a.progressPct}%`;
+  };
 
   const nome = user.name.split(" ")[0];
   const vitrinesComConteudo = vitrines.filter((v) => v.trilhas.length > 0);
@@ -142,6 +160,39 @@ export default async function DashboardPage() {
               </span>
               <span className="s-muted text-sm">ver progresso →</span>
             </Link>
+          </div>
+        )}
+        {agenda.length > 0 && (
+          <div className="px-4 pt-6">
+            <div className="s-card rounded-2xl p-5">
+              <h2 className="s-fg mb-1 font-bold">📌 Meus treinamentos planejados</h2>
+              <p className="s-muted mb-3 text-sm">
+                Definidos pela sua empresa. Fique de olho nos prazos.
+              </p>
+              <ul className="space-y-2">
+                {agenda.map((a) => (
+                  <li key={a.trilhaId}>
+                    <Link
+                      href={`/trilhas/${a.trilhaId}`}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/5"
+                    >
+                      <span className="min-w-0">
+                        <span className="s-fg font-medium">{a.title}</span>
+                        {a.required && (
+                          <span className="s-muted ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px]">obrigatório</span>
+                        )}
+                        <span
+                          className={`block text-xs ${a.overdue && !a.completed ? "font-semibold text-red-400" : "s-muted"}`}
+                        >
+                          {agendaStatus(a)}
+                        </span>
+                      </span>
+                      {!a.completed && <span className="s-muted text-xs font-semibold">continuar →</span>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
         {gami && <XpCard status={gami} iconUrl={levelIcons?.get(gami.level)} />}

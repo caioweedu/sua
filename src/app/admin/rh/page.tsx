@@ -4,7 +4,7 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { grantedSharedVitrineIds } from "@/lib/access";
 import { loadTeamCockpitData, aggMembers } from "@/lib/teamCockpit";
 import TeamCockpit from "@/components/TeamCockpit";
-import AppShell from "@/components/AppShell";
+import GestorNav from "@/components/GestorNav";
 
 // Onda 3 · F1 — Cockpit do RH (admin): visão da empresa + por equipe, só
 // leitura. Escopo por tenant, com o conteúdo liberado pela mãe contabilizado.
@@ -37,19 +37,14 @@ export default async function RhCockpitPage() {
   const noTeamAgg = aggMembers(data.noTeam, data.byId);
 
   return (
-    <AppShell user={user} tenant={user.tenant}>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Link href="/admin" className="text-sm text-slate-500 hover:text-ink">← Administração</Link>
-          <h1 className="mt-1 text-2xl font-bold">Painel de RH</h1>
-          <p className="text-sm text-slate-500">
-            Visão da empresa e por equipe (inclui subequipes). Só leitura.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/admin/equipes" className="btn-outline text-sm">🏢 Equipes</Link>
-          <Link href="/admin/analytics" className="btn-outline text-sm">📊 Resultados (por conteúdo)</Link>
-        </div>
+    <>
+      <GestorNav active="rh" />
+      <div className="mb-6">
+        <Link href="/admin" className="text-sm text-slate-500 hover:text-ink">← Administração</Link>
+        <h1 className="mt-1 text-2xl font-bold">Painel Gestor</h1>
+        <p className="text-sm text-slate-500">
+          Visão da empresa e por equipe (inclui subequipes). Só leitura.
+        </p>
       </div>
 
       {/* Visão empresa */}
@@ -94,6 +89,6 @@ export default async function RhCockpitPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
