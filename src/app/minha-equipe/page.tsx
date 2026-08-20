@@ -5,7 +5,7 @@ import { grantedSharedVitrineIds } from "@/lib/access";
 import {
   loadTeamCockpitData,
   aggMembers,
-  subtreeMemberIds,
+  visibleMemberIds,
   type TeamNode,
 } from "@/lib/teamCockpit";
 import { prisma } from "@/lib/db";
@@ -69,13 +69,11 @@ export default async function MinhaEquipePage() {
   }
 
   // Conjunto de alunos do escopo (para os tiles do topo).
-  const scopeIds = new Set<string>();
-  if (companyWide) {
-    data.allStudentIds.forEach((id) => scopeIds.add(id));
-  } else {
-    for (const t of managerTeams) subtreeMemberIds(t.id, data).forEach((id) => scopeIds.add(id));
-    for (const t of supervisorTeams) (data.directMembers.get(t.id) ?? []).forEach((id) => scopeIds.add(id));
-  }
+  const scopeIds = visibleMemberIds(data, {
+    companyWide,
+    managerTeamIds: managerTeams.map((t) => t.id),
+    supervisorTeamIds: supervisorTeams.map((t) => t.id),
+  });
   const scope = aggMembers([...scopeIds], data.byId);
 
   const scopeLabel = companyWide ? "Empresa" : "Sua equipe";
@@ -109,7 +107,7 @@ export default async function MinhaEquipePage() {
           {data.teams.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhuma equipe cadastrada ainda.</p>
           ) : (
-            <TeamCockpit data={data} roots={data.roots} mode="tree" />
+            <TeamCockpit data={data} roots={data.roots} mode="tree" fichaBase="/minha-equipe" />
           )}
         </div>
       )}
@@ -122,7 +120,7 @@ export default async function MinhaEquipePage() {
             Sua equipe e todas as subequipes. Abra “Pessoas nesta equipe” para o
             progresso individual; desça a árvore para chegar em cada supervisor.
           </p>
-          <TeamCockpit data={data} roots={managerTeams} mode="tree" />
+          <TeamCockpit data={data} roots={managerTeams} mode="tree" fichaBase="/minha-equipe" />
         </div>
       )}
 
@@ -133,7 +131,7 @@ export default async function MinhaEquipePage() {
           <p className="mb-4 text-xs text-slate-500">
             Apenas a(s) sua(s) equipe(s) — o progresso individual de cada pessoa.
           </p>
-          <TeamCockpit data={data} roots={supervisorTeams} mode="direct" />
+          <TeamCockpit data={data} roots={supervisorTeams} mode="direct" fichaBase="/minha-equipe" />
         </div>
       )}
     </AppShell>

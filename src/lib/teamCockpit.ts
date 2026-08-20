@@ -106,6 +106,24 @@ export function subtreeMemberIds(
   return ids;
 }
 
+// Conjunto de pessoas que um papel/liderança pode ver (mesma regra do painel
+// /minha-equipe): RH/admin veem a empresa toda; gestor vê a subárvore das suas
+// equipes; supervisor vê só os membros diretos das suas. Serve para os tiles do
+// painel E para autorizar o acesso à ficha individual de cada pessoa.
+export function visibleMemberIds(
+  data: TeamCockpitData,
+  opts: { companyWide: boolean; managerTeamIds: string[]; supervisorTeamIds: string[] }
+): Set<string> {
+  const ids = new Set<string>();
+  if (opts.companyWide) {
+    for (const id of data.allStudentIds) ids.add(id);
+    return ids;
+  }
+  for (const tid of opts.managerTeamIds) for (const id of subtreeMemberIds(tid, data)) ids.add(id);
+  for (const tid of opts.supervisorTeamIds) for (const id of data.directMembers.get(tid) ?? []) ids.add(id);
+  return ids;
+}
+
 // Agrega as métricas de uma lista de alunos.
 export function aggMembers(ids: string[], byId: Map<string, MemberRow>): TeamAgg {
   let matriculas = 0, concluidos = 0, aulas = 0, provas = 0, certs = 0, emTreino = 0;
