@@ -7,7 +7,6 @@ const TABS = [
   { key: "rh", label: "🧭 Visão geral", href: "/admin/rh" },
   { key: "planejamento", label: "🗓️ Planejamento", href: "/admin/planejamento" },
   { key: "equipes", label: "🏢 Equipes", href: "/admin/equipes" },
-  { key: "analytics", label: "📊 Resultados", href: "/admin/analytics" },
 ] as const;
 
 export type GestorTab = (typeof TABS)[number]["key"];

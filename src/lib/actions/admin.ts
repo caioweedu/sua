@@ -791,7 +791,7 @@ export async function saveLevelIcons(formData: FormData) {
       await prisma.levelIcon.deleteMany({ where: { level } });
     }
   }
-  revalidatePath("/admin/niveis");
+  revalidatePath("/admin/gamificacao");
   revalidatePath("/dashboard");
   revalidatePath("/niveis");
 }

@@ -8,18 +8,12 @@ import AdminSidebar from "./AdminSidebar";
 
 type Props = {
   children: React.ReactNode;
-  user: { name: string; role: string; impersonating?: boolean };
+  user: { name: string; email?: string; role: string; impersonating?: boolean };
   tenant: { name: string; logoUrl: string | null };
   fluid?: boolean;
 };
 
 export default function AdminShell({ children, user, tenant, fluid }: Props) {
-  const initials = user.name
-    .split(" ")
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
   const isSuper = user.role === "SUPER_ADMIN";
 
   return (
@@ -46,23 +40,12 @@ export default function AdminShell({ children, user, tenant, fluid }: Props) {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <Link href="/dashboard" className="btn-ghost hidden sm:inline-flex">
               Ver como aluno
             </Link>
-            <div className="hidden text-right sm:block">
-              <div className="text-sm font-semibold leading-tight text-ink">{user.name}</div>
-              <div className="text-xs text-slate-400">
-                {isSuper ? "Weedu (super admin)" : "Administrador"}
-              </div>
-            </div>
-            <div
-              className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold"
-              style={{ background: "rgb(var(--brand-rgb) / 0.18)", color: "var(--brand-color)" }}
-            >
-              {initials}
-            </div>
-            <form action={logoutAction}>
+            {/* No desktop, o "Sair" fica no rodapé da sidebar; aqui é o atalho mobile. */}
+            <form action={logoutAction} className="md:hidden">
               <button className="btn-ghost text-slate-400 hover:text-red-600" type="submit">
                 Sair
               </button>
@@ -86,7 +69,7 @@ export default function AdminShell({ children, user, tenant, fluid }: Props) {
       )}
 
       <div className="flex flex-col md:flex-row">
-        <AdminSidebar isSuper={isSuper} />
+        <AdminSidebar isSuper={isSuper} user={{ name: user.name, email: user.email }} />
         <main className={`min-w-0 flex-1 ${fluid ? "" : "px-4 py-8 md:px-8"}`}>
           <div className={fluid ? "" : "mx-auto max-w-5xl"}>{children}</div>
         </main>
