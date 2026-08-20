@@ -5,7 +5,6 @@ import { prisma } from "@/lib/db";
 import { contentTenantIds, visibleVitrineWhere, allowedVitrineIds } from "@/lib/access";
 import { loadUserAgenda } from "@/lib/agenda";
 import AgendaEditor from "@/components/AgendaEditor";
-import AdminShell from "@/components/AdminShell";
 
 // Onda 3 · F3b — planejamento de um colaborador (a partir do painel de RH).
 export default async function PlanejamentoPessoaPage({
@@ -58,7 +57,7 @@ export default async function PlanejamentoPessoaPage({
   const perfilRestrito = allowed !== null;
 
   return (
-    <AdminShell user={user} tenant={user.tenant}>
+    <>
       <div className="mb-6">
         <Link href="/admin/planejamento" className="text-sm text-slate-500 hover:text-ink">← Planejamento</Link>
         <h1 className="mt-1 text-2xl font-bold">Planejamento de {student.name}</h1>
@@ -78,6 +77,6 @@ export default async function PlanejamentoPessoaPage({
         </p>
         <AgendaEditor student={{ id: student.id, name: student.name }} agenda={agenda} vitrines={scopedVitrines} orphans={scopedOrphans} />
       </div>
-    </AdminShell>
+    </>
   );
 }

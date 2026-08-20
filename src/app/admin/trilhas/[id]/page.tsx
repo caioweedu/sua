@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { describeCondition } from "@/lib/release";
-import AdminShell from "@/components/AdminShell";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
 import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
@@ -128,7 +127,7 @@ export default async function ManageTrilhaPage({
   const hasBiblioteca = bibliotecaProvas.length > 0;
 
   return (
-    <AdminShell user={user} tenant={user.tenant}>
+    <>
       <Link href="/admin" className="text-sm text-slate-500 hover:text-slate-900">
         ← Administração
       </Link>
@@ -508,6 +507,6 @@ export default async function ManageTrilhaPage({
           <FlashcardsCard trilhaId={trilha.id} cards={trilha.flashcards} />
         </section>
       </div>
-    </AdminShell>
+    </>
   );
 }

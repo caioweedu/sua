@@ -6,7 +6,6 @@ import { loadStudentDetail } from "@/lib/analytics";
 import { contentTenantIds } from "@/lib/access";
 import { emailConfigured } from "@/lib/email";
 import { updateUser, resetUserPassword } from "@/lib/actions/users";
-import AdminShell from "@/components/AdminShell";
 import SubmitButton from "@/components/SubmitButton";
 import StudentAccessCard from "./student-access-card";
 
@@ -50,7 +49,7 @@ export default async function StudentDetailPage({
   });
 
   return (
-    <AdminShell user={user} tenant={user.tenant}>
+    <>
       <div className="mb-6">
         <Link href="/admin/analytics" className="text-sm text-slate-500 hover:text-ink">
           ← Resultados
@@ -246,6 +245,6 @@ export default async function StudentDetailPage({
 
         <StudentAccessCard userId={student.id} studentEmail={student.email} emailConfigured={emailConfigured()} />
       </div>
-    </AdminShell>
+    </>
   );
 }

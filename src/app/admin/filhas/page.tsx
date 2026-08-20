@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createDaughter, updateDaughter, saveDaughterGrants } from "@/lib/actions/admin";
-import AdminShell from "@/components/AdminShell";
 import SubmitButton from "@/components/SubmitButton";
 
 // Onda 3 · Navegação — Universidades filhas (white-label). Só a Weedu
@@ -37,7 +36,7 @@ export default async function FilhasPage() {
   }
 
   return (
-    <AdminShell user={user} tenant={user.tenant}>
+    <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Universidades filhas</h1>
         <p className="text-sm text-slate-500">
@@ -164,6 +163,6 @@ export default async function FilhasPage() {
           </div>
         </section>
       </div>
-    </AdminShell>
+    </>
   );
 }

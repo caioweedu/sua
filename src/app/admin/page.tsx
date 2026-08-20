@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import AdminShell from "@/components/AdminShell";
 import ImportCard from "./import-card";
 import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
 import SubmitButton from "@/components/SubmitButton";
@@ -106,7 +105,7 @@ export default async function AdminPage() {
   ];
 
   return (
-    <AdminShell user={user} tenant={user.tenant}>
+    <>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Conteúdo</h1>
@@ -422,6 +421,6 @@ export default async function AdminPage() {
           <ImportCard />
         </section>
       </div>
-    </AdminShell>
+    </>
   );
 }

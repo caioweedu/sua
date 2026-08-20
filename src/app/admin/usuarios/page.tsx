@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createUser, deleteUser } from "@/lib/actions/admin";
-import AdminShell from "@/components/AdminShell";
 import SubmitButton from "@/components/SubmitButton";
 import ImportUsersCard from "../import-users-card";
 
@@ -27,7 +26,7 @@ export default async function UsuariosPage() {
   });
 
   return (
-    <AdminShell user={user} tenant={user.tenant}>
+    <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Usuários</h1>
         <p className="text-sm text-slate-500">
@@ -91,6 +90,6 @@ export default async function UsuariosPage() {
           <ImportUsersCard />
         </section>
       </div>
-    </AdminShell>
+    </>
   );
 }

@@ -5,7 +5,6 @@ import { grantedSharedVitrineIds } from "@/lib/access";
 import { loadTeamCockpitData, aggMembers } from "@/lib/teamCockpit";
 import TeamCockpit from "@/components/TeamCockpit";
 import GestorNav from "@/components/GestorNav";
-import AdminShell from "@/components/AdminShell";
 
 // Onda 3 · F1 — Cockpit do RH (admin): visão da empresa + por equipe, só
 // leitura. Escopo por tenant, com o conteúdo liberado pela mãe contabilizado.
@@ -38,7 +37,7 @@ export default async function RhCockpitPage() {
   const noTeamAgg = aggMembers(data.noTeam, data.byId);
 
   return (
-    <AdminShell user={user} tenant={user.tenant}>
+    <>
       <GestorNav active="rh" />
       <div className="mb-6">
         <Link href="/admin" className="text-sm text-slate-500 hover:text-ink">← Administração</Link>
@@ -90,6 +89,6 @@ export default async function RhCockpitPage() {
           </div>
         )}
       </div>
-    </AdminShell>
+    </>
   );
 }

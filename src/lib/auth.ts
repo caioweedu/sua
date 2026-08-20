@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 import { prisma } from "./db";
@@ -22,7 +23,9 @@ export async function verifyPassword(
 // usuário opera COMO aquela filha — tenant e papel viram os da filha
 // (TENANT_ADMIN), então ele vê só o conteúdo/admin da filha, sem os painéis de
 // super-admin. Para sair, basta ?tenant= (vazio), que limpa o cookie.
-export async function getCurrentUser() {
+// Memoizado por request (React cache): layout + página compartilham a MESMA
+// consulta de usuário/tenant, em vez de bater no banco duas vezes na navegação.
+export const getCurrentUser = cache(async function getCurrentUser() {
   const session = await getSession();
   if (!session) return null;
   const user = await prisma.user.findUnique({
@@ -49,7 +52,7 @@ export async function getCurrentUser() {
     }
   }
   return user;
-}
+});
 
 export function isAdmin(role: string) {
   return role === "SUPER_ADMIN" || role === "TENANT_ADMIN";

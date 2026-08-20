@@ -8,7 +8,6 @@ import {
   deleteHeroSlide,
   moveHeroSlide,
 } from "@/lib/actions/admin";
-import AdminShell from "@/components/AdminShell";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
 
@@ -26,7 +25,7 @@ export default async function AparenciaPage() {
   });
 
   return (
-    <AdminShell user={user} tenant={user.tenant}>
+    <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Aparência</h1>
         <p className="text-sm text-slate-500">
@@ -204,6 +203,6 @@ export default async function AparenciaPage() {
           </form>
         </div>
       </div>
-    </AdminShell>
+    </>
   );
 }

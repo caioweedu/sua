@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { loadAnalytics } from "@/lib/analytics";
 import { grantedSharedVitrineIds } from "@/lib/access";
-import AdminShell from "@/components/AdminShell";
 
 function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
@@ -30,7 +29,7 @@ export default async function AnalyticsPage() {
   const maxDay = Math.max(1, ...a.engagement.days.map((d) => d.count));
 
   return (
-    <AdminShell user={user} tenant={user.tenant}>
+    <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-sm text-slate-500">Resultados gerais da sua universidade.</p>
@@ -177,6 +176,6 @@ export default async function AnalyticsPage() {
           </div>
         )}
       </div>
-    </AdminShell>
+    </>
   );
 }

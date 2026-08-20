@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import AdminShell from "@/components/AdminShell";
 import CopilotoClient from "./copiloto-client";
 
 // Copiloto de IA para criação (Fase 5): o gestor cola um texto ou sobe um PDF
@@ -21,7 +20,7 @@ export default async function CopilotoPage() {
   const configurado = !!process.env.ANTHROPIC_API_KEY;
 
   return (
-    <AdminShell user={user} tenant={user.tenant}>
+    <>
       <Link href="/admin" className="text-sm text-slate-500 hover:text-slate-900">
         ← Administração
       </Link>
@@ -42,6 +41,6 @@ export default async function CopilotoPage() {
       <div className="max-w-3xl">
         <CopilotoClient vitrines={vitrines} />
       </div>
-    </AdminShell>
+    </>
   );
 }

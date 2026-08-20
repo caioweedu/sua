@@ -3,7 +3,6 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { updateGamificationSettings, saveLevelIcons } from "@/lib/actions/admin";
 import { LEVEL_BADGES } from "@/lib/levelBadges";
 import { getLevelIconMap } from "@/lib/levelIcons";
-import AdminShell from "@/components/AdminShell";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
 
@@ -18,7 +17,7 @@ export default async function GamificacaoPage() {
   const icons = isSuper ? await getLevelIconMap() : null;
 
   return (
-    <AdminShell user={user} tenant={user.tenant}>
+    <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Gamificação</h1>
         <p className="text-sm text-slate-500">
@@ -151,6 +150,6 @@ export default async function GamificacaoPage() {
           </div>
         )}
       </div>
-    </AdminShell>
+    </>
   );
 }
