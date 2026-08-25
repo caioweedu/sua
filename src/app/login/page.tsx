@@ -6,10 +6,10 @@ import LoginForm from "./login-form";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ preview?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { preview } = await searchParams;
-  const isPreview = preview != null;
+  const sp = await searchParams;
+  const isPreview = sp.preview != null;
   const user = await getCurrentUser();
   // Modo pré-visualização (para o admin ver a tela de login sem deslogar):
   // não redireciona e usa o tenant que ele está editando. Fora do preview,
@@ -20,32 +20,42 @@ export default async function LoginPage({
   const tenant = isPreview && user ? user.tenant : await resolveTenant();
   const name = tenant?.name ?? "Universidade";
 
+  // Em preview, `ov=1` significa "valores vindos do formulário (ainda não
+  // salvos)". Nesse caso a URL é a fonte da verdade; senão usa o tenant salvo.
+  const ov = isPreview && sp.ov != null;
+  const str = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v ?? "").trim();
+  const pick = (key: string, saved: string | null | undefined) =>
+    ov ? str(sp[key]) : (saved ?? "").trim();
+  const flag = (key: string, saved: boolean | null | undefined) =>
+    ov ? sp[key] != null : !!saved;
+
   // Personalização da tela de login (com padrões quando vazio).
-  const hideText = !!tenant?.loginHideText;
-  const loginTitle = tenant?.loginTitle?.trim();
+  const hideText = flag("loginHideText", tenant?.loginHideText);
+  const loginTitle = pick("loginTitle", tenant?.loginTitle) || undefined;
   const loginSubtitle =
-    tenant?.loginSubtitle?.trim() ||
+    pick("loginSubtitle", tenant?.loginSubtitle) ||
     "Trilhas de treinamento, avaliações e certificados — no seu ritmo, com um professor virtual pronto para tirar suas dúvidas.";
-  const loginEyebrow = tenant?.loginEyebrow?.trim() || "Universidade corporativa";
-  const baseColor = tenant?.loginTextColor?.trim() || "#ffffff";
-  const bgUrl = tenant?.loginBgUrl?.trim();
+  const loginEyebrow = pick("loginEyebrow", tenant?.loginEyebrow) || "Universidade corporativa";
+  const baseColor = pick("loginTextColor", tenant?.loginTextColor) || "#ffffff";
+  const bgUrl = pick("loginBgUrl", tenant?.loginBgUrl) || undefined;
 
   // Estilo por bloco: cor própria (ou a base) + negrito/itálico.
   const eyebrowStyle = {
-    color: tenant?.loginEyebrowColor?.trim() || baseColor,
+    color: pick("loginEyebrowColor", tenant?.loginEyebrowColor) || baseColor,
     opacity: 0.7,
-    fontWeight: tenant?.loginEyebrowBold ? 700 : undefined,
-    fontStyle: tenant?.loginEyebrowItalic ? "italic" : undefined,
+    fontWeight: flag("loginEyebrowBold", tenant?.loginEyebrowBold) ? 700 : undefined,
+    fontStyle: flag("loginEyebrowItalic", tenant?.loginEyebrowItalic) ? "italic" : undefined,
   } as const;
   const titleStyle = {
-    color: tenant?.loginTitleColor?.trim() || baseColor,
-    fontStyle: tenant?.loginTitleItalic ? "italic" : undefined,
+    color: pick("loginTitleColor", tenant?.loginTitleColor) || baseColor,
+    fontWeight: flag("loginTitleBold", tenant?.loginTitleBold) ? 900 : undefined,
+    fontStyle: flag("loginTitleItalic", tenant?.loginTitleItalic) ? "italic" : undefined,
   } as const;
   const subtitleStyle = {
-    color: tenant?.loginSubtitleColor?.trim() || baseColor,
+    color: pick("loginSubtitleColor", tenant?.loginSubtitleColor) || baseColor,
     opacity: 0.8,
-    fontWeight: tenant?.loginSubtitleBold ? 700 : undefined,
-    fontStyle: tenant?.loginSubtitleItalic ? "italic" : undefined,
+    fontWeight: flag("loginSubtitleBold", tenant?.loginSubtitleBold) ? 700 : undefined,
+    fontStyle: flag("loginSubtitleItalic", tenant?.loginSubtitleItalic) ? "italic" : undefined,
   } as const;
 
   return (

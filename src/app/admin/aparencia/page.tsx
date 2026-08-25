@@ -10,6 +10,7 @@ import {
 } from "@/lib/actions/admin";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
+import PreviewLoginButton from "./preview-login-button";
 
 // Onda 3 · Navegação — página dedicada de Aparência: identidade visual
 // (cores, logo, tema, certificado) + banner de entrada + banner rotativo da
@@ -152,19 +153,13 @@ export default async function AparenciaPage() {
             <div className="border-t border-slate-100 pt-4">
               <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold">Tela de login</p>
-                <a
-                  href="/login?preview=1"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-outline px-2 py-1 text-xs"
-                >
-                  👁️ Pré-visualizar ↗
-                </a>
+                <PreviewLoginButton />
               </div>
               <p className="mb-3 text-xs text-slate-500">
                 Personalize o painel da tela de entrada. Cada bloco tem cor, negrito
-                e itálico próprios; em branco, usa o padrão. <strong>Salve</strong> antes
-                de pré-visualizar em nova aba.
+                e itálico próprios; em branco, usa o padrão. A pré-visualização abre em
+                nova aba com o que está na tela agora — <strong>não precisa salvar</strong>;
+                se não gostar, é só não salvar.
               </p>
               <ImageUpload
                 name="loginBgUrl"
