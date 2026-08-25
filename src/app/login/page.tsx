@@ -43,18 +43,18 @@ export default async function LoginPage({
   const eyebrowStyle = {
     color: pick("loginEyebrowColor", tenant?.loginEyebrowColor) || baseColor,
     opacity: 0.7,
-    fontWeight: flag("loginEyebrowBold", tenant?.loginEyebrowBold) ? 700 : undefined,
+    fontWeight: flag("loginEyebrowBold", tenant?.loginEyebrowBold) ? 800 : 600,
     fontStyle: flag("loginEyebrowItalic", tenant?.loginEyebrowItalic) ? "italic" : undefined,
   } as const;
   const titleStyle = {
     color: pick("loginTitleColor", tenant?.loginTitleColor) || baseColor,
-    fontWeight: flag("loginTitleBold", tenant?.loginTitleBold) ? 900 : undefined,
+    fontWeight: flag("loginTitleBold", tenant?.loginTitleBold) ? 900 : 700,
     fontStyle: flag("loginTitleItalic", tenant?.loginTitleItalic) ? "italic" : undefined,
   } as const;
   const subtitleStyle = {
     color: pick("loginSubtitleColor", tenant?.loginSubtitleColor) || baseColor,
     opacity: 0.8,
-    fontWeight: flag("loginSubtitleBold", tenant?.loginSubtitleBold) ? 700 : undefined,
+    fontWeight: flag("loginSubtitleBold", tenant?.loginSubtitleBold) ? 700 : 400,
     fontStyle: flag("loginSubtitleItalic", tenant?.loginSubtitleItalic) ? "italic" : undefined,
   } as const;
 
@@ -97,9 +97,9 @@ export default async function LoginPage({
             <div className="relative max-w-md">
               <p className="eyebrow" style={eyebrowStyle}>{loginEyebrow}</p>
               {loginTitle ? (
-                <h1 className="mt-3 text-4xl font-black leading-tight" style={titleStyle}>{loginTitle}</h1>
+                <h1 className="mt-3 text-4xl leading-tight" style={titleStyle}>{loginTitle}</h1>
               ) : (
-                <h1 className="mt-3 text-4xl font-black leading-tight" style={titleStyle}>
+                <h1 className="mt-3 text-4xl leading-tight" style={titleStyle}>
                   Conhecimento que vira{" "}
                   <span style={{ color: "var(--brand-color)" }}>resultado</span>.
                 </h1>
