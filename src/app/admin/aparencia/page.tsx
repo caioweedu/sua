@@ -99,6 +99,33 @@ export default async function AparenciaPage() {
               aspect="1.414 / 1"
             />
             <input name="certificateSignature" defaultValue={user.tenant.certificateSignature ?? ""} className="input" placeholder="Assinatura do certificado" />
+
+            {/* Tela de login (personalização por universidade) */}
+            <div className="border-t border-slate-100 pt-4">
+              <p className="mb-1 text-sm font-semibold">Tela de login</p>
+              <p className="mb-3 text-xs text-slate-500">
+                Personalize o painel da tela de entrada. Em branco, usa o texto padrão.
+              </p>
+              <ImageUpload
+                name="loginBgUrl"
+                label="Imagem de fundo do login"
+                hint="Retrato/paisagem · recomendado 1200×1600px · JPG/WebP. Sem imagem, usa o degradê da marca."
+                defaultValue={user.tenant.loginBgUrl ?? ""}
+                slot="login"
+                aspect="3 / 4"
+              />
+              <div className="mt-2 space-y-2">
+                <input name="loginEyebrow" defaultValue={user.tenant.loginEyebrow ?? ""} className="input" placeholder="Rótulo pequeno (ex.: Universidade corporativa)" />
+                <input name="loginTitle" defaultValue={user.tenant.loginTitle ?? ""} className="input" placeholder="Título (ex.: Conhecimento que vira resultado.)" />
+                <textarea name="loginSubtitle" defaultValue={user.tenant.loginSubtitle ?? ""} className="input" rows={2} placeholder="Subtítulo (texto abaixo do título)" />
+                <div className="flex items-center gap-2">
+                  <label className="label mb-0 text-xs">Cor dos textos</label>
+                  <input name="loginTextColor" type="color" defaultValue={user.tenant.loginTextColor ?? "#ffffff"} className="h-9 w-14 rounded border border-slate-300" />
+                  <span className="text-xs text-slate-400">Use um tom claro sobre imagens/fundos escuros.</span>
+                </div>
+              </div>
+            </div>
+
             <SubmitButton pendingText="Salvando…">Salvar aparência</SubmitButton>
           </form>
         </div>

@@ -44,6 +44,12 @@ model Tenant {
   // Fundo do certificado (URL de imagem) e texto de assinatura.
   certificateBg        String?
   certificateSignature String?
+  // Personalização da tela de login (por universidade). Vazio = usa o padrão.
+  loginBgUrl           String?
+  loginEyebrow         String?
+  loginTitle           String?
+  loginSubtitle        String?
+  loginTextColor       String?
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now())

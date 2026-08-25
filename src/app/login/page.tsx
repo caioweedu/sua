@@ -10,11 +10,31 @@ export default async function LoginPage() {
   const tenant = await resolveTenant();
   const name = tenant?.name ?? "Universidade";
 
+  // Personalização da tela de login (com padrões quando vazio).
+  const loginTitle = tenant?.loginTitle?.trim();
+  const loginSubtitle =
+    tenant?.loginSubtitle?.trim() ||
+    "Trilhas de treinamento, avaliações e certificados — no seu ritmo, com um professor virtual pronto para tirar suas dúvidas.";
+  const loginEyebrow = tenant?.loginEyebrow?.trim() || "Universidade corporativa";
+  const textColor = tenant?.loginTextColor?.trim() || "#ffffff";
+  const bgUrl = tenant?.loginBgUrl?.trim();
+
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      {/* Painel imersivo com a cor do tenant */}
-      <section className="brand-immersive relative hidden flex-col justify-between p-12 text-white lg:flex">
-        <div className="flex items-center gap-3">
+      {/* Painel imersivo: imagem de fundo (se houver) sobre o gradiente da marca */}
+      <section
+        className="brand-immersive relative hidden flex-col justify-between p-12 lg:flex"
+        style={{ color: textColor }}
+      >
+        {bgUrl && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={bgUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            {/* Camada escura para manter o texto legível sobre a imagem. */}
+            <div className="absolute inset-0 bg-black/45" />
+          </>
+        )}
+        <div className="relative flex items-center gap-3">
           {tenant?.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={tenant.logoUrl} alt={name} className="h-9 object-contain" />
@@ -29,19 +49,22 @@ export default async function LoginPage() {
           <span className="text-lg font-bold">{name}</span>
         </div>
 
-        <div className="max-w-md">
-          <p className="eyebrow text-white/50">Universidade corporativa</p>
-          <h1 className="mt-3 text-4xl font-black leading-tight">
-            Conhecimento que vira{" "}
-            <span style={{ color: "var(--brand-color)" }}>resultado</span>.
-          </h1>
-          <p className="mt-4 text-white/70">
-            Trilhas de treinamento, avaliações e certificados — no seu ritmo, com
-            um professor virtual pronto para tirar suas dúvidas.
+        <div className="relative max-w-md">
+          <p className="eyebrow" style={{ color: textColor, opacity: 0.55 }}>{loginEyebrow}</p>
+          {loginTitle ? (
+            <h1 className="mt-3 text-4xl font-black leading-tight">{loginTitle}</h1>
+          ) : (
+            <h1 className="mt-3 text-4xl font-black leading-tight">
+              Conhecimento que vira{" "}
+              <span style={{ color: "var(--brand-color)" }}>resultado</span>.
+            </h1>
+          )}
+          <p className="mt-4" style={{ color: textColor, opacity: 0.75 }}>
+            {loginSubtitle}
           </p>
         </div>
 
-        <p className="text-sm text-white/40">
+        <p className="relative text-sm" style={{ color: textColor, opacity: 0.4 }}>
           Powered by Weedu · Gestão de Resultados
         </p>
       </section>
