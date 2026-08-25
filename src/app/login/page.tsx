@@ -1,13 +1,23 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { resolveTenant } from "@/lib/tenant";
 import LoginForm from "./login-form";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ preview?: string }>;
+}) {
+  const { preview } = await searchParams;
+  const isPreview = preview != null;
   const user = await getCurrentUser();
-  if (user) redirect("/dashboard");
+  // Modo pré-visualização (para o admin ver a tela de login sem deslogar):
+  // não redireciona e usa o tenant que ele está editando. Fora do preview,
+  // quem já está logado vai para o painel normalmente.
+  if (user && !isPreview) redirect("/dashboard");
+  if (user && isPreview && !isAdmin(user.role)) redirect("/dashboard");
 
-  const tenant = await resolveTenant();
+  const tenant = isPreview && user ? user.tenant : await resolveTenant();
   const name = tenant?.name ?? "Universidade";
 
   // Personalização da tela de login (com padrões quando vazio).
@@ -40,6 +50,11 @@ export default async function LoginPage() {
 
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
+      {isPreview && (
+        <div className="pointer-events-none fixed left-1/2 top-3 z-50 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white">
+          Pré-visualização · esta é a tela que seus alunos veem
+        </div>
+      )}
       {/* Painel imersivo: imagem de fundo (se houver) sobre o gradiente da marca */}
       <section className="brand-immersive relative hidden flex-col justify-between p-12 lg:flex">
         {bgUrl && (

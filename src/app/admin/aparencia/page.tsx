@@ -150,10 +150,21 @@ export default async function AparenciaPage() {
 
             {/* Tela de login (personalização por universidade) */}
             <div className="border-t border-slate-100 pt-4">
-              <p className="mb-1 text-sm font-semibold">Tela de login</p>
+              <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold">Tela de login</p>
+                <a
+                  href="/login?preview=1"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-outline px-2 py-1 text-xs"
+                >
+                  👁️ Pré-visualizar ↗
+                </a>
+              </div>
               <p className="mb-3 text-xs text-slate-500">
                 Personalize o painel da tela de entrada. Cada bloco tem cor, negrito
-                e itálico próprios; em branco, usa o padrão.
+                e itálico próprios; em branco, usa o padrão. <strong>Salve</strong> antes
+                de pré-visualizar em nova aba.
               </p>
               <ImageUpload
                 name="loginBgUrl"
