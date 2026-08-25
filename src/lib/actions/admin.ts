@@ -765,12 +765,27 @@ export async function updateBranding(formData: FormData) {
       brandFgColor: String(formData.get("brandFgColor") ?? user.tenant.brandFgColor),
       theme: String(formData.get("theme") ?? "dark") === "light" ? "light" : "dark",
       logoUrl: String(formData.get("logoUrl") ?? "").trim() || null,
-      bannerUrl: String(formData.get("bannerUrl") ?? "").trim() || null,
-      certificateBg: String(formData.get("certificateBg") ?? "").trim() || null,
-      certificateSignature: String(formData.get("certificateSignature") ?? "").trim() || null,
+      // Personalização da tela de login (vazio = usa o padrão).
+      loginBgUrl: String(formData.get("loginBgUrl") ?? "").trim() || null,
+      loginEyebrow: String(formData.get("loginEyebrow") ?? "").trim() || null,
+      loginTitle: String(formData.get("loginTitle") ?? "").trim() || null,
+      loginSubtitle: String(formData.get("loginSubtitle") ?? "").trim() || null,
+      loginTextColor: String(formData.get("loginTextColor") ?? "").trim() || null,
+      // Estilo por bloco (cor/negrito/itálico) + modo só imagem.
+      loginEyebrowColor: String(formData.get("loginEyebrowColor") ?? "").trim() || null,
+      loginTitleColor: String(formData.get("loginTitleColor") ?? "").trim() || null,
+      loginSubtitleColor: String(formData.get("loginSubtitleColor") ?? "").trim() || null,
+      loginEyebrowBold: formData.get("loginEyebrowBold") != null,
+      loginTitleBold: formData.get("loginTitleBold") != null,
+      loginSubtitleBold: formData.get("loginSubtitleBold") != null,
+      loginEyebrowItalic: formData.get("loginEyebrowItalic") != null,
+      loginTitleItalic: formData.get("loginTitleItalic") != null,
+      loginSubtitleItalic: formData.get("loginSubtitleItalic") != null,
+      loginHideText: formData.get("loginHideText") != null,
     },
   });
   revalidatePath("/admin");
+  revalidatePath("/login");
 }
 
 // --- Ícones dos níveis (arte global da Weedu) — SUPER_ADMIN --------------

@@ -1,49 +1,119 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { resolveTenant } from "@/lib/tenant";
 import LoginForm from "./login-form";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const isPreview = sp.preview != null;
   const user = await getCurrentUser();
-  if (user) redirect("/dashboard");
+  // Modo pré-visualização (para o admin ver a tela de login sem deslogar):
+  // não redireciona e usa o tenant que ele está editando. Fora do preview,
+  // quem já está logado vai para o painel normalmente.
+  if (user && !isPreview) redirect("/dashboard");
+  if (user && isPreview && !isAdmin(user.role)) redirect("/dashboard");
 
-  const tenant = await resolveTenant();
+  const tenant = isPreview && user ? user.tenant : await resolveTenant();
   const name = tenant?.name ?? "Universidade";
+
+  // Em preview, `ov=1` significa "valores vindos do formulário (ainda não
+  // salvos)". Nesse caso a URL é a fonte da verdade; senão usa o tenant salvo.
+  const ov = isPreview && sp.ov != null;
+  const str = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v ?? "").trim();
+  const pick = (key: string, saved: string | null | undefined) =>
+    ov ? str(sp[key]) : (saved ?? "").trim();
+  const flag = (key: string, saved: boolean | null | undefined) =>
+    ov ? sp[key] != null : !!saved;
+
+  // Personalização da tela de login (com padrões quando vazio).
+  const hideText = flag("loginHideText", tenant?.loginHideText);
+  const loginTitle = pick("loginTitle", tenant?.loginTitle) || undefined;
+  const loginSubtitle =
+    pick("loginSubtitle", tenant?.loginSubtitle) ||
+    "Trilhas de treinamento, avaliações e certificados — no seu ritmo, com um professor virtual pronto para tirar suas dúvidas.";
+  const loginEyebrow = pick("loginEyebrow", tenant?.loginEyebrow) || "Universidade corporativa";
+  const baseColor = pick("loginTextColor", tenant?.loginTextColor) || "#ffffff";
+  const bgUrl = pick("loginBgUrl", tenant?.loginBgUrl) || undefined;
+
+  // Estilo por bloco: cor própria (ou a base) + negrito/itálico.
+  const eyebrowStyle = {
+    color: pick("loginEyebrowColor", tenant?.loginEyebrowColor) || baseColor,
+    opacity: 0.7,
+    fontWeight: flag("loginEyebrowBold", tenant?.loginEyebrowBold) ? 800 : 600,
+    fontStyle: flag("loginEyebrowItalic", tenant?.loginEyebrowItalic) ? "italic" : undefined,
+  } as const;
+  const titleStyle = {
+    color: pick("loginTitleColor", tenant?.loginTitleColor) || baseColor,
+    fontWeight: flag("loginTitleBold", tenant?.loginTitleBold) ? 900 : 700,
+    fontStyle: flag("loginTitleItalic", tenant?.loginTitleItalic) ? "italic" : undefined,
+  } as const;
+  const subtitleStyle = {
+    color: pick("loginSubtitleColor", tenant?.loginSubtitleColor) || baseColor,
+    opacity: 0.8,
+    fontWeight: flag("loginSubtitleBold", tenant?.loginSubtitleBold) ? 700 : 400,
+    fontStyle: flag("loginSubtitleItalic", tenant?.loginSubtitleItalic) ? "italic" : undefined,
+  } as const;
 
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      {/* Painel imersivo com a cor do tenant */}
-      <section className="brand-immersive relative hidden flex-col justify-between p-12 text-white lg:flex">
-        <div className="flex items-center gap-3">
-          {tenant?.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={tenant.logoUrl} alt={name} className="h-9 object-contain" />
-          ) : (
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl text-xl font-black"
-              style={{ background: "var(--brand-color)", color: "var(--brand-fg)" }}
-            >
-              {name.charAt(0)}
+      {isPreview && (
+        <div className="pointer-events-none fixed left-1/2 top-3 z-50 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white">
+          Pré-visualização · esta é a tela que seus alunos veem
+        </div>
+      )}
+      {/* Painel imersivo: imagem de fundo (se houver) sobre o gradiente da marca */}
+      <section className="brand-immersive relative hidden flex-col justify-between p-12 lg:flex">
+        {bgUrl && (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={bgUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            {/* Sem "só imagem", escurece um pouco para o texto ficar legível. */}
+            {!hideText && <div className="absolute inset-0 bg-black/45" />}
+          </>
+        )}
+
+        {/* Modo "só imagem": a arte de fundo já traz tudo — nada é sobreposto. */}
+        {!hideText && (
+          <>
+            <div className="relative flex items-center gap-3">
+              {tenant?.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={tenant.logoUrl} alt={name} className="h-9 object-contain" />
+              ) : (
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl text-xl font-black"
+                  style={{ background: "var(--brand-color)", color: "var(--brand-fg)" }}
+                >
+                  {name.charAt(0)}
+                </div>
+              )}
+              <span className="text-lg font-bold" style={{ color: baseColor }}>{name}</span>
             </div>
-          )}
-          <span className="text-lg font-bold">{name}</span>
-        </div>
 
-        <div className="max-w-md">
-          <p className="eyebrow text-white/50">Universidade corporativa</p>
-          <h1 className="mt-3 text-4xl font-black leading-tight">
-            Conhecimento que vira{" "}
-            <span style={{ color: "var(--brand-color)" }}>resultado</span>.
-          </h1>
-          <p className="mt-4 text-white/70">
-            Trilhas de treinamento, avaliações e certificados — no seu ritmo, com
-            um professor virtual pronto para tirar suas dúvidas.
-          </p>
-        </div>
+            <div className="relative max-w-md">
+              <p className="eyebrow" style={eyebrowStyle}>{loginEyebrow}</p>
+              {loginTitle ? (
+                <h1 className="mt-3 text-4xl leading-tight" style={titleStyle}>{loginTitle}</h1>
+              ) : (
+                <h1 className="mt-3 text-4xl leading-tight" style={titleStyle}>
+                  Conhecimento que vira{" "}
+                  <span style={{ color: "var(--brand-color)" }}>resultado</span>.
+                </h1>
+              )}
+              <p className="mt-4" style={subtitleStyle}>
+                {loginSubtitle}
+              </p>
+            </div>
 
-        <p className="text-sm text-white/40">
-          Powered by Weedu · Gestão de Resultados
-        </p>
+            <p className="relative text-sm" style={{ color: baseColor, opacity: 0.4 }}>
+              Powered by Weedu · Gestão de Resultados
+            </p>
+          </>
+        )}
       </section>
 
       {/* Formulário */}
