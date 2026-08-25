@@ -765,9 +765,6 @@ export async function updateBranding(formData: FormData) {
       brandFgColor: String(formData.get("brandFgColor") ?? user.tenant.brandFgColor),
       theme: String(formData.get("theme") ?? "dark") === "light" ? "light" : "dark",
       logoUrl: String(formData.get("logoUrl") ?? "").trim() || null,
-      bannerUrl: String(formData.get("bannerUrl") ?? "").trim() || null,
-      certificateBg: String(formData.get("certificateBg") ?? "").trim() || null,
-      certificateSignature: String(formData.get("certificateSignature") ?? "").trim() || null,
       // Personalização da tela de login (vazio = usa o padrão).
       loginBgUrl: String(formData.get("loginBgUrl") ?? "").trim() || null,
       loginEyebrow: String(formData.get("loginEyebrow") ?? "").trim() || null,

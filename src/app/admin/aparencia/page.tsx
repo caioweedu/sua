@@ -78,7 +78,7 @@ export default async function AparenciaPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Aparência</h1>
         <p className="text-sm text-slate-500">
-          Identidade visual da sua universidade: cores, logo, tema, banners e certificado.
+          Identidade visual da sua universidade: cores, logo, tema, banner rotativo e tela de login.
         </p>
       </div>
 
@@ -131,23 +131,9 @@ export default async function AparenciaPage() {
               slot="logo"
               aspect="3 / 1"
             />
-            <ImageUpload
-              name="bannerUrl"
-              label="Banner de entrada (home)"
-              hint="16:9 · recomendado 1600×900px (mín. 1280×720) · JPG/WebP."
-              defaultValue={user.tenant.bannerUrl ?? ""}
-              slot="banner"
-              aspect="16 / 9"
-            />
-            <ImageUpload
-              name="certificateBg"
-              label="Fundo do certificado"
-              hint="A4 paisagem · 3508×2480px (300dpi) · PNG/JPG."
-              defaultValue={user.tenant.certificateBg ?? ""}
-              slot="certificado"
-              aspect="1.414 / 1"
-            />
-            <input name="certificateSignature" defaultValue={user.tenant.certificateSignature ?? ""} className="input" placeholder="Assinatura do certificado" />
+            {/* Banner de entrada fixo e fundo do certificado foram removidos daqui:
+                o banner da home usa o "Banner rotativo" e o certificado é
+                configurado por modelo em /admin/certificados. */}
 
             {/* Tela de login (personalização por universidade) */}
             <div className="border-t border-slate-100 pt-4">
