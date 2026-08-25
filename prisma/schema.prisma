@@ -49,7 +49,19 @@ model Tenant {
   loginEyebrow         String?
   loginTitle           String?
   loginSubtitle        String?
-  loginTextColor       String?
+  loginTextColor       String? // cor base (fallback dos blocos abaixo)
+  // Estilo por bloco de texto (cor/negrito/itálico). Cor vazia = usa a base.
+  loginEyebrowColor    String?
+  loginTitleColor      String?
+  loginSubtitleColor   String?
+  loginEyebrowBold     Boolean @default(false)
+  loginTitleBold       Boolean @default(false)
+  loginSubtitleBold    Boolean @default(false)
+  loginEyebrowItalic   Boolean @default(false)
+  loginTitleItalic     Boolean @default(false)
+  loginSubtitleItalic  Boolean @default(false)
+  // Modo "só imagem": esconde todos os textos/logo (arte completa no fundo).
+  loginHideText        Boolean @default(false)
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now())

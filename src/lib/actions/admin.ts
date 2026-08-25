@@ -774,6 +774,17 @@ export async function updateBranding(formData: FormData) {
       loginTitle: String(formData.get("loginTitle") ?? "").trim() || null,
       loginSubtitle: String(formData.get("loginSubtitle") ?? "").trim() || null,
       loginTextColor: String(formData.get("loginTextColor") ?? "").trim() || null,
+      // Estilo por bloco (cor/negrito/itálico) + modo só imagem.
+      loginEyebrowColor: String(formData.get("loginEyebrowColor") ?? "").trim() || null,
+      loginTitleColor: String(formData.get("loginTitleColor") ?? "").trim() || null,
+      loginSubtitleColor: String(formData.get("loginSubtitleColor") ?? "").trim() || null,
+      loginEyebrowBold: formData.get("loginEyebrowBold") != null,
+      loginTitleBold: formData.get("loginTitleBold") != null,
+      loginSubtitleBold: formData.get("loginSubtitleBold") != null,
+      loginEyebrowItalic: formData.get("loginEyebrowItalic") != null,
+      loginTitleItalic: formData.get("loginTitleItalic") != null,
+      loginSubtitleItalic: formData.get("loginSubtitleItalic") != null,
+      loginHideText: formData.get("loginHideText") != null,
     },
   });
   revalidatePath("/admin");

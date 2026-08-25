@@ -11,62 +11,84 @@ export default async function LoginPage() {
   const name = tenant?.name ?? "Universidade";
 
   // Personalização da tela de login (com padrões quando vazio).
+  const hideText = !!tenant?.loginHideText;
   const loginTitle = tenant?.loginTitle?.trim();
   const loginSubtitle =
     tenant?.loginSubtitle?.trim() ||
     "Trilhas de treinamento, avaliações e certificados — no seu ritmo, com um professor virtual pronto para tirar suas dúvidas.";
   const loginEyebrow = tenant?.loginEyebrow?.trim() || "Universidade corporativa";
-  const textColor = tenant?.loginTextColor?.trim() || "#ffffff";
+  const baseColor = tenant?.loginTextColor?.trim() || "#ffffff";
   const bgUrl = tenant?.loginBgUrl?.trim();
+
+  // Estilo por bloco: cor própria (ou a base) + negrito/itálico.
+  const eyebrowStyle = {
+    color: tenant?.loginEyebrowColor?.trim() || baseColor,
+    opacity: 0.7,
+    fontWeight: tenant?.loginEyebrowBold ? 700 : undefined,
+    fontStyle: tenant?.loginEyebrowItalic ? "italic" : undefined,
+  } as const;
+  const titleStyle = {
+    color: tenant?.loginTitleColor?.trim() || baseColor,
+    fontStyle: tenant?.loginTitleItalic ? "italic" : undefined,
+  } as const;
+  const subtitleStyle = {
+    color: tenant?.loginSubtitleColor?.trim() || baseColor,
+    opacity: 0.8,
+    fontWeight: tenant?.loginSubtitleBold ? 700 : undefined,
+    fontStyle: tenant?.loginSubtitleItalic ? "italic" : undefined,
+  } as const;
 
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       {/* Painel imersivo: imagem de fundo (se houver) sobre o gradiente da marca */}
-      <section
-        className="brand-immersive relative hidden flex-col justify-between p-12 lg:flex"
-        style={{ color: textColor }}
-      >
+      <section className="brand-immersive relative hidden flex-col justify-between p-12 lg:flex">
         {bgUrl && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={bgUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            {/* Camada escura para manter o texto legível sobre a imagem. */}
-            <div className="absolute inset-0 bg-black/45" />
+            {/* Sem "só imagem", escurece um pouco para o texto ficar legível. */}
+            {!hideText && <div className="absolute inset-0 bg-black/45" />}
           </>
         )}
-        <div className="relative flex items-center gap-3">
-          {tenant?.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={tenant.logoUrl} alt={name} className="h-9 object-contain" />
-          ) : (
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl text-xl font-black"
-              style={{ background: "var(--brand-color)", color: "var(--brand-fg)" }}
-            >
-              {name.charAt(0)}
+
+        {/* Modo "só imagem": a arte de fundo já traz tudo — nada é sobreposto. */}
+        {!hideText && (
+          <>
+            <div className="relative flex items-center gap-3">
+              {tenant?.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={tenant.logoUrl} alt={name} className="h-9 object-contain" />
+              ) : (
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl text-xl font-black"
+                  style={{ background: "var(--brand-color)", color: "var(--brand-fg)" }}
+                >
+                  {name.charAt(0)}
+                </div>
+              )}
+              <span className="text-lg font-bold" style={{ color: baseColor }}>{name}</span>
             </div>
-          )}
-          <span className="text-lg font-bold">{name}</span>
-        </div>
 
-        <div className="relative max-w-md">
-          <p className="eyebrow" style={{ color: textColor, opacity: 0.55 }}>{loginEyebrow}</p>
-          {loginTitle ? (
-            <h1 className="mt-3 text-4xl font-black leading-tight">{loginTitle}</h1>
-          ) : (
-            <h1 className="mt-3 text-4xl font-black leading-tight">
-              Conhecimento que vira{" "}
-              <span style={{ color: "var(--brand-color)" }}>resultado</span>.
-            </h1>
-          )}
-          <p className="mt-4" style={{ color: textColor, opacity: 0.75 }}>
-            {loginSubtitle}
-          </p>
-        </div>
+            <div className="relative max-w-md">
+              <p className="eyebrow" style={eyebrowStyle}>{loginEyebrow}</p>
+              {loginTitle ? (
+                <h1 className="mt-3 text-4xl font-black leading-tight" style={titleStyle}>{loginTitle}</h1>
+              ) : (
+                <h1 className="mt-3 text-4xl font-black leading-tight" style={titleStyle}>
+                  Conhecimento que vira{" "}
+                  <span style={{ color: "var(--brand-color)" }}>resultado</span>.
+                </h1>
+              )}
+              <p className="mt-4" style={subtitleStyle}>
+                {loginSubtitle}
+              </p>
+            </div>
 
-        <p className="relative text-sm" style={{ color: textColor, opacity: 0.4 }}>
-          Powered by Weedu · Gestão de Resultados
-        </p>
+            <p className="relative text-sm" style={{ color: baseColor, opacity: 0.4 }}>
+              Powered by Weedu · Gestão de Resultados
+            </p>
+          </>
+        )}
       </section>
 
       {/* Formulário */}

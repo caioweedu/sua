@@ -14,6 +14,54 @@ import ImageUpload from "@/components/ImageUpload";
 // Onda 3 · Navegação — página dedicada de Aparência: identidade visual
 // (cores, logo, tema, certificado) + banner de entrada + banner rotativo da
 // home. Movido do painel único de administração para organizar o visual.
+
+// Linha de edição de um bloco de texto do login: texto + cor + negrito/itálico.
+function LoginTextRow({
+  label,
+  name,
+  placeholder,
+  value,
+  color,
+  bold,
+  italic,
+  baseColor,
+  multiline = false,
+}: {
+  label: string;
+  name: string;
+  placeholder: string;
+  value: string;
+  color: string | null;
+  bold: boolean;
+  italic: boolean;
+  baseColor: string;
+  multiline?: boolean;
+}) {
+  return (
+    <div className="mt-3 rounded-lg border border-slate-200 p-3">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-slate-500">{label}</span>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1 text-xs text-slate-600" title="Cor deste bloco">
+            <input type="color" name={`${name}Color`} defaultValue={color ?? baseColor} className="h-7 w-9 rounded border border-slate-300" />
+          </label>
+          <label className="flex items-center gap-1 text-xs font-bold text-slate-600">
+            <input type="checkbox" name={`${name}Bold`} defaultChecked={bold} className="h-3.5 w-3.5" /> N
+          </label>
+          <label className="flex items-center gap-1 text-xs italic text-slate-600">
+            <input type="checkbox" name={`${name}Italic`} defaultChecked={italic} className="h-3.5 w-3.5" /> I
+          </label>
+        </div>
+      </div>
+      {multiline ? (
+        <textarea name={name} defaultValue={value} className="input py-1.5 text-sm" rows={2} placeholder={placeholder} />
+      ) : (
+        <input name={name} defaultValue={value} className="input py-1.5 text-sm" placeholder={placeholder} />
+      )}
+    </div>
+  );
+}
+
 export default async function AparenciaPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -104,7 +152,8 @@ export default async function AparenciaPage() {
             <div className="border-t border-slate-100 pt-4">
               <p className="mb-1 text-sm font-semibold">Tela de login</p>
               <p className="mb-3 text-xs text-slate-500">
-                Personalize o painel da tela de entrada. Em branco, usa o texto padrão.
+                Personalize o painel da tela de entrada. Cada bloco tem cor, negrito
+                e itálico próprios; em branco, usa o padrão.
               </p>
               <ImageUpload
                 name="loginBgUrl"
@@ -114,16 +163,58 @@ export default async function AparenciaPage() {
                 slot="login"
                 aspect="3 / 4"
               />
-              <div className="mt-2 space-y-2">
-                <input name="loginEyebrow" defaultValue={user.tenant.loginEyebrow ?? ""} className="input" placeholder="Rótulo pequeno (ex.: Universidade corporativa)" />
-                <input name="loginTitle" defaultValue={user.tenant.loginTitle ?? ""} className="input" placeholder="Título (ex.: Conhecimento que vira resultado.)" />
-                <textarea name="loginSubtitle" defaultValue={user.tenant.loginSubtitle ?? ""} className="input" rows={2} placeholder="Subtítulo (texto abaixo do título)" />
-                <div className="flex items-center gap-2">
-                  <label className="label mb-0 text-xs">Cor dos textos</label>
-                  <input name="loginTextColor" type="color" defaultValue={user.tenant.loginTextColor ?? "#ffffff"} className="h-9 w-14 rounded border border-slate-300" />
-                  <span className="text-xs text-slate-400">Use um tom claro sobre imagens/fundos escuros.</span>
-                </div>
+
+              <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm has-[:checked]:border-slate-900 has-[:checked]:bg-slate-50">
+                <input type="checkbox" name="loginHideText" defaultChecked={user.tenant.loginHideText} className="mt-0.5 h-4 w-4" />
+                <span>
+                  <span className="font-medium">Usar só a imagem (esconder textos)</span>
+                  <span className="block text-xs text-slate-400">
+                    Para subir uma arte completa com os textos já embutidos. Oculta rótulo, título, subtítulo e logo.
+                  </span>
+                </span>
+              </label>
+
+              {/* Cor base (usada quando o bloco não tem cor própria) */}
+              <div className="mt-3 flex items-center gap-2">
+                <label className="label mb-0 text-xs">Cor base dos textos</label>
+                <input name="loginTextColor" type="color" defaultValue={user.tenant.loginTextColor ?? "#ffffff"} className="h-9 w-14 rounded border border-slate-300" />
+                <span className="text-xs text-slate-400">Tom claro sobre fundos escuros.</span>
               </div>
+
+              {/* Rótulo */}
+              <LoginTextRow
+                label="Rótulo"
+                name="loginEyebrow"
+                placeholder="Ex.: Universidade corporativa"
+                value={user.tenant.loginEyebrow ?? ""}
+                color={user.tenant.loginEyebrowColor}
+                bold={user.tenant.loginEyebrowBold}
+                italic={user.tenant.loginEyebrowItalic}
+                baseColor={user.tenant.loginTextColor ?? "#ffffff"}
+              />
+              {/* Título */}
+              <LoginTextRow
+                label="Título"
+                name="loginTitle"
+                placeholder="Ex.: Conhecimento que vira resultado."
+                value={user.tenant.loginTitle ?? ""}
+                color={user.tenant.loginTitleColor}
+                bold={user.tenant.loginTitleBold}
+                italic={user.tenant.loginTitleItalic}
+                baseColor={user.tenant.loginTextColor ?? "#ffffff"}
+              />
+              {/* Subtítulo */}
+              <LoginTextRow
+                label="Subtítulo"
+                name="loginSubtitle"
+                placeholder="Texto abaixo do título"
+                value={user.tenant.loginSubtitle ?? ""}
+                color={user.tenant.loginSubtitleColor}
+                bold={user.tenant.loginSubtitleBold}
+                italic={user.tenant.loginSubtitleItalic}
+                baseColor={user.tenant.loginTextColor ?? "#ffffff"}
+                multiline
+              />
             </div>
 
             <SubmitButton pendingText="Salvando…">Salvar aparência</SubmitButton>
