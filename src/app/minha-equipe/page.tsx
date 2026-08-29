@@ -11,6 +11,7 @@ import {
 import { loadPlanningOverview } from "@/lib/planning";
 import { prisma } from "@/lib/db";
 import TeamCockpit from "@/components/TeamCockpit";
+import OverduePlanningAlert from "@/components/OverduePlanningAlert";
 import AppShell from "@/components/AppShell";
 
 // Onda 3 · F2 — Painel escopado por papel/liderança (segurança da informação):
@@ -106,37 +107,7 @@ export default async function MinhaEquipePage() {
       </div>
 
       {/* Alertas de atraso no planejamento (escopo do gestor/supervisor/RH) */}
-      {atrasados.length > 0 ? (
-        <div className="card mt-6 border-red-200">
-          <h2 className="mb-1 font-semibold text-red-700">🔴 Atrasos no planejamento</h2>
-          <p className="mb-3 text-xs text-slate-500">
-            {atrasados.length} pessoa(s) do seu escopo com treinamento planejado vencido. Clique para ver a ficha.
-          </p>
-          <ul className="divide-y divide-slate-100">
-            {atrasados.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <div className="min-w-0">
-                  <Link href={`/minha-equipe/${r.id}`} className="font-medium hover:underline">
-                    {r.name}
-                  </Link>
-                  <p className="truncate text-xs text-slate-500">
-                    {r.email} · {r.done}/{r.total} concluído(s)
-                  </p>
-                </div>
-                <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
-                  {r.overdue} atrasado(s)
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <div className="card mt-6">
-          <p className="text-sm text-emerald-700">
-            ✓ Ninguém no seu escopo está com treinamento planejado atrasado.
-          </p>
-        </div>
-      )}
+      <OverduePlanningAlert rows={atrasados} hrefBase="/minha-equipe" />
 
       {/* RH / admin: empresa toda */}
       {companyWide && (

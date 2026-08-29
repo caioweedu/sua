@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
-import { grantedSharedVitrineIds } from "@/lib/access";
+import { grantedSharedVitrineIds, contentTenantIds } from "@/lib/access";
 import { loadTeamCockpitData, aggMembers } from "@/lib/teamCockpit";
+import { loadPlanningOverview } from "@/lib/planning";
 import TeamCockpit from "@/components/TeamCockpit";
 import GestorNav from "@/components/GestorNav";
+import OverduePlanningAlert from "@/components/OverduePlanningAlert";
 
 // Onda 3 · F1 — Cockpit do RH (admin): visão da empresa + por equipe, só
 // leitura. Escopo por tenant, com o conteúdo liberado pela mãe contabilizado.
@@ -36,6 +38,10 @@ export default async function RhCockpitPage() {
   const company = aggMembers(data.allStudentIds, data.byId);
   const noTeamAgg = aggMembers(data.noTeam, data.byId);
 
+  // Alertas de atraso no planejamento (empresa toda, no escopo do admin).
+  const planning = await loadPlanningOverview(user.tenantId, contentTenantIds(user.tenant));
+  const atrasados = planning.filter((r) => r.overdue > 0);
+
   return (
     <>
       <GestorNav active="rh" />
@@ -54,6 +60,9 @@ export default async function RhCockpitPage() {
         <Tile label="Conclusão média" value={`${data.overview.completionRate}%`} sub={`${data.overview.completedEnroll}/${data.overview.totalEnroll} matrículas`} />
         <Tile label="Certificados" value={data.overview.totalCertificates} sub={`${data.cert30} nos últimos 30 dias`} />
       </div>
+
+      {/* Alertas de atraso no planejamento */}
+      <OverduePlanningAlert rows={atrasados} hrefBase="/admin/planejamento" />
 
       {/* Por equipe (árvore) */}
       <div className="card mt-6">
