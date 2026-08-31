@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
-import { grantedSharedVitrineIds } from "@/lib/access";
+import { grantedSharedVitrineIds, contentTenantIds } from "@/lib/access";
 import {
   loadTeamCockpitData,
   aggMembers,
   visibleMemberIds,
   type TeamNode,
 } from "@/lib/teamCockpit";
+import { loadPlanningOverview } from "@/lib/planning";
 import { prisma } from "@/lib/db";
 import TeamCockpit from "@/components/TeamCockpit";
+import OverduePlanningAlert from "@/components/OverduePlanningAlert";
 import AppShell from "@/components/AppShell";
 
 // Onda 3 · F2 — Painel escopado por papel/liderança (segurança da informação):
@@ -76,6 +78,10 @@ export default async function MinhaEquipePage() {
   });
   const scope = aggMembers([...scopeIds], data.byId);
 
+  // Alertas de atraso: pessoas do escopo com treinamento planejado vencido.
+  const planning = await loadPlanningOverview(user.tenantId, contentTenantIds(user.tenant));
+  const atrasados = planning.filter((r) => scopeIds.has(r.id) && r.overdue > 0);
+
   const scopeLabel = companyWide ? "Empresa" : "Sua equipe";
 
   return (
@@ -99,6 +105,9 @@ export default async function MinhaEquipePage() {
         <Tile label="Conclusão" value={`${scope.conclusao}%`} sub={`${scope.concluidos}/${scope.matriculas} matrículas`} />
         <Tile label="Certificados" value={scope.certs} />
       </div>
+
+      {/* Alertas de atraso no planejamento (escopo do gestor/supervisor/RH) */}
+      <OverduePlanningAlert rows={atrasados} hrefBase="/minha-equipe" />
 
       {/* RH / admin: empresa toda */}
       {companyWide && (
