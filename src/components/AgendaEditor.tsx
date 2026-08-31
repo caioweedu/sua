@@ -19,6 +19,12 @@ function fmtPeriodo(s: Date | null, e: Date | null) {
   if (si) return `a partir de ${si}`;
   return "sem prazo";
 }
+function fmtRecorrencia(m: number | null) {
+  if (!m || m <= 0) return null;
+  if (m === 12) return "renova todo ano";
+  if (m % 12 === 0) return `renova a cada ${m / 12} anos`;
+  return `renova a cada ${m} ${m === 1 ? "mês" : "meses"}`;
+}
 
 export default function AgendaEditor({
   student,
@@ -47,6 +53,9 @@ export default function AgendaEditor({
                 )}
                 {a.source === "team" && (
                   <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-600">equipe</span>
+                )}
+                {fmtRecorrencia(a.recurrenceMonths) && (
+                  <span className="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">🔁 {fmtRecorrencia(a.recurrenceMonths)}</span>
                 )}
                 <p className="text-xs text-slate-500">
                   Período: <span className={a.overdue ? "font-semibold text-red-600" : ""}>{fmtPeriodo(a.startDate, a.dueDate)}</span>
@@ -109,6 +118,20 @@ export default function AgendaEditor({
             <div>
               <label className="label text-xs">Fim previsto / prazo (opcional)</label>
               <input name="dueDate" type="date" className="input py-1.5 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label className="label text-xs">Validade / recorrência (opcional)</label>
+            <div className="flex items-center gap-2">
+              <input
+                name="recurrenceMonths"
+                type="number"
+                min={1}
+                step={1}
+                placeholder="ex.: 12"
+                className="input w-28 py-1.5 text-sm"
+              />
+              <span className="text-xs text-slate-500">meses — refaz o treinamento ao vencer (ex.: 12 = NR anual). Vazio = uma vez só.</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">

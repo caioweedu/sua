@@ -6,6 +6,7 @@ import Link from "next/link";
 const TABS = [
   { key: "rh", label: "🧭 Visão geral", href: "/admin/rh" },
   { key: "planejamento", label: "🗓️ Planejamento", href: "/admin/planejamento" },
+  { key: "compliance", label: "✅ Compliance", href: "/admin/compliance" },
   { key: "equipes", label: "🏢 Equipes", href: "/admin/equipes" },
 ] as const;
 

@@ -11,6 +11,7 @@ export type AgendaItem = {
   startDate: Date | null;
   dueDate: Date | null;
   required: boolean;
+  recurrenceMonths: number | null; // validade em meses (recorrente); null = uma vez
   source: "you" | "team"; // atribuição direta ou herdada da equipe
   aulasTotal: number;
   aulasDone: number;
@@ -89,6 +90,7 @@ export async function loadUserAgenda(
       startDate: prev?.startDate ?? a.startDate ?? null,
       dueDate,
       required: (prev?.required ?? false) || a.required,
+      recurrenceMonths: prev?.recurrenceMonths ?? a.recurrenceMonths ?? null,
       source: prev?.source === "you" ? "you" : source,
       aulasTotal: total,
       aulasDone: done,

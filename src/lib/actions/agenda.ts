@@ -23,6 +23,9 @@ export async function assignTraining(formData: FormData) {
   const startRaw = String(formData.get("startDate") ?? "").trim();
   const dueRaw = String(formData.get("dueDate") ?? "").trim();
   const required = formData.get("required") != null;
+  // Validade/recorrência em meses (opcional). Só vale para obrigatórios.
+  const recRaw = parseInt(String(formData.get("recurrenceMonths") ?? "").trim(), 10);
+  const recurrenceMonths = required && Number.isFinite(recRaw) && recRaw > 0 ? recRaw : null;
 
   // Produtos: um ou vários (checkboxes por vitrine) — aceita também o campo
   // único legado `trilhaId`.
@@ -70,11 +73,11 @@ export async function assignTraining(formData: FormData) {
     if (existing) {
       await prisma.trainingAssignment.update({
         where: { id: existing.id },
-        data: { startDate, dueDate, required },
+        data: { startDate, dueDate, required, recurrenceMonths },
       });
     } else {
       await prisma.trainingAssignment.create({
-        data: { tenantId: admin.tenantId, trilhaId: t.id, userId, teamId, startDate, dueDate, required, createdById: admin.id },
+        data: { tenantId: admin.tenantId, trilhaId: t.id, userId, teamId, startDate, dueDate, required, recurrenceMonths, createdById: admin.id },
       });
     }
   }
