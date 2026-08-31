@@ -594,6 +594,8 @@ export async function createUser(formData: FormData) {
   const password = String(formData.get("password") ?? "");
   if (!name || !email || password.length < 6) return;
   const accessProfileId = String(formData.get("accessProfileId") ?? "").trim() || null;
+  // Papel na criação: Aluno (padrão) ou RH. Não escala para admin por aqui.
+  const role = String(formData.get("role") ?? "").trim() === "HR" ? "HR" : "STUDENT";
 
   const exists = await prisma.user.findFirst({
     where: { tenantId: user.tenantId, email },
@@ -607,7 +609,7 @@ export async function createUser(formData: FormData) {
       name,
       email,
       passwordHash: await hashPassword(password),
-      role: "STUDENT",
+      role,
       accessProfileId,
     },
   });
