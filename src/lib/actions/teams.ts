@@ -3,15 +3,15 @@
 // Onda 3 — Gestão de Equipes & RH · Fatia F0 (organograma).
 // Server actions para montar o organograma em árvore (Team), definir liderança
 // (TeamLead: gestor/supervisor) e alocar pessoas às equipes (User.teamId).
-// Tudo escopado por tenant e protegido por requireAdmin.
+// Tudo escopado por tenant e protegido por requireTeamManager (admin OU RH).
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, canManageTeams } from "@/lib/auth";
 
 async function requireAdmin() {
   const user = await getCurrentUser();
-  if (!user || !isAdmin(user.role)) throw new Error("Sem permissão.");
+  if (!user || !canManageTeams(user.role)) throw new Error("Sem permissão.");
   return user;
 }
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, canManageTeams } from "@/lib/auth";
 import { contentTenantIds } from "@/lib/access";
 import { loadPlanningOverview } from "@/lib/planning";
 import GestorNav from "@/components/GestorNav";
@@ -23,7 +23,7 @@ function StatusBadge({ overdue, pending, total }: { overdue: number; pending: nu
 export default async function PlanejamentoPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!isAdmin(user.role)) redirect("/dashboard");
+  if (!canManageTeams(user.role)) redirect("/dashboard");
 
   const rows = await loadPlanningOverview(user.tenantId, contentTenantIds(user.tenant));
   const comAtraso = rows.filter((r) => r.overdue > 0).length;

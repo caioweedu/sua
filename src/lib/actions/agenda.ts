@@ -6,13 +6,14 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, canManageTeams } from "@/lib/auth";
 import { contentTenantIds } from "@/lib/access";
 import { parseCsv } from "@/lib/csv";
 
+// Planejamento/agenda é gerido pelo admin OU pelo RH.
 async function requireAdmin() {
   const user = await getCurrentUser();
-  if (!user || !isAdmin(user.role)) throw new Error("Sem permissão.");
+  if (!user || !canManageTeams(user.role)) throw new Error("Sem permissão.");
   return user;
 }
 

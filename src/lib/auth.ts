@@ -57,3 +57,14 @@ export const getCurrentUser = cache(async function getCurrentUser() {
 export function isAdmin(role: string) {
   return role === "SUPER_ADMIN" || role === "TENANT_ADMIN";
 }
+
+// RH (papel HR): gere pessoas, equipes, planejamento e compliance dos times.
+export function isHR(role: string) {
+  return role === "HR";
+}
+
+// Quem pode gerir equipes/planejamento/compliance: admin OU RH. Conteúdo,
+// aparência, gamificação, provas, certificados e config seguem só do admin.
+export function canManageTeams(role: string) {
+  return isAdmin(role) || isHR(role);
+}

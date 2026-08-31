@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, canManageTeams } from "@/lib/auth";
 import { contentTenantIds } from "@/lib/access";
 import { loadComplianceOverview, WARN_DAYS } from "@/lib/compliance";
 import GestorNav from "@/components/GestorNav";
@@ -27,7 +27,7 @@ function Chip({ n, tone, label }: { n: number; tone: string; label: string }) {
 export default async function CompliancePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!isAdmin(user.role)) redirect("/dashboard");
+  if (!canManageTeams(user.role)) redirect("/dashboard");
 
   const rows = await loadComplianceOverview(user.tenantId, contentTenantIds(user.tenant));
 

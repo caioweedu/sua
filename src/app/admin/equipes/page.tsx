@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, canManageTeams } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import GestorNav from "@/components/GestorNav";
 import SubmitButton from "@/components/SubmitButton";
@@ -23,7 +23,7 @@ import {
 export default async function EquipesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!isAdmin(user.role)) redirect("/dashboard");
+  if (!canManageTeams(user.role)) redirect("/dashboard");
 
   const teams = await prisma.team.findMany({
     where: { tenantId: user.tenantId },

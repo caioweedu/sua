@@ -17,6 +17,9 @@ type Item = {
   // Prefixos de rota que mantêm este item ativo (além do próprio href).
   match: string[];
   superOnly?: boolean;
+  // Item visível para o RH (que só gere equipes/treinamento). Sem isto, o item
+  // é só do admin (conteúdo, aparência, config etc.).
+  teams?: boolean;
 };
 
 const ITEMS: Item[] = [
@@ -27,7 +30,8 @@ const ITEMS: Item[] = [
     href: "/admin/rh",
     icon: "🧑‍💼",
     label: "Painel Gestor",
-    match: ["/admin/equipes", "/admin/planejamento"],
+    match: ["/admin/equipes", "/admin/planejamento", "/admin/compliance"],
+    teams: true,
   },
   { href: "/admin/aparencia", icon: "🎨", label: "Aparência", match: [] },
   { href: "/admin/gamificacao", icon: "🎮", label: "Gamificação", match: [] },
@@ -49,9 +53,12 @@ function isActive(item: Item, pathname: string): boolean {
 
 export default function AdminSidebar({
   isSuper,
+  teamsOnly,
   user,
 }: {
   isSuper: boolean;
+  // RH: vê apenas o Painel Gestor (equipes/planejamento/compliance).
+  teamsOnly?: boolean;
   user: { name: string; email?: string };
 }) {
   const pathname = usePathname() ?? "/admin";
@@ -72,7 +79,11 @@ export default function AdminSidebar({
     });
   }
 
-  const items = ITEMS.filter((it) => !it.superOnly || isSuper);
+  const items = ITEMS.filter((it) => {
+    if (it.superOnly && !isSuper) return false;
+    if (teamsOnly && !it.teams) return false; // RH: só o Painel Gestor
+    return true;
+  });
   const initials = user.name
     .split(" ")
     .slice(0, 2)

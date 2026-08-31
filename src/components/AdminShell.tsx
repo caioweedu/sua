@@ -15,13 +15,17 @@ type Props = {
 
 export default function AdminShell({ children, user, tenant, fluid }: Props) {
   const isSuper = user.role === "SUPER_ADMIN";
+  // RH entra na administração só para o Painel Gestor (equipes/treinamento).
+  const teamsOnly = user.role === "HR";
+  // Home do cabeçalho: admin abre Conteúdo; RH abre o Painel Gestor.
+  const homeHref = teamsOnly ? "/admin/rh" : "/admin";
 
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <Link href="/admin" className="flex items-center gap-2.5">
+            <Link href={homeHref} className="flex items-center gap-2.5">
               {tenant.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={tenant.logoUrl} alt={tenant.name} className="h-8 object-contain" />
@@ -36,7 +40,7 @@ export default function AdminShell({ children, user, tenant, fluid }: Props) {
               <span className="text-[15px] font-bold text-ink">{tenant.name}</span>
             </Link>
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              Admin
+              {teamsOnly ? "RH" : "Admin"}
             </span>
           </div>
 
@@ -69,7 +73,7 @@ export default function AdminShell({ children, user, tenant, fluid }: Props) {
       )}
 
       <div className="flex flex-col md:flex-row">
-        <AdminSidebar isSuper={isSuper} user={{ name: user.name, email: user.email }} />
+        <AdminSidebar isSuper={isSuper} teamsOnly={teamsOnly} user={{ name: user.name, email: user.email }} />
         <main className={`min-w-0 flex-1 ${fluid ? "" : "px-4 py-8 md:px-8"}`}>
           <div className={fluid ? "" : "mx-auto max-w-5xl"}>{children}</div>
         </main>
