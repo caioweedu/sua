@@ -1,4 +1,5 @@
 import SubmitButton from "@/components/SubmitButton";
+import TrilhaPicker from "@/components/TrilhaPicker";
 import { assignTraining, removeAssignment } from "@/lib/actions/agenda";
 import type { AgendaItem } from "@/lib/agenda";
 
@@ -82,34 +83,7 @@ export default function AgendaEditor({
       ) : (
         <form action={assignTraining} className="space-y-3 border-t border-slate-100 pt-4">
           <input type="hidden" name="userId" value={student.id} />
-          <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-slate-200 p-3">
-            {vitrinesComProduto.map((v) => (
-              <div key={v.id}>
-                <p className="mb-1 text-xs font-semibold text-slate-500">🗂️ {v.name}</p>
-                <div className="grid gap-1 sm:grid-cols-2">
-                  {v.trilhas.map((t) => (
-                    <label key={t.id} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" name="trilhaIds" value={t.id} className="h-4 w-4 rounded border-slate-300" />
-                      {t.title}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {orphans.length > 0 && (
-              <div>
-                <p className="mb-1 text-xs font-semibold text-slate-500">Sem vitrine</p>
-                <div className="grid gap-1 sm:grid-cols-2">
-                  {orphans.map((t) => (
-                    <label key={t.id} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" name="trilhaIds" value={t.id} className="h-4 w-4 rounded border-slate-300" />
-                      {t.title}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <TrilhaPicker vitrines={vitrinesComProduto} orphans={orphans} />
           <div className="grid gap-2 sm:grid-cols-2">
             <div>
               <label className="label text-xs">Início previsto (opcional)</label>

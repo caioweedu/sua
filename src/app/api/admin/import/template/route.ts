@@ -63,9 +63,10 @@ const TEMPLATES: Record<string, { file: string; rows: string[][] }> = {
   planejamento: {
     file: "modelo-planejamento.csv",
     rows: [
-      ["E-mail do colaborador", "Equipe", "Treinamento (produto)", "Início (AAAA-MM-DD)", "Fim (AAAA-MM-DD)", "Obrigatório (sim/não)"],
+      ["E-mail do colaborador", "Equipe", "Treinamento ou vitrine:Nome", "Início (AAAA-MM-DD)", "Fim (AAAA-MM-DD)", "Obrigatório (sim/não)"],
       ["maria@empresa.com", "", "Gestão de Resultados", "2026-09-01", "2026-09-30", "sim"],
       ["", "Comercial", "Indicadores e Metas", "", "2026-10-15", "sim"],
+      ["", "Operações", "vitrine:Segurança do Trabalho", "", "2026-11-30", "sim"],
     ],
   },
   provas: {

@@ -29,7 +29,9 @@ export default function ImportPlanningCard() {
           </div>
           <p className="mb-2 text-xs text-slate-500">
             Colunas: E-mail · Equipe · Treinamento · Início · Fim · Obrigatório.
-            Preencha e-mail <em>ou</em> equipe (não os dois).
+            Preencha e-mail <em>ou</em> equipe (não os dois). No Treinamento,
+            use o nome do treinamento ou <code>vitrine:Nome da vitrine</code>{" "}
+            para incluir <strong>todos</strong> os treinamentos da vitrine.
           </p>
           <input
             type="file"

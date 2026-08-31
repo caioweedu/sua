@@ -115,7 +115,7 @@ export async function importPlanning(
   if (rows.length < 2) return { ok: false, error: "Planilha sem linhas de dados." };
 
   const contentIds = contentTenantIds(admin.tenant);
-  const [users, teams, trilhas] = await Promise.all([
+  const [users, teams, trilhas, vitrines] = await Promise.all([
     prisma.user.findMany({
       where: { tenantId: admin.tenantId, role: { in: ["STUDENT", "HR"] } },
       select: { id: true, email: true },
@@ -125,10 +125,16 @@ export async function importPlanning(
       where: { tenantId: { in: contentIds }, published: true },
       select: { id: true, title: true },
     }),
+    // Vitrines (para "vitrine:Nome" = todos os treinamentos publicados dela).
+    prisma.vitrine.findMany({
+      where: { tenantId: { in: contentIds } },
+      select: { name: true, trilhas: { where: { published: true }, select: { id: true } } },
+    }),
   ]);
   const userByEmail = new Map(users.map((u) => [u.email.toLowerCase(), u.id]));
   const teamByName = new Map(teams.map((t) => [t.name.toLowerCase(), t.id]));
   const trilhaByTitle = new Map(trilhas.map((t) => [t.title.toLowerCase(), t.id]));
+  const vitrineByName = new Map(vitrines.map((v) => [v.name.toLowerCase(), v.trilhas.map((t) => t.id)]));
 
   const stats = { criados: 0, atualizados: 0 };
   const avisos: string[] = [];
@@ -140,10 +146,28 @@ export async function importPlanning(
       avisos.push(`Linha ${i + 1} ignorada: falta o treinamento e/ou o alvo (e-mail ou equipe).`);
       continue;
     }
-    const trilhaId = trilhaByTitle.get(produto.toLowerCase());
-    if (!trilhaId) {
-      avisos.push(`Linha ${i + 1}: treinamento "${produto}" não encontrado.`);
-      continue;
+    // "Treinamento" pode ser um produto OU uma vitrine inteira. Use o prefixo
+    // "vitrine:Nome" para forçar a vitrine; sem prefixo, tenta o produto e, se
+    // não achar, cai para uma vitrine de mesmo nome.
+    const prodLower = produto.toLowerCase();
+    const vitrineForced = prodLower.startsWith("vitrine:") ? prodLower.slice(8).trim() : null;
+    let trilhaIds: string[] = [];
+    if (vitrineForced) {
+      const ids = vitrineByName.get(vitrineForced) ?? [];
+      if (ids.length === 0) {
+        avisos.push(`Linha ${i + 1}: vitrine "${produto.slice(8).trim()}" não encontrada ou sem treinamentos publicados.`);
+        continue;
+      }
+      trilhaIds = ids;
+    } else {
+      const single = trilhaByTitle.get(prodLower);
+      const vitrineIds = vitrineByName.get(prodLower);
+      if (single) trilhaIds = [single];
+      else if (vitrineIds && vitrineIds.length > 0) trilhaIds = vitrineIds;
+      else {
+        avisos.push(`Linha ${i + 1}: treinamento/vitrine "${produto}" não encontrado.`);
+        continue;
+      }
     }
     let userId: string | null = null;
     let teamId: string | null = null;
@@ -165,18 +189,21 @@ export async function importPlanning(
     const req = obrig.toLowerCase();
     const required = !["não", "nao", "n", "false", "0"].includes(req);
 
-    const existing = await prisma.trainingAssignment.findFirst({
-      where: { tenantId: admin.tenantId, trilhaId, userId, teamId },
-      select: { id: true },
-    });
-    if (existing) {
-      await prisma.trainingAssignment.update({ where: { id: existing.id }, data: { startDate, dueDate, required } });
-      stats.atualizados++;
-    } else {
-      await prisma.trainingAssignment.create({
-        data: { tenantId: admin.tenantId, trilhaId, userId, teamId, startDate, dueDate, required, createdById: admin.id },
+    // Uma linha pode expandir para vários treinamentos (quando é uma vitrine).
+    for (const trilhaId of trilhaIds) {
+      const existing = await prisma.trainingAssignment.findFirst({
+        where: { tenantId: admin.tenantId, trilhaId, userId, teamId },
+        select: { id: true },
       });
-      stats.criados++;
+      if (existing) {
+        await prisma.trainingAssignment.update({ where: { id: existing.id }, data: { startDate, dueDate, required } });
+        stats.atualizados++;
+      } else {
+        await prisma.trainingAssignment.create({
+          data: { tenantId: admin.tenantId, trilhaId, userId, teamId, startDate, dueDate, required, createdById: admin.id },
+        });
+        stats.criados++;
+      }
     }
   }
 
