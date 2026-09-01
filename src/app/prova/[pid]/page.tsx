@@ -71,7 +71,24 @@ export default async function ProvaPage({
 
   // Respeita o perfil de acesso do aluno.
   const allowed = await allowedVitrineIds(user);
-  if (!canAccessVitrine(allowed, vitrineId)) notFound();
+  if (!canAccessVitrine(allowed, vitrineId)) {
+    // Exceção (espelha /trilhas/[id]): um treinamento ATRIBUÍDO à pessoa
+    // (agenda/PDI) é sempre acessível — inclusive a prova final —, mesmo que o
+    // perfil de acesso não inclua a vitrine. Sem isto, o aluno abre a trilha
+    // atribuída mas leva 404 ao clicar em "Fazer avaliação".
+    const assignedTrilhaId = placement.trilhaId ?? placement.modulo?.trilha.id ?? null;
+    const assigned = assignedTrilhaId
+      ? await prisma.trainingAssignment.findFirst({
+          where: {
+            tenantId: user.tenantId,
+            trilhaId: assignedTrilhaId,
+            OR: [{ userId: user.id }, ...(user.teamId ? [{ teamId: user.teamId }] : [])],
+          },
+          select: { id: true },
+        })
+      : null;
+    if (!assigned) notFound();
+  }
 
   if (user.role === "STUDENT") {
     const prog = await loadProgress(user.id);
