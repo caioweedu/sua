@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "./db";
+import { WARN_DAYS } from "./compliance";
 
 // Onda 3 · F3 — resolve a "agenda de treinamentos" de um aluno: atribuições
 // diretas (userId) + as da equipe dele (teamId), com progresso e prazo.
@@ -18,7 +19,17 @@ export type AgendaItem = {
   progressPct: number;
   completed: boolean;
   overdue: boolean;
+  // Recorrência (compliance): quando um obrigatório recorrente concluído vence.
+  expiresAt: Date | null; // nulo = não recorrente, ou sem data de conclusão
+  expired: boolean; // já venceu — precisa refazer
+  expiringSoon: boolean; // vence dentro de WARN_DAYS dias
 };
+
+function addMonths(d: Date, m: number): Date {
+  const r = new Date(d);
+  r.setMonth(r.getMonth() + m);
+  return r;
+}
 
 export async function loadUserAgenda(
   userId: string,
@@ -56,12 +67,16 @@ export async function loadUserAgenda(
     prisma.aulaProgress.findMany({ where: { userId }, select: { aulaId: true } }),
     prisma.enrollment.findMany({
       where: { userId, trilhaId: { in: trilhaIds } },
-      select: { trilhaId: true, status: true },
+      select: { trilhaId: true, status: true, completedAt: true },
     }),
   ]);
   const doneAulas = new Set(progress.map((p) => p.aulaId));
   const completedTrilha = new Set(
     enrollments.filter((e) => e.status === "COMPLETED").map((e) => e.trilhaId)
+  );
+  // Data de conclusão por produto (base do vencimento dos recorrentes).
+  const completedAtByTrilha = new Map(
+    enrollments.filter((e) => e.status === "COMPLETED").map((e) => [e.trilhaId, e.completedAt])
   );
 
   const now = new Date();
@@ -83,6 +98,17 @@ export async function loadUserAgenda(
           : a.dueDate
         : prev?.dueDate ?? a.dueDate ?? null;
 
+    // Vencimento (recorrência): só quando concluído, recorrente e com data.
+    const recurrenceMonths = prev?.recurrenceMonths ?? a.recurrenceMonths ?? null;
+    const doneAt = completedAtByTrilha.get(t.id) ?? null;
+    const expiresAt =
+      completed && recurrenceMonths && recurrenceMonths > 0 && doneAt
+        ? addMonths(doneAt, recurrenceMonths)
+        : null;
+    const expired = !!expiresAt && expiresAt < now;
+    const expiringSoon =
+      !!expiresAt && !expired && expiresAt.getTime() - now.getTime() <= WARN_DAYS * 864e5;
+
     const item: AgendaItem = {
       assignmentId: source === "you" ? a.id : prev?.assignmentId ?? a.id,
       trilhaId: t.id,
@@ -90,20 +116,26 @@ export async function loadUserAgenda(
       startDate: prev?.startDate ?? a.startDate ?? null,
       dueDate,
       required: (prev?.required ?? false) || a.required,
-      recurrenceMonths: prev?.recurrenceMonths ?? a.recurrenceMonths ?? null,
+      recurrenceMonths,
       source: prev?.source === "you" ? "you" : source,
       aulasTotal: total,
       aulasDone: done,
       progressPct: total > 0 ? Math.round((done / total) * 100) : 0,
       completed,
       overdue: !completed && !!dueDate && dueDate < now,
+      expiresAt,
+      expired,
+      expiringSoon,
     };
     byTrilha.set(t.id, item);
   }
 
-  // Ordena: atrasados primeiro, depois por prazo, depois sem prazo, por título.
+  // Ordena: pendências de ação primeiro (atrasado ou vencido), depois por prazo,
+  // depois sem prazo, por título.
   return [...byTrilha.values()].sort((a, b) => {
-    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+    const aAct = a.overdue || a.expired;
+    const bAct = b.overdue || b.expired;
+    if (aAct !== bAct) return aAct ? -1 : 1;
     if (!!a.dueDate !== !!b.dueDate) return a.dueDate ? -1 : 1;
     if (a.dueDate && b.dueDate) return a.dueDate.getTime() - b.dueDate.getTime();
     return a.title.localeCompare(b.title);
