@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, isAdmin, canManageTeams } from "@/lib/auth";
 import { grantedSharedVitrineIds, contentTenantIds } from "@/lib/access";
 import { loadTeamCockpitData, aggMembers } from "@/lib/teamCockpit";
 import { loadPlanningOverview } from "@/lib/planning";
@@ -25,7 +25,9 @@ function Tile({ label, value, sub }: { label: string; value: string | number; su
 export default async function RhCockpitPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!isAdmin(user.role)) redirect("/dashboard");
+  if (!canManageTeams(user.role)) redirect("/dashboard");
+  // Admin abre a ficha editável (/admin/alunos); RH usa a só leitura (/minha-equipe).
+  const fichaBase = isAdmin(user.role) ? "/admin/alunos" : "/minha-equipe";
 
   // Conteúdo considerado: próprio + o liberado pela Weedu (para filhas).
   const isDaughter = user.tenant.type === "DAUGHTER" && !!user.tenant.parentId;
@@ -78,7 +80,7 @@ export default async function RhCockpitPage() {
             <Link href="/admin/equipes" className="text-brand hover:underline">Equipes</Link>.
           </p>
         ) : (
-          <TeamCockpit data={data} roots={data.roots} mode="tree" />
+          <TeamCockpit data={data} roots={data.roots} mode="tree" fichaBase={fichaBase} />
         )}
 
         {data.noTeam.length > 0 && (

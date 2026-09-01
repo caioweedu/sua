@@ -89,10 +89,11 @@ export async function gradeExam(
   if (passed && isProdutoExam && placement.trilha) {
     const trilhaId = placement.trilha.id;
     // Marca a trilha como concluída.
+    // completedAt = agora a cada aprovação: renova a validade de recorrentes.
     await prisma.enrollment.upsert({
       where: { userId_trilhaId: { userId: user.id, trilhaId } },
-      update: { status: "COMPLETED" },
-      create: { userId: user.id, trilhaId, status: "COMPLETED" },
+      update: { status: "COMPLETED", completedAt: new Date() },
+      create: { userId: user.id, trilhaId, status: "COMPLETED", completedAt: new Date() },
     });
 
     // Já emitido? devolve o código.

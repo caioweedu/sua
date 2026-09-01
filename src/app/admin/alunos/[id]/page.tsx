@@ -216,12 +216,13 @@ export default async function StudentDetailPage({
               <label className="label">Papel</label>
               <select name="role" defaultValue={currentRole === "HR" ? "HR" : "STUDENT"} className="input">
                 <option value="STUDENT">Aluno (colaborador)</option>
-                <option value="HR">RH (vê o painel de pessoas da empresa)</option>
+                <option value="HR">RH (gere equipes e treinamentos)</option>
               </select>
               <p className="mt-1 text-xs text-slate-400">
-                RH é só leitura sobre pessoas (painel em{" "}
-                <Link href="/minha-equipe" className="text-brand hover:underline">Minha equipe</Link>) — não edita conteúdo.
-                Gestor/supervisor são definidos em{" "}
+                RH acessa o{" "}
+                <Link href="/admin/rh" className="text-brand hover:underline">Painel Gestor</Link>:
+                monta equipes, planeja treinamentos e acompanha o compliance — sem acesso a
+                conteúdo, aparência ou configurações. Gestor/supervisor são definidos em{" "}
                 <Link href="/admin/equipes" className="text-brand hover:underline">Equipes</Link>.
               </p>
             </div>

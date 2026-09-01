@@ -1,4 +1,5 @@
 import SubmitButton from "@/components/SubmitButton";
+import TrilhaPicker from "@/components/TrilhaPicker";
 import { assignTraining, removeAssignment } from "@/lib/actions/agenda";
 import type { AgendaItem } from "@/lib/agenda";
 
@@ -18,6 +19,12 @@ function fmtPeriodo(s: Date | null, e: Date | null) {
   if (ei) return `até ${ei}`;
   if (si) return `a partir de ${si}`;
   return "sem prazo";
+}
+function fmtRecorrencia(m: number | null) {
+  if (!m || m <= 0) return null;
+  if (m === 12) return "renova todo ano";
+  if (m % 12 === 0) return `renova a cada ${m / 12} anos`;
+  return `renova a cada ${m} ${m === 1 ? "mês" : "meses"}`;
 }
 
 export default function AgendaEditor({
@@ -48,6 +55,9 @@ export default function AgendaEditor({
                 {a.source === "team" && (
                   <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-600">equipe</span>
                 )}
+                {fmtRecorrencia(a.recurrenceMonths) && (
+                  <span className="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">🔁 {fmtRecorrencia(a.recurrenceMonths)}</span>
+                )}
                 <p className="text-xs text-slate-500">
                   Período: <span className={a.overdue ? "font-semibold text-red-600" : ""}>{fmtPeriodo(a.startDate, a.dueDate)}</span>
                   {a.overdue ? " · atrasado" : ""} · progresso {a.progressPct}%
@@ -73,34 +83,7 @@ export default function AgendaEditor({
       ) : (
         <form action={assignTraining} className="space-y-3 border-t border-slate-100 pt-4">
           <input type="hidden" name="userId" value={student.id} />
-          <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-slate-200 p-3">
-            {vitrinesComProduto.map((v) => (
-              <div key={v.id}>
-                <p className="mb-1 text-xs font-semibold text-slate-500">🗂️ {v.name}</p>
-                <div className="grid gap-1 sm:grid-cols-2">
-                  {v.trilhas.map((t) => (
-                    <label key={t.id} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" name="trilhaIds" value={t.id} className="h-4 w-4 rounded border-slate-300" />
-                      {t.title}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {orphans.length > 0 && (
-              <div>
-                <p className="mb-1 text-xs font-semibold text-slate-500">Sem vitrine</p>
-                <div className="grid gap-1 sm:grid-cols-2">
-                  {orphans.map((t) => (
-                    <label key={t.id} className="flex items-center gap-2 text-sm">
-                      <input type="checkbox" name="trilhaIds" value={t.id} className="h-4 w-4 rounded border-slate-300" />
-                      {t.title}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <TrilhaPicker vitrines={vitrinesComProduto} orphans={orphans} />
           <div className="grid gap-2 sm:grid-cols-2">
             <div>
               <label className="label text-xs">Início previsto (opcional)</label>
@@ -109,6 +92,20 @@ export default function AgendaEditor({
             <div>
               <label className="label text-xs">Fim previsto / prazo (opcional)</label>
               <input name="dueDate" type="date" className="input py-1.5 text-sm" />
+            </div>
+          </div>
+          <div>
+            <label className="label text-xs">Validade / recorrência (opcional)</label>
+            <div className="flex items-center gap-2">
+              <input
+                name="recurrenceMonths"
+                type="number"
+                min={1}
+                step={1}
+                placeholder="ex.: 12"
+                className="input w-28 py-1.5 text-sm"
+              />
+              <span className="text-xs text-slate-500">meses — refaz o treinamento ao vencer (ex.: 12 = NR anual). Vazio = uma vez só.</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">

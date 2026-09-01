@@ -247,6 +247,9 @@ model TrainingAssignment {
   startDate   DateTime? // início previsto (nulo = sem início definido)
   dueDate     DateTime? // fim previsto / prazo (nulo = sem prazo)
   required    Boolean   @default(true) // obrigatório?
+  // Recorrência/validade (compliance): meses de validade após a conclusão.
+  // Ex.: 12 = refazer todo ano (NR anual). Nulo = não recorrente (uma vez só).
+  recurrenceMonths Int?
   createdById String? // quem atribuiu (id solto, sem FK)
   createdAt   DateTime  @default(now())
 
@@ -653,6 +656,9 @@ model Enrollment {
   trilha    Trilha   @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
   status    String   @default("IN_PROGRESS") // IN_PROGRESS | COMPLETED
   createdAt DateTime @default(now())
+  // Data da conclusão (setada quando status vira COMPLETED). Base para a
+  // validade/recorrência de compliance. Nulo em conclusões antigas.
+  completedAt DateTime?
 
   @@unique([userId, trilhaId])
   @@index([userId])

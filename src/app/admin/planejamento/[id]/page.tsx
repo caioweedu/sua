@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, canManageTeams } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { contentTenantIds, visibleVitrineWhere, allowedVitrineIds } from "@/lib/access";
 import { loadUserAgenda } from "@/lib/agenda";
@@ -15,7 +15,7 @@ export default async function PlanejamentoPessoaPage({
   const { id } = await params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!isAdmin(user.role)) redirect("/dashboard");
+  if (!canManageTeams(user.role)) redirect("/dashboard");
 
   const student = await prisma.user.findFirst({
     where: { id, tenantId: user.tenantId, role: { in: ["STUDENT", "HR"] } },

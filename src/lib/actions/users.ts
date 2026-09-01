@@ -45,8 +45,8 @@ export async function updateUser(userId: string, formData: FormData) {
     teamId = team?.id ?? null;
   }
   const active = formData.get("active") != null;
-  // Papel: só alterna entre STUDENT e HR por aqui (não escala para admin). RH é
-  // read-only sobre pessoas (painel em /minha-equipe), não edita conteúdo.
+  // Papel: só alterna entre STUDENT e HR por aqui (não escala para admin). RH
+  // gere equipes/treinamentos no Painel Gestor, mas não edita conteúdo/config.
   const roleRaw = String(formData.get("role") ?? "").trim();
   const role = roleRaw === "HR" ? "HR" : roleRaw === "STUDENT" ? "STUDENT" : undefined;
 

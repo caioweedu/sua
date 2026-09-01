@@ -79,8 +79,16 @@ export default async function UsuariosPage() {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
+              <select name="role" className="input" defaultValue="STUDENT">
+                <option value="STUDENT">Aluno (colaborador)</option>
+                <option value="HR">RH (gere equipes e treinamentos)</option>
+              </select>
+              <p className="text-xs text-slate-400 sm:col-span-2">
+                O papel também pode ser trocado depois na ficha da pessoa. Gestor/supervisor
+                de equipe são definidos em Equipes.
+              </p>
               <div className="sm:col-span-2">
-                <SubmitButton pendingText="Criando…">Criar aluno</SubmitButton>
+                <SubmitButton pendingText="Criando…">Criar usuário</SubmitButton>
               </div>
             </form>
           </div>

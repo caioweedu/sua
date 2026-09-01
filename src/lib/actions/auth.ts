@@ -49,10 +49,10 @@ export async function loginAction(
     name: user.name,
   });
 
-  // Admins entram direto pelo Dashboard (Resultados); RH pelo painel de pessoas;
-  // demais colaboradores pela home de treinamentos.
+  // Admins entram direto pelo Dashboard (Resultados); RH pelo Painel Gestor
+  // (equipes/planejamento/compliance); demais colaboradores pela home de treinos.
   if (user.role === "SUPER_ADMIN" || user.role === "TENANT_ADMIN") redirect("/admin/analytics");
-  if (user.role === "HR") redirect("/minha-equipe");
+  if (user.role === "HR") redirect("/admin/rh");
   redirect("/dashboard");
 }
 
