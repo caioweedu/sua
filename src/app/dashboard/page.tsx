@@ -110,7 +110,13 @@ export default async function DashboardPage() {
 
   const dstr = (d: Date | null) => (d ? new Date(d).toLocaleDateString("pt-BR") : null);
   const agendaStatus = (a: (typeof agenda)[number]) => {
-    if (a.completed) return "Concluído ✓";
+    // Recorrente vencido: precisa refazer, mesmo já tendo concluído antes.
+    if (a.expired) return `Vencido em ${dstr(a.expiresAt)} — refazer`;
+    if (a.completed) {
+      if (a.expiresAt)
+        return `Concluído ✓ · ${a.expiringSoon ? "vence" : "válido até"} ${dstr(a.expiresAt)}`;
+      return "Concluído ✓";
+    }
     const s = dstr(a.startDate);
     const e = dstr(a.dueDate);
     const periodo = s && e ? `${s} → ${e}` : e ? `Prazo: ${e}` : s ? `A partir de ${s}` : "Sem prazo";
@@ -181,13 +187,24 @@ export default async function DashboardPage() {
                         {a.required && (
                           <span className="s-muted ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px]">obrigatório</span>
                         )}
+                        {a.recurrenceMonths && (
+                          <span className="s-muted ml-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px]">🔁 renova</span>
+                        )}
                         <span
-                          className={`block text-xs ${a.overdue && !a.completed ? "font-semibold text-red-400" : "s-muted"}`}
+                          className={`block text-xs ${
+                            (a.overdue && !a.completed) || a.expired
+                              ? "font-semibold text-red-400"
+                              : a.expiringSoon
+                                ? "font-semibold text-amber-400"
+                                : "s-muted"
+                          }`}
                         >
                           {agendaStatus(a)}
                         </span>
                       </span>
-                      {!a.completed && <span className="s-muted text-xs font-semibold">continuar →</span>}
+                      {(!a.completed || a.expired) && (
+                        <span className="s-muted text-xs font-semibold">{a.expired ? "refazer →" : "continuar →"}</span>
+                      )}
                     </Link>
                   </li>
                 ))}

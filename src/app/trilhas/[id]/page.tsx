@@ -70,7 +70,11 @@ export default async function TrilhaPage({
   }
 
   const allowed = await allowedVitrineIds(user);
-  if (!canAccessVitrine(allowed, trilha.vitrineId)) {
+  // Pode navegar a vitrine (breadcrumb clicável) só se o perfil a inclui.
+  // Quando chega aqui por treinamento atribuído fora do perfil, a vitrine em si
+  // não é acessível — o breadcrumb então não deve linká-la (cairia em 404).
+  const canBrowseVitrine = canAccessVitrine(allowed, trilha.vitrineId);
+  if (!canBrowseVitrine) {
     // Exceção: um treinamento ATRIBUÍDO à pessoa (agenda/PDI) é sempre
     // acessível, mesmo que o perfil de acesso não inclua a vitrine — senão o
     // link de "Meus treinamentos planejados" cairia em 404.
@@ -233,9 +237,14 @@ export default async function TrilhaPage({
         {trilha.vitrine && (
           <>
             <span className="text-slate-300">/</span>
-            <Link href={`/vitrines/${trilha.vitrine.id}`} className="hover:text-ink">
-              {trilha.vitrine.name}
-            </Link>
+            {canBrowseVitrine ? (
+              <Link href={`/vitrines/${trilha.vitrine.id}`} className="hover:text-ink">
+                {trilha.vitrine.name}
+              </Link>
+            ) : (
+              // Treinamento atribuído fora do perfil: mostra o nome sem link.
+              <span>{trilha.vitrine.name}</span>
+            )}
           </>
         )}
         <span className="text-slate-300">/</span>
