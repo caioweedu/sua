@@ -312,8 +312,28 @@ model User {
   authTokens   AuthToken[]
   gamification GamificationEvent[]
   badges       UserBadge[]
+  notifications NotificationLog[]
 
   @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+// ---------------------------------------------------------------------------
+// NOTIFICAÇÕES (Onda 3 · F3) — registro anti-duplicata de e-mails enviados.
+// Cada linha marca que um aviso específico já foi enviado a um usuário, para
+// não repetir o mesmo marco. `key` codifica o contexto (ex.: vencimento de um
+// produto num marco, ou o resumo semanal do gestor numa semana ISO).
+// ---------------------------------------------------------------------------
+model NotificationLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String   // ex.: COMPLIANCE_DUE | COMPLIANCE_MANAGER_WEEKLY
+  key       String   // chave de deduplicação (contexto + marco)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, key])
   @@index([tenantId])
 }
 

@@ -7,6 +7,10 @@
     {
       "path": "/api/keep-alive",
       "schedule": "*/5 12-21 * * 1-5"
+    },
+    {
+      "path": "/api/cron/compliance-notify",
+      "schedule": "0 11 * * 1-5"
     }
   ]
 }
