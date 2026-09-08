@@ -72,18 +72,24 @@ function itemPhrase(it: { status: ComplianceItem["status"]; targetDate: Date | n
 
 type Triggered = { title: string; status: ComplianceItem["status"]; targetDate: Date | null; bucket: Bucket; key: string };
 
+export type NotifyDebugEntry = { kind: string; to: string; sent: boolean; error?: string; id?: string };
 export type NotifyResult = {
   emailConfigured: boolean;
   weekly: boolean;
   collaboratorEmails: number;
   managerEmails: number;
   tenants: number;
+  debug?: NotifyDebugEntry[];
 };
 
 export async function runComplianceNotifications(opts: {
   baseUrl: string;
   weekly: boolean;
   now?: Date;
+  debug?: boolean;
+  // force: ignora o anti-duplicata (não lê nem grava NotificationLog) — só para
+  // TESTE de entrega, para poder reenviar os mesmos avisos várias vezes.
+  force?: boolean;
 }): Promise<NotifyResult> {
   const now = opts.now ?? new Date();
   const res: NotifyResult = {
@@ -92,6 +98,7 @@ export async function runComplianceNotifications(opts: {
     collaboratorEmails: 0,
     managerEmails: 0,
     tenants: 0,
+    ...(opts.debug ? { debug: [] as NotifyDebugEntry[] } : {}),
   };
   if (!res.emailConfigured) return res; // sem provedor de e-mail: no-op seguro.
 
@@ -124,14 +131,17 @@ export async function runComplianceNotifications(opts: {
 
     for (const [userId, u] of perUser) {
       if (!u.email || u.hits.length === 0) continue;
-      // Filtra os marcos já enviados.
-      const keys = u.hits.map((h) => h.key);
-      const already = await prisma.notificationLog.findMany({
-        where: { userId, key: { in: keys } },
-        select: { key: true },
-      });
-      const sent = new Set(already.map((a) => a.key));
-      const fresh = u.hits.filter((h) => !sent.has(h.key));
+      // Filtra os marcos já enviados (a menos que force = teste de entrega).
+      let fresh = u.hits;
+      if (!opts.force) {
+        const keys = u.hits.map((h) => h.key);
+        const already = await prisma.notificationLog.findMany({
+          where: { userId, key: { in: keys } },
+          select: { key: true },
+        });
+        const sentKeys = new Set(already.map((a) => a.key));
+        fresh = u.hits.filter((h) => !sentKeys.has(h.key));
+      }
       if (fresh.length === 0) continue;
 
       const anyOverdue = fresh.some((h) => h.status === "vencido" || h.bucket === "overdue");
@@ -155,11 +165,14 @@ export async function runComplianceNotifications(opts: {
           : `Lembrete: treinamento obrigatório a vencer`,
         html,
       });
+      if (res.debug) res.debug.push({ kind: "COMPLIANCE_DUE", to: u.email, sent: r.sent, error: r.error, id: r.id });
       if (r.sent) {
-        await prisma.notificationLog.createMany({
-          data: fresh.map((h) => ({ tenantId: tenant.id, userId, kind: "COMPLIANCE_DUE", key: h.key })),
-          skipDuplicates: true,
-        });
+        if (!opts.force) {
+          await prisma.notificationLog.createMany({
+            data: fresh.map((h) => ({ tenantId: tenant.id, userId, kind: "COMPLIANCE_DUE", key: h.key })),
+            skipDuplicates: true,
+          });
+        }
         res.collaboratorEmails++;
       }
     }
@@ -236,12 +249,14 @@ export async function runComplianceNotifications(opts: {
     }
 
     for (const rcp of mergedRecipients.values()) {
-      // Já recebeu o resumo desta semana?
-      const seen = await prisma.notificationLog.findFirst({
-        where: { userId: rcp.id, key: weekKey },
-        select: { id: true },
-      });
-      if (seen) continue;
+      // Já recebeu o resumo desta semana? (force = teste ignora o dedup)
+      if (!opts.force) {
+        const seen = await prisma.notificationLog.findFirst({
+          where: { userId: rcp.id, key: weekKey },
+          select: { id: true },
+        });
+        if (seen) continue;
+      }
 
       const scopeUserIds = rcp.memberIds === null ? [...allProblemUserIds] : [...rcp.memberIds];
       if (scopeUserIds.length === 0) continue;
@@ -277,10 +292,13 @@ export async function runComplianceNotifications(opts: {
         ctaLabel: "Abrir o painel",
       });
       const r = await sendEmail({ to: rcp.email, fromName: tenant.name, subject: `Resumo semanal de compliance · ${tenant.name}`, html });
+      if (res.debug) res.debug.push({ kind: "COMPLIANCE_MANAGER_WEEKLY", to: rcp.email, sent: r.sent, error: r.error, id: r.id });
       if (r.sent) {
-        await prisma.notificationLog.create({
-          data: { tenantId: tenant.id, userId: rcp.id, kind: "COMPLIANCE_MANAGER_WEEKLY", key: weekKey },
-        });
+        if (!opts.force) {
+          await prisma.notificationLog.create({
+            data: { tenantId: tenant.id, userId: rcp.id, kind: "COMPLIANCE_MANAGER_WEEKLY", key: weekKey },
+          });
+        }
         res.managerEmails++;
       }
     }

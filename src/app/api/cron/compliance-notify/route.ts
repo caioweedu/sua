@@ -26,9 +26,13 @@ export async function GET(request: Request) {
   const now = new Date();
   // Resumo semanal do gestor: segundas (UTC) ou forçado por querystring.
   const weekly = url.searchParams.get("weekly") === "1" || now.getUTCDay() === 1;
+  // Diagnóstico (só teste): debug detalha destinatário+resposta do Resend;
+  // force ignora o anti-duplicata para permitir reenviar.
+  const debug = url.searchParams.get("debug") === "1";
+  const force = url.searchParams.get("force") === "1";
 
   try {
-    const result = await runComplianceNotifications({ baseUrl, weekly, now });
+    const result = await runComplianceNotifications({ baseUrl, weekly, now, debug, force });
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     return NextResponse.json(
