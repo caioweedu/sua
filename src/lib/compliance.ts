@@ -172,3 +172,127 @@ export async function loadComplianceOverview(
         a.name.localeCompare(b.name)
     );
 }
+
+// Um item de compliance por pessoa+produto obrigatório, com título e a DATA-ALVO
+// (vencimento do recorrente, ou prazo do pendente) — base para as notificações.
+export type ComplianceItem = {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  teamId: string | null;
+  trilhaId: string;
+  title: string;
+  status: ComplianceStatus;
+  targetDate: Date | null; // vencimento (recorrente) ou prazo (pendente)
+};
+
+export async function loadComplianceItems(
+  tenantId: string,
+  contentIds: string[]
+): Promise<ComplianceItem[]> {
+  const [students, assignments, completed, certs] = await Promise.all([
+    prisma.user.findMany({
+      where: { tenantId, role: "STUDENT", active: true },
+      select: { id: true, name: true, email: true, teamId: true },
+    }),
+    prisma.trainingAssignment.findMany({
+      where: { tenantId, required: true, trilha: { published: true, tenantId: { in: contentIds } } },
+      select: {
+        trilhaId: true,
+        userId: true,
+        teamId: true,
+        dueDate: true,
+        recurrenceMonths: true,
+        trilha: { select: { title: true } },
+      },
+    }),
+    prisma.enrollment.findMany({
+      where: { status: "COMPLETED", user: { tenantId } },
+      select: { userId: true, trilhaId: true, completedAt: true },
+    }),
+    prisma.certificate.findMany({
+      where: { user: { tenantId } },
+      select: { userId: true, trilhaId: true, issuedAt: true },
+    }),
+  ]);
+
+  const doneAt = new Map<string, Date | null>();
+  for (const e of completed) doneAt.set(`${e.userId}:${e.trilhaId}`, e.completedAt ?? null);
+  for (const c of certs) {
+    const key = `${c.userId}:${c.trilhaId}`;
+    if (!doneAt.has(key) || doneAt.get(key) == null) doneAt.set(key, c.issuedAt);
+  }
+  const completedSet = new Set([
+    ...completed.map((e) => `${e.userId}:${e.trilhaId}`),
+    ...certs.map((c) => `${c.userId}:${c.trilhaId}`),
+  ]);
+
+  type Assign = (typeof assignments)[number];
+  const byUser = new Map<string, Assign[]>();
+  const byTeam = new Map<string, Assign[]>();
+  for (const a of assignments) {
+    if (a.userId) {
+      if (!byUser.has(a.userId)) byUser.set(a.userId, []);
+      byUser.get(a.userId)!.push(a);
+    } else if (a.teamId) {
+      if (!byTeam.has(a.teamId)) byTeam.set(a.teamId, []);
+      byTeam.get(a.teamId)!.push(a);
+    }
+  }
+
+  const now = new Date();
+  const warnLimit = new Date(now.getTime() + WARN_DAYS * 24 * 60 * 60 * 1000);
+  const items: ComplianceItem[] = [];
+
+  for (const s of students) {
+    const merged = new Map<string, { rec: number | null; due: Date | null; title: string }>();
+    const consider = [...(byUser.get(s.id) ?? []), ...(s.teamId ? byTeam.get(s.teamId) ?? [] : [])];
+    for (const a of consider) {
+      const prev = merged.get(a.trilhaId);
+      if (!prev) {
+        merged.set(a.trilhaId, { rec: a.recurrenceMonths ?? null, due: a.dueDate ?? null, title: a.trilha.title });
+      } else {
+        const rec =
+          prev.rec != null && a.recurrenceMonths != null
+            ? Math.min(prev.rec, a.recurrenceMonths)
+            : prev.rec ?? a.recurrenceMonths ?? null;
+        const due =
+          prev.due && a.dueDate ? (a.dueDate < prev.due ? a.dueDate : prev.due) : prev.due ?? a.dueDate ?? null;
+        merged.set(a.trilhaId, { rec, due, title: prev.title });
+      }
+    }
+
+    for (const [trilhaId, m] of merged) {
+      const key = `${s.id}:${trilhaId}`;
+      let status: ComplianceStatus;
+      let targetDate: Date | null = null;
+      if (!completedSet.has(key)) {
+        status = "pendente";
+        targetDate = m.due;
+      } else if (!m.rec || m.rec <= 0) {
+        status = "em_dia";
+      } else {
+        const at = doneAt.get(key) ?? null;
+        if (!at) {
+          status = "sem_data";
+        } else {
+          const expiry = addMonths(at, m.rec);
+          targetDate = expiry;
+          status = expiry < now ? "vencido" : expiry < warnLimit ? "a_vencer" : "em_dia";
+        }
+      }
+      items.push({
+        userId: s.id,
+        userName: s.name,
+        userEmail: s.email,
+        teamId: s.teamId,
+        trilhaId,
+        title: m.title,
+        status,
+        targetDate,
+      });
+    }
+  }
+
+  return items;
+}

@@ -13,7 +13,7 @@ export function emailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
 }
 
-export type SendResult = { sent: boolean; error?: string };
+export type SendResult = { sent: boolean; error?: string; id?: string };
 
 // Monta o cabeçalho "From" mantendo o ENDEREÇO verificado do EMAIL_FROM, mas
 // trocando o NOME de exibição pelo do tenant (ex.: numa filha, aparece o nome
@@ -39,14 +39,14 @@ export async function sendEmail(opts: {
   }
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const { error } = await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: composeFrom(opts.fromName),
       to: opts.to,
       subject: opts.subject,
       html: opts.html,
     });
     if (error) return { sent: false, error: error.message };
-    return { sent: true };
+    return { sent: true, id: data?.id };
   } catch (e) {
     return { sent: false, error: e instanceof Error ? e.message : "Falha ao enviar e-mail." };
   }
