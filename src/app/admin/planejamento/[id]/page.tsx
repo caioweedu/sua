@@ -29,6 +29,9 @@ export default async function PlanejamentoPessoaPage({
 
   const contentIds = contentTenantIds(user.tenant);
   const vitrineWhere = await visibleVitrineWhere(user.tenant);
+  const team = student.teamId
+    ? await prisma.team.findFirst({ where: { id: student.teamId, tenantId: user.tenantId }, select: { name: true } })
+    : null;
   const [vitrines, orphans, agenda] = await Promise.all([
     prisma.vitrine.findMany({
       where: vitrineWhere,
@@ -75,7 +78,7 @@ export default async function PlanejamentoPessoaPage({
             <> Mostrando apenas as vitrines do <strong>perfil de acesso</strong> desta pessoa.</>
           )}
         </p>
-        <AgendaEditor student={{ id: student.id, name: student.name }} agenda={agenda} vitrines={scopedVitrines} orphans={scopedOrphans} />
+        <AgendaEditor student={{ id: student.id, name: student.name, teamId: student.teamId, teamName: team?.name ?? null }} agenda={agenda} vitrines={scopedVitrines} orphans={scopedOrphans} />
       </div>
     </>
   );

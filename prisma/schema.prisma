@@ -237,8 +237,16 @@ model TrainingAssignment {
   id          String    @id @default(cuid())
   tenantId    String
   tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  trilhaId    String
-  trilha      Trilha    @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  // Tipo do treinamento: ONLINE (trilha da plataforma) | EXTERNAL (presencial ou
+  // em outra plataforma — sem trilha; a conclusão é dada manualmente pelo RH).
+  kind        String    @default("ONLINE")
+  // ONLINE: aponta para uma trilha publicada. EXTERNAL: nulo.
+  trilhaId    String?
+  trilha      Trilha?   @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  // EXTERNAL: título livre e local/modalidade (ex.: "Presencial — sala 2",
+  // "Curso na Alura"). ONLINE usa o título da trilha.
+  title       String?
+  location    String?
   // Alvo (exatamente um):
   userId      String?
   user        User?     @relation("AssignmentTarget", fields: [userId], references: [id], onDelete: Cascade)
@@ -253,10 +261,32 @@ model TrainingAssignment {
   createdById String? // quem atribuiu (id solto, sem FK)
   createdAt   DateTime  @default(now())
 
+  // Baixas manuais (só EXTERNAL): uma por participante.
+  completions ExternalCompletion[]
+
   @@index([tenantId])
   @@index([trilhaId])
   @@index([userId])
   @@index([teamId])
+}
+
+// Baixa manual de um treinamento EXTERNAL para uma pessoa (o RH/gestor confirma
+// que participou/concluiu). Faz o papel da matrícula concluída dos online: é a
+// base do compliance/validade dos externos.
+model ExternalCompletion {
+  id           String   @id @default(cuid())
+  assignmentId String
+  assignment   TrainingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completedAt  DateTime @default(now())
+  markedById   String?  // quem deu a baixa (id solto, sem FK)
+  note         String?
+  createdAt    DateTime @default(now())
+
+  @@unique([assignmentId, userId])
+  @@index([assignmentId])
+  @@index([userId])
 }
 
 // Liberação de conteúdo compartilhado (white-label): a MÃE (Weedu) decide quais
@@ -304,6 +334,8 @@ model User {
   teamLeads TeamLead[] @relation("TeamLeadUser")
   // Treinamentos atribuídos diretamente a esta pessoa (agenda/PDI).
   assignments TrainingAssignment[] @relation("AssignmentTarget")
+  // Baixas de treinamentos externos (presencial/outra plataforma).
+  externalCompletions ExternalCompletion[]
 
   enrollments  Enrollment[]
   attempts     ExamAttempt[]
