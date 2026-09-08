@@ -188,7 +188,7 @@ export async function runComplianceNotifications(opts: {
         select: { role: true, teamId: true, user: { select: { id: true, name: true, email: true } } },
       }),
       prisma.user.findMany({
-        where: { tenantId: tenant.id, role: { in: ["TENANT_ADMIN", "HR"] }, active: true },
+        where: { tenantId: tenant.id, role: { in: ["SUPER_ADMIN", "TENANT_ADMIN", "HR"] }, active: true },
         select: { id: true, name: true, email: true },
       }),
     ]);
