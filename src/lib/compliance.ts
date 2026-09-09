@@ -10,7 +10,9 @@ import { prisma } from "./db";
 //   pendente — obrigatório ainda não concluído
 //   sem_data — recorrente concluído, mas sem data de conclusão registrada
 //              (dado legado; não dá para calcular a validade)
-// Batch (poucas consultas), escopado ao tenant.
+// Cobre treinamentos ONLINE (trilha da plataforma; conclusão via matrícula/
+// certificado) e EXTERNAL (presencial/outra plataforma; conclusão = baixa
+// manual do RH). Batch (poucas consultas), escopado ao tenant.
 
 export type ComplianceStatus = "em_dia" | "a_vencer" | "vencido" | "pendente" | "sem_data";
 
@@ -32,177 +34,60 @@ export type ComplianceRow = {
   conforme: boolean; // sem vencidos e sem pendentes
 };
 
+// Um item de compliance por pessoa+treinamento obrigatório, com título e a
+// DATA-ALVO (vencimento do recorrente, ou prazo do pendente).
+export type ComplianceItem = {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  teamId: string | null;
+  refKey: string; // id estável do item (produto ou atribuição externa)
+  title: string;
+  status: ComplianceStatus;
+  targetDate: Date | null; // vencimento (recorrente) ou prazo (pendente)
+};
+
 function addMonths(d: Date, m: number): Date {
   const r = new Date(d);
   r.setMonth(r.getMonth() + m);
   return r;
 }
 
-export async function loadComplianceOverview(
+type ResolvedItem = { refKey: string; title: string; status: ComplianceStatus; targetDate: Date | null };
+type StudentLite = { id: string; name: string; email: string; teamId: string | null };
+
+// Núcleo compartilhado: resolve, por aluno, os obrigatórios (online + externo)
+// já classificados. As duas funções públicas abaixo só agregam/mapeiam.
+async function resolveCompliance(
   tenantId: string,
-  contentIds: string[]
-): Promise<ComplianceRow[]> {
-  const [students, assignments, completed, certs] = await Promise.all([
+  contentIds: string[],
+  opts: { activeOnly: boolean }
+): Promise<{ student: StudentLite; items: ResolvedItem[] }[]> {
+  const [students, assignments, completed, certs, extDoneRows] = await Promise.all([
     prisma.user.findMany({
-      where: { tenantId, role: "STUDENT" },
+      where: { tenantId, role: "STUDENT", ...(opts.activeOnly ? { active: true } : {}) },
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true, teamId: true },
     }),
-    // Só obrigatórios, de produtos publicados dentro do escopo de conteúdo.
+    // Obrigatórios: online (trilha publicada no escopo) + externo (sem trilha).
     prisma.trainingAssignment.findMany({
-      where: { tenantId, required: true, trilha: { published: true, tenantId: { in: contentIds } } },
-      select: { trilhaId: true, userId: true, teamId: true, dueDate: true, recurrenceMonths: true },
-    }),
-    prisma.enrollment.findMany({
-      where: { status: "COMPLETED", user: { tenantId } },
-      select: { userId: true, trilhaId: true, completedAt: true },
-    }),
-    prisma.certificate.findMany({
-      where: { user: { tenantId } },
-      select: { userId: true, trilhaId: true, issuedAt: true },
-    }),
-  ]);
-
-  // Data de conclusão por pessoa+produto: a matrícula concluída é a fonte
-  // (renovada a cada aprovação); o certificado mais recente é o fallback legado.
-  const doneAt = new Map<string, Date | null>();
-  for (const e of completed) {
-    doneAt.set(`${e.userId}:${e.trilhaId}`, e.completedAt ?? null);
-  }
-  for (const c of certs) {
-    const key = `${c.userId}:${c.trilhaId}`;
-    if (!doneAt.has(key)) {
-      doneAt.set(key, c.issuedAt);
-    } else if (doneAt.get(key) == null) {
-      // matrícula concluída sem data → usa a emissão do certificado.
-      doneAt.set(key, c.issuedAt);
-    }
-  }
-  const completedSet = new Set([
-    ...completed.map((e) => `${e.userId}:${e.trilhaId}`),
-    ...certs.map((c) => `${c.userId}:${c.trilhaId}`),
-  ]);
-
-  type Assign = (typeof assignments)[number];
-  const byUser = new Map<string, Assign[]>();
-  const byTeam = new Map<string, Assign[]>();
-  for (const a of assignments) {
-    if (a.userId) {
-      if (!byUser.has(a.userId)) byUser.set(a.userId, []);
-      byUser.get(a.userId)!.push(a);
-    } else if (a.teamId) {
-      if (!byTeam.has(a.teamId)) byTeam.set(a.teamId, []);
-      byTeam.get(a.teamId)!.push(a);
-    }
-  }
-
-  const now = new Date();
-  const warnLimit = new Date(now.getTime() + WARN_DAYS * 24 * 60 * 60 * 1000);
-
-  return students
-    .map((s) => {
-      // Obrigatórios da pessoa: diretos + da equipe, um por produto. Se o mesmo
-      // produto vem de mais de uma origem, mantém a recorrência mais curta
-      // (mais rígida) e o menor prazo.
-      const merged = new Map<string, { rec: number | null; due: Date | null }>();
-      const consider = [
-        ...(byUser.get(s.id) ?? []),
-        ...(s.teamId ? byTeam.get(s.teamId) ?? [] : []),
-      ];
-      for (const a of consider) {
-        const prev = merged.get(a.trilhaId);
-        if (!prev) {
-          merged.set(a.trilhaId, { rec: a.recurrenceMonths ?? null, due: a.dueDate ?? null });
-        } else {
-          const rec =
-            prev.rec != null && a.recurrenceMonths != null
-              ? Math.min(prev.rec, a.recurrenceMonths)
-              : prev.rec ?? a.recurrenceMonths ?? null;
-          const due =
-            prev.due && a.dueDate ? (a.dueDate < prev.due ? a.dueDate : prev.due) : prev.due ?? a.dueDate ?? null;
-          merged.set(a.trilhaId, { rec, due });
-        }
-      }
-
-      let emDia = 0, aVencer = 0, vencido = 0, pendente = 0, semData = 0;
-      for (const [trilhaId, m] of merged) {
-        const key = `${s.id}:${trilhaId}`;
-        if (!completedSet.has(key)) {
-          pendente++;
-          continue;
-        }
-        // Concluído. Sem recorrência = em dia para sempre.
-        if (!m.rec || m.rec <= 0) {
-          emDia++;
-          continue;
-        }
-        // Recorrente: precisa da data de conclusão para calcular a validade.
-        const at = doneAt.get(key) ?? null;
-        if (!at) {
-          semData++;
-          continue;
-        }
-        const expiry = addMonths(at, m.rec);
-        if (expiry < now) vencido++;
-        else if (expiry < warnLimit) aVencer++;
-        else emDia++;
-      }
-
-      const total = merged.size;
-      return {
-        id: s.id,
-        name: s.name,
-        email: s.email,
-        teamId: s.teamId,
-        total,
-        emDia,
-        aVencer,
-        vencido,
-        pendente,
-        semData,
-        conforme: vencido === 0 && pendente === 0,
-      };
-    })
-    // Piores primeiro: vencidos, depois pendentes, depois a vencer.
-    .sort(
-      (a, b) =>
-        b.vencido - a.vencido ||
-        b.pendente - a.pendente ||
-        b.aVencer - a.aVencer ||
-        a.name.localeCompare(b.name)
-    );
-}
-
-// Um item de compliance por pessoa+produto obrigatório, com título e a DATA-ALVO
-// (vencimento do recorrente, ou prazo do pendente) — base para as notificações.
-export type ComplianceItem = {
-  userId: string;
-  userName: string;
-  userEmail: string;
-  teamId: string | null;
-  trilhaId: string;
-  title: string;
-  status: ComplianceStatus;
-  targetDate: Date | null; // vencimento (recorrente) ou prazo (pendente)
-};
-
-export async function loadComplianceItems(
-  tenantId: string,
-  contentIds: string[]
-): Promise<ComplianceItem[]> {
-  const [students, assignments, completed, certs] = await Promise.all([
-    prisma.user.findMany({
-      where: { tenantId, role: "STUDENT", active: true },
-      select: { id: true, name: true, email: true, teamId: true },
-    }),
-    prisma.trainingAssignment.findMany({
-      where: { tenantId, required: true, trilha: { published: true, tenantId: { in: contentIds } } },
+      where: {
+        tenantId,
+        required: true,
+        OR: [
+          { kind: { not: "EXTERNAL" }, trilha: { published: true, tenantId: { in: contentIds } } },
+          { kind: "EXTERNAL" },
+        ],
+      },
       select: {
+        id: true,
+        kind: true,
         trilhaId: true,
         userId: true,
         teamId: true,
         dueDate: true,
         recurrenceMonths: true,
+        title: true,
         trilha: { select: { title: true } },
       },
     }),
@@ -214,18 +99,32 @@ export async function loadComplianceItems(
       where: { user: { tenantId } },
       select: { userId: true, trilhaId: true, issuedAt: true },
     }),
+    prisma.externalCompletion.findMany({
+      where: { assignment: { tenantId } },
+      select: { assignmentId: true, userId: true, completedAt: true },
+    }),
   ]);
 
+  // Conclusão dos ONLINE por pessoa+produto: matrícula concluída (renovada a
+  // cada aprovação) com fallback legado para a emissão do certificado.
   const doneAt = new Map<string, Date | null>();
   for (const e of completed) doneAt.set(`${e.userId}:${e.trilhaId}`, e.completedAt ?? null);
   for (const c of certs) {
     const key = `${c.userId}:${c.trilhaId}`;
     if (!doneAt.has(key) || doneAt.get(key) == null) doneAt.set(key, c.issuedAt);
   }
-  const completedSet = new Set([
+  const onlineDone = new Set([
     ...completed.map((e) => `${e.userId}:${e.trilhaId}`),
     ...certs.map((c) => `${c.userId}:${c.trilhaId}`),
   ]);
+
+  // Conclusão dos EXTERNAL por pessoa+atribuição (baixa manual).
+  const extDoneAt = new Map<string, Date | null>();
+  const extDone = new Set<string>();
+  for (const e of extDoneRows) {
+    extDoneAt.set(`${e.userId}:${e.assignmentId}`, e.completedAt ?? null);
+    extDone.add(`${e.userId}:${e.assignmentId}`);
+  }
 
   type Assign = (typeof assignments)[number];
   const byUser = new Map<string, Assign[]>();
@@ -242,15 +141,28 @@ export async function loadComplianceItems(
 
   const now = new Date();
   const warnLimit = new Date(now.getTime() + WARN_DAYS * 24 * 60 * 60 * 1000);
-  const items: ComplianceItem[] = [];
 
-  for (const s of students) {
-    const merged = new Map<string, { rec: number | null; due: Date | null; title: string }>();
+  const classify = (completedItem: boolean, rec: number | null, at: Date | null, due: Date | null): { status: ComplianceStatus; targetDate: Date | null } => {
+    if (!completedItem) return { status: "pendente", targetDate: due };
+    if (!rec || rec <= 0) return { status: "em_dia", targetDate: null };
+    if (!at) return { status: "sem_data", targetDate: null };
+    const expiry = addMonths(at, rec);
+    const status: ComplianceStatus = expiry < now ? "vencido" : expiry < warnLimit ? "a_vencer" : "em_dia";
+    return { status, targetDate: expiry };
+  };
+
+  return students.map((s) => {
+    // Merge: online deduplica por produto (direto + equipe → recorrência mais
+    // curta e menor prazo); externo é uma linha por atribuição.
+    const merged = new Map<string, { rec: number | null; due: Date | null; title: string; external: boolean; assignmentId: string; trilhaId: string | null }>();
     const consider = [...(byUser.get(s.id) ?? []), ...(s.teamId ? byTeam.get(s.teamId) ?? [] : [])];
     for (const a of consider) {
-      const prev = merged.get(a.trilhaId);
+      const external = a.kind === "EXTERNAL";
+      const refKey = external ? `x:${a.id}` : `t:${a.trilhaId}`;
+      const title = external ? a.title ?? "Treinamento externo" : a.trilha?.title ?? "Treinamento";
+      const prev = merged.get(refKey);
       if (!prev) {
-        merged.set(a.trilhaId, { rec: a.recurrenceMonths ?? null, due: a.dueDate ?? null, title: a.trilha.title });
+        merged.set(refKey, { rec: a.recurrenceMonths ?? null, due: a.dueDate ?? null, title, external, assignmentId: a.id, trilhaId: a.trilhaId ?? null });
       } else {
         const rec =
           prev.rec != null && a.recurrenceMonths != null
@@ -258,41 +170,79 @@ export async function loadComplianceItems(
             : prev.rec ?? a.recurrenceMonths ?? null;
         const due =
           prev.due && a.dueDate ? (a.dueDate < prev.due ? a.dueDate : prev.due) : prev.due ?? a.dueDate ?? null;
-        merged.set(a.trilhaId, { rec, due, title: prev.title });
+        merged.set(refKey, { ...prev, rec, due });
       }
     }
 
-    for (const [trilhaId, m] of merged) {
-      const key = `${s.id}:${trilhaId}`;
-      let status: ComplianceStatus;
-      let targetDate: Date | null = null;
-      if (!completedSet.has(key)) {
-        status = "pendente";
-        targetDate = m.due;
-      } else if (!m.rec || m.rec <= 0) {
-        status = "em_dia";
-      } else {
-        const at = doneAt.get(key) ?? null;
-        if (!at) {
-          status = "sem_data";
-        } else {
-          const expiry = addMonths(at, m.rec);
-          targetDate = expiry;
-          status = expiry < now ? "vencido" : expiry < warnLimit ? "a_vencer" : "em_dia";
-        }
+    const items: ResolvedItem[] = [];
+    for (const [refKey, m] of merged) {
+      const compKey = m.external ? `${s.id}:${m.assignmentId}` : `${s.id}:${m.trilhaId}`;
+      const isDone = m.external ? extDone.has(compKey) : onlineDone.has(compKey);
+      const at = m.external ? extDoneAt.get(compKey) ?? null : doneAt.get(compKey) ?? null;
+      const { status, targetDate } = classify(isDone, m.rec, at, m.due);
+      items.push({ refKey, title: m.title, status, targetDate });
+    }
+    return { student: s, items };
+  });
+}
+
+export async function loadComplianceOverview(
+  tenantId: string,
+  contentIds: string[]
+): Promise<ComplianceRow[]> {
+  const resolved = await resolveCompliance(tenantId, contentIds, { activeOnly: false });
+  return resolved
+    .map(({ student: s, items }) => {
+      let emDia = 0, aVencer = 0, vencido = 0, pendente = 0, semData = 0;
+      for (const it of items) {
+        if (it.status === "em_dia") emDia++;
+        else if (it.status === "a_vencer") aVencer++;
+        else if (it.status === "vencido") vencido++;
+        else if (it.status === "pendente") pendente++;
+        else semData++;
       }
-      items.push({
+      return {
+        id: s.id,
+        name: s.name,
+        email: s.email,
+        teamId: s.teamId,
+        total: items.length,
+        emDia,
+        aVencer,
+        vencido,
+        pendente,
+        semData,
+        conforme: vencido === 0 && pendente === 0,
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.vencido - a.vencido ||
+        b.pendente - a.pendente ||
+        b.aVencer - a.aVencer ||
+        a.name.localeCompare(b.name)
+    );
+}
+
+export async function loadComplianceItems(
+  tenantId: string,
+  contentIds: string[]
+): Promise<ComplianceItem[]> {
+  const resolved = await resolveCompliance(tenantId, contentIds, { activeOnly: true });
+  const out: ComplianceItem[] = [];
+  for (const { student: s, items } of resolved) {
+    for (const it of items) {
+      out.push({
         userId: s.id,
         userName: s.name,
         userEmail: s.email,
         teamId: s.teamId,
-        trilhaId,
-        title: m.title,
-        status,
-        targetDate,
+        refKey: it.refKey,
+        title: it.title,
+        status: it.status,
+        targetDate: it.targetDate,
       });
     }
   }
-
-  return items;
+  return out;
 }

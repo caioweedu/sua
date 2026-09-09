@@ -222,5 +222,132 @@ export async function removeAssignment(id: string) {
   await prisma.trainingAssignment.delete({ where: { id } });
   revalidatePath("/admin");
   if (a.userId) revalidatePath(`/admin/alunos/${a.userId}`);
+  revalidatePath("/admin/planejamento");
+  revalidatePath("/dashboard");
+}
+
+// --- Treinamentos externos / presenciais ---------------------------------
+// Planejados no sistema mas executados fora da plataforma (presencial ou outra
+// plataforma). Sem trilha/prova; a conclusão é uma BAIXA manual do RH/gestor.
+
+export async function createExternalTraining(formData: FormData) {
+  const admin = await requireAdmin();
+  const title = String(formData.get("title") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim() || null;
+  if (!title) return;
+
+  // Alvo: uma pessoa OU a equipe dela (checkbox "toTeam").
+  const userId = String(formData.get("userId") ?? "").trim() || null;
+  const teamId = String(formData.get("teamId") ?? "").trim() || null;
+  const toTeam = formData.get("toTeam") != null;
+  let targetUserId: string | null = null;
+  let targetTeamId: string | null = null;
+  if (toTeam && teamId) targetTeamId = teamId;
+  else if (userId) targetUserId = userId;
+  if (!targetUserId && !targetTeamId) return;
+
+  // Alvo precisa ser do tenant.
+  if (targetUserId) {
+    const u = await prisma.user.findFirst({ where: { id: targetUserId, tenantId: admin.tenantId }, select: { id: true } });
+    if (!u) return;
+  }
+  if (targetTeamId) {
+    const t = await prisma.team.findFirst({ where: { id: targetTeamId, tenantId: admin.tenantId }, select: { id: true } });
+    if (!t) return;
+  }
+
+  const startRaw = String(formData.get("startDate") ?? "").trim();
+  const dueRaw = String(formData.get("dueDate") ?? "").trim();
+  const required = formData.get("required") != null;
+  const recRaw = parseInt(String(formData.get("recurrenceMonths") ?? "").trim(), 10);
+  const recurrenceMonths = required && Number.isFinite(recRaw) && recRaw > 0 ? recRaw : null;
+
+  await prisma.trainingAssignment.create({
+    data: {
+      tenantId: admin.tenantId,
+      kind: "EXTERNAL",
+      trilhaId: null,
+      title,
+      location,
+      userId: targetUserId,
+      teamId: targetTeamId,
+      startDate: startRaw ? new Date(startRaw) : null,
+      dueDate: dueRaw ? new Date(dueRaw) : null,
+      required,
+      recurrenceMonths,
+      createdById: admin.id,
+    },
+  });
+
+  // Revalida a página de quem está sendo editado (o form manda userId mesmo
+  // quando o alvo é a equipe), além da lista e do compliance.
+  if (userId) revalidatePath(`/admin/planejamento/${userId}`);
+  if (targetUserId && targetUserId !== userId) revalidatePath(`/admin/planejamento/${targetUserId}`);
+  revalidatePath("/admin/planejamento");
+  revalidatePath("/admin/compliance");
+  revalidatePath("/dashboard");
+}
+
+// Confirma que a atribuição externa é do tenant do admin.
+async function ownedExternal(tenantId: string, assignmentId: string) {
+  return prisma.trainingAssignment.findFirst({
+    where: { id: assignmentId, tenantId, kind: "EXTERNAL" },
+    select: { id: true, userId: true, teamId: true },
+  });
+}
+
+// Baixa de UMA pessoa num treinamento externo (data opcional = hoje).
+export async function markExternalDone(assignmentId: string, userId: string, formData?: FormData) {
+  const admin = await requireAdmin();
+  const a = await ownedExternal(admin.tenantId, assignmentId);
+  if (!a) return;
+  // A pessoa precisa ser do tenant (e alvo direto ou membro da equipe alvo).
+  const u = await prisma.user.findFirst({ where: { id: userId, tenantId: admin.tenantId }, select: { id: true, teamId: true } });
+  if (!u) return;
+  if (a.userId && a.userId !== userId) return;
+  if (a.teamId && u.teamId !== a.teamId) return;
+
+  const dateRaw = formData ? String(formData.get("completedAt") ?? "").trim() : "";
+  const completedAt = dateRaw ? new Date(dateRaw) : new Date();
+  await prisma.externalCompletion.upsert({
+    where: { assignmentId_userId: { assignmentId, userId } },
+    update: { completedAt, markedById: admin.id },
+    create: { assignmentId, userId, completedAt, markedById: admin.id },
+  });
+  revalidatePath(`/admin/planejamento/${userId}`);
+  revalidatePath("/admin/planejamento");
+  revalidatePath("/admin/compliance");
+  revalidatePath("/dashboard");
+}
+
+export async function unmarkExternalDone(assignmentId: string, userId: string) {
+  const admin = await requireAdmin();
+  const a = await ownedExternal(admin.tenantId, assignmentId);
+  if (!a) return;
+  await prisma.externalCompletion.deleteMany({ where: { assignmentId, userId } });
+  revalidatePath(`/admin/planejamento/${userId}`);
+  revalidatePath("/admin/planejamento");
+  revalidatePath("/admin/compliance");
+  revalidatePath("/dashboard");
+}
+
+// Baixa em TODOS os membros atuais da equipe alvo (atalho).
+export async function markExternalDoneForTeam(assignmentId: string) {
+  const admin = await requireAdmin();
+  const a = await ownedExternal(admin.tenantId, assignmentId);
+  if (!a || !a.teamId) return;
+  const members = await prisma.user.findMany({
+    where: { tenantId: admin.tenantId, teamId: a.teamId, role: "STUDENT", active: true },
+    select: { id: true },
+  });
+  const now = new Date();
+  if (members.length > 0) {
+    await prisma.externalCompletion.createMany({
+      data: members.map((m) => ({ assignmentId, userId: m.id, completedAt: now, markedById: admin.id })),
+      skipDuplicates: true,
+    });
+  }
+  revalidatePath("/admin/planejamento");
+  revalidatePath("/admin/compliance");
   revalidatePath("/dashboard");
 }

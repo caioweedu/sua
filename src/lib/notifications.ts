@@ -120,7 +120,7 @@ export async function runComplianceNotifications(opts: {
       if (!(it.status === "a_vencer" || it.status === "vencido" || it.status === "pendente")) continue;
       const bucket = bucketFor(it.targetDate, now);
       if (!bucket) continue;
-      const key = `due:${it.trilhaId}:${ymd(it.targetDate)}:${bucket}`;
+      const key = `due:${it.refKey}:${ymd(it.targetDate)}:${bucket}`;
       const cur = perUser.get(it.userId) ?? { name: it.userName, email: it.userEmail, hits: [] };
       cur.hits.push({ title: it.title, status: it.status, targetDate: it.targetDate, bucket, key });
       perUser.set(it.userId, cur);

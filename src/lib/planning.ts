@@ -19,23 +19,34 @@ export async function loadPlanningOverview(
   tenantId: string,
   contentIds: string[]
 ): Promise<PlanningRow[]> {
-  const [students, assignments, completed] = await Promise.all([
+  const [students, assignments, completed, extDoneRows] = await Promise.all([
     prisma.user.findMany({
       where: { tenantId, role: "STUDENT" },
       orderBy: { name: "asc" },
       select: { id: true, name: true, email: true, teamId: true },
     }),
     prisma.trainingAssignment.findMany({
-      where: { tenantId, trilha: { published: true, tenantId: { in: contentIds } } },
-      select: { trilhaId: true, userId: true, teamId: true, dueDate: true },
+      where: {
+        tenantId,
+        OR: [
+          { kind: { not: "EXTERNAL" }, trilha: { published: true, tenantId: { in: contentIds } } },
+          { kind: "EXTERNAL" },
+        ],
+      },
+      select: { id: true, kind: true, trilhaId: true, userId: true, teamId: true, dueDate: true },
     }),
     prisma.enrollment.findMany({
       where: { status: "COMPLETED", user: { tenantId } },
       select: { userId: true, trilhaId: true },
     }),
+    prisma.externalCompletion.findMany({
+      where: { assignment: { tenantId } },
+      select: { assignmentId: true, userId: true },
+    }),
   ]);
 
   const completedSet = new Set(completed.map((e) => `${e.userId}:${e.trilhaId}`));
+  const extDone = new Set(extDoneRows.map((e) => `${e.userId}:${e.assignmentId}`));
   const now = new Date();
 
   // Índices de atribuição: por usuário e por equipe.
@@ -53,24 +64,29 @@ export async function loadPlanningOverview(
 
   return students
     .map((s) => {
-      // Planejado = atribuições diretas + da equipe; menor prazo por produto.
-      const dueByTrilha = new Map<string, Date | null>();
+      // Planejado = atribuições diretas + da equipe; online deduplica por produto
+      // (menor prazo); externo é uma linha por atribuição.
+      const items = new Map<string, { due: Date | null; compKey: string }>();
       const consider = [
         ...(byUser.get(s.id) ?? []),
         ...(s.teamId ? byTeam.get(s.teamId) ?? [] : []),
       ];
       for (const a of consider) {
-        if (!dueByTrilha.has(a.trilhaId)) {
-          dueByTrilha.set(a.trilhaId, a.dueDate ?? null);
-        } else {
-          const prev = dueByTrilha.get(a.trilhaId)!;
-          if (a.dueDate && (!prev || a.dueDate < prev)) dueByTrilha.set(a.trilhaId, a.dueDate);
+        const external = a.kind === "EXTERNAL";
+        const refKey = external ? `x:${a.id}` : `t:${a.trilhaId}`;
+        const compKey = external ? `${s.id}:${a.id}` : `${s.id}:${a.trilhaId}`;
+        const prev = items.get(refKey);
+        if (!prev) {
+          items.set(refKey, { due: a.dueDate ?? null, compKey });
+        } else if (a.dueDate && (!prev.due || a.dueDate < prev.due)) {
+          items.set(refKey, { ...prev, due: a.dueDate });
         }
       }
 
       let overdue = 0, pending = 0, done = 0;
-      for (const [trilhaId, due] of dueByTrilha) {
-        const isDone = completedSet.has(`${s.id}:${trilhaId}`);
+      for (const [refKey, it] of items) {
+        const isDone = refKey.startsWith("x:") ? extDone.has(it.compKey) : completedSet.has(it.compKey);
+        const due = it.due;
         if (isDone) {
           done++;
         } else {
@@ -82,7 +98,7 @@ export async function loadPlanningOverview(
         id: s.id,
         name: s.name,
         email: s.email,
-        total: dueByTrilha.size,
+        total: items.size,
         overdue,
         pending,
         done,

@@ -120,6 +120,10 @@ export default async function DashboardPage() {
     const s = dstr(a.startDate);
     const e = dstr(a.dueDate);
     const periodo = s && e ? `${s} → ${e}` : e ? `Prazo: ${e}` : s ? `A partir de ${s}` : "Sem prazo";
+    // Externo/presencial: o colaborador não conclui sozinho — o RH dá baixa.
+    if (a.kind === "external") {
+      return `${a.overdue ? "Atrasado · " : ""}${periodo} · aguardando confirmação do RH`;
+    }
     return `${a.overdue ? "Atrasado · " : ""}${periodo} · ${a.progressPct}%`;
   };
 
@@ -176,16 +180,16 @@ export default async function DashboardPage() {
                 Definidos pela sua empresa. Fique de olho nos prazos.
               </p>
               <ul className="space-y-2">
-                {agenda.map((a) => (
-                  <li key={a.trilhaId}>
-                    <Link
-                      href={`/trilhas/${a.trilhaId}`}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2 transition hover:bg-white/5"
-                    >
+                {agenda.map((a) => {
+                  const inner = (
+                    <>
                       <span className="min-w-0">
                         <span className="s-fg font-medium">{a.title}</span>
                         {a.required && (
                           <span className="s-muted ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px]">obrigatório</span>
+                        )}
+                        {a.kind === "external" && (
+                          <span className="s-muted ml-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px]">🏫 {a.location || "externo"}</span>
                         )}
                         {a.recurrenceMonths && (
                           <span className="s-muted ml-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px]">🔁 renova</span>
@@ -202,12 +206,24 @@ export default async function DashboardPage() {
                           {agendaStatus(a)}
                         </span>
                       </span>
-                      {(!a.completed || a.expired) && (
+                      {a.kind !== "external" && (!a.completed || a.expired) && (
                         <span className="s-muted text-xs font-semibold">{a.expired ? "refazer →" : "continuar →"}</span>
                       )}
-                    </Link>
-                  </li>
-                ))}
+                    </>
+                  );
+                  const cls = "flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 px-3 py-2";
+                  return (
+                    <li key={a.assignmentId}>
+                      {a.kind === "external" ? (
+                        <div className={cls}>{inner}</div>
+                      ) : (
+                        <Link href={`/trilhas/${a.trilhaId}`} className={`${cls} transition hover:bg-white/5`}>
+                          {inner}
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </div>

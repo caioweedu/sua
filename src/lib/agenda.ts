@@ -7,7 +7,9 @@ import { WARN_DAYS } from "./compliance";
 
 export type AgendaItem = {
   assignmentId: string;
-  trilhaId: string;
+  kind: "online" | "external"; // online = trilha da plataforma; external = presencial/outra
+  trilhaId: string | null; // null quando externo
+  location: string | null; // externo: local/modalidade
   title: string;
   startDate: Date | null;
   dueDate: Date | null;
@@ -56,18 +58,23 @@ export async function loadUserAgenda(
     },
   });
 
-  // Só produtos publicados e dentro do escopo de conteúdo do tenant.
+  // Online: só produtos publicados e dentro do escopo de conteúdo do tenant.
   const valid = assignments.filter(
-    (a) => a.trilha.published && contentIds.includes(a.trilha.tenantId)
+    (a) => a.kind !== "EXTERNAL" && a.trilha && a.trilha.published && contentIds.includes(a.trilha.tenantId)
   );
-  if (valid.length === 0) return [];
+  const externals = assignments.filter((a) => a.kind === "EXTERNAL");
+  if (valid.length === 0 && externals.length === 0) return [];
 
-  const trilhaIds = [...new Set(valid.map((a) => a.trilhaId))];
-  const [progress, enrollments] = await Promise.all([
+  const trilhaIds = [...new Set(valid.map((a) => a.trilhaId!).filter(Boolean))];
+  const [progress, enrollments, extDone] = await Promise.all([
     prisma.aulaProgress.findMany({ where: { userId }, select: { aulaId: true } }),
     prisma.enrollment.findMany({
       where: { userId, trilhaId: { in: trilhaIds } },
       select: { trilhaId: true, status: true, completedAt: true },
+    }),
+    prisma.externalCompletion.findMany({
+      where: { userId, assignment: { tenantId } },
+      select: { assignmentId: true, completedAt: true },
     }),
   ]);
   const doneAulas = new Set(progress.map((p) => p.aulaId));
@@ -78,6 +85,7 @@ export async function loadUserAgenda(
   const completedAtByTrilha = new Map(
     enrollments.filter((e) => e.status === "COMPLETED").map((e) => [e.trilhaId, e.completedAt])
   );
+  const extDoneAt = new Map(extDone.map((e) => [e.assignmentId, e.completedAt]));
 
   const now = new Date();
   // Uma linha por produto: a atribuição direta tem prioridade sobre a da equipe;
@@ -85,6 +93,7 @@ export async function loadUserAgenda(
   const byTrilha = new Map<string, AgendaItem>();
   for (const a of valid) {
     const t = a.trilha;
+    if (!t) continue; // (garantido pelo filtro acima; estreita o tipo)
     const total = t.aulas.length;
     const done = t.aulas.filter((x) => doneAulas.has(x.id)).length;
     const completed = completedTrilha.has(t.id) || (total > 0 && done === total);
@@ -111,7 +120,9 @@ export async function loadUserAgenda(
 
     const item: AgendaItem = {
       assignmentId: source === "you" ? a.id : prev?.assignmentId ?? a.id,
+      kind: "online",
       trilhaId: t.id,
+      location: null,
       title: t.title,
       startDate: prev?.startDate ?? a.startDate ?? null,
       dueDate,
@@ -130,9 +141,39 @@ export async function loadUserAgenda(
     byTrilha.set(t.id, item);
   }
 
+  // Externos: uma linha por atribuição (sem dedupe). Conclusão = baixa manual.
+  const externalItems: AgendaItem[] = externals.map((a) => {
+    const doneAt = extDoneAt.get(a.id) ?? null;
+    const completed = extDoneAt.has(a.id);
+    const rec = a.recurrenceMonths ?? null;
+    const expiresAt = completed && rec && rec > 0 && doneAt ? addMonths(doneAt, rec) : null;
+    const expired = !!expiresAt && expiresAt < now;
+    const expiringSoon = !!expiresAt && !expired && expiresAt.getTime() - now.getTime() <= WARN_DAYS * 864e5;
+    return {
+      assignmentId: a.id,
+      kind: "external" as const,
+      trilhaId: null,
+      location: a.location ?? null,
+      title: a.title ?? "Treinamento externo",
+      startDate: a.startDate ?? null,
+      dueDate: a.dueDate ?? null,
+      required: a.required,
+      recurrenceMonths: rec,
+      source: a.userId ? "you" : "team",
+      aulasTotal: 0,
+      aulasDone: 0,
+      progressPct: 0,
+      completed,
+      overdue: !completed && !!a.dueDate && a.dueDate < now,
+      expiresAt,
+      expired,
+      expiringSoon,
+    };
+  });
+
   // Ordena: pendências de ação primeiro (atrasado ou vencido), depois por prazo,
   // depois sem prazo, por título.
-  return [...byTrilha.values()].sort((a, b) => {
+  return [...byTrilha.values(), ...externalItems].sort((a, b) => {
     const aAct = a.overdue || a.expired;
     const bAct = b.overdue || b.expired;
     if (aAct !== bAct) return aAct ? -1 : 1;
