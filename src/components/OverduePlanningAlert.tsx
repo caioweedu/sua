@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Icon from "@/components/Icon";
 
 // Card de alerta de atrasos no planejamento (treinamentos com prazo vencido).
 // Reutilizado no Painel Gestor do admin (/admin/rh) e no painel escopado
@@ -24,8 +25,9 @@ export default function OverduePlanningAlert({
   if (rows.length === 0) {
     return (
       <div className="card mt-6">
-        <p className="text-sm text-emerald-700">
-          ✓ Ninguém com treinamento planejado atrasado.
+        <p className="flex items-center gap-2 text-sm text-emerald-700">
+          <Icon name="checkCircle" size={16} className="shrink-0" />
+          Ninguém com treinamento planejado atrasado.
         </p>
       </div>
     );
@@ -33,7 +35,10 @@ export default function OverduePlanningAlert({
 
   return (
     <div className="card mt-6 border-red-200">
-      <h2 className="mb-1 font-semibold text-red-700">🔴 Atrasos no planejamento</h2>
+      <h2 className="mb-1 flex items-center gap-2 font-semibold text-red-700">
+        <Icon name="alertTriangle" size={17} className="shrink-0" />
+        Atrasos no planejamento
+      </h2>
       <p className="mb-3 text-xs text-slate-500">
         {rows.length} pessoa(s) com treinamento planejado vencido. Clique para ver o planejamento.
       </p>

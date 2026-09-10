@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { sendAccessLink, type AccessLinkResult } from "@/lib/actions/users";
 import SubmitButton from "@/components/SubmitButton";
+import Icon from "@/components/Icon";
 
 const initial: AccessLinkResult = { ok: false };
 
@@ -45,7 +46,7 @@ export default function StudentAccessCard({
           className="btn-brand text-sm"
           pendingText="Gerando…"
         >
-          ✉️ Enviar convite
+          <span className="inline-flex items-center gap-2"><Icon name="mail" size={15} className="shrink-0" /> Enviar convite</span>
         </SubmitButton>
         <SubmitButton
           name="purpose"
@@ -53,13 +54,13 @@ export default function StudentAccessCard({
           className="btn-outline text-sm"
           pendingText="Gerando…"
         >
-          🔑 Redefinir senha (link)
+          <span className="inline-flex items-center gap-2"><Icon name="key" size={15} className="shrink-0" /> Redefinir senha (link)</span>
         </SubmitButton>
       </form>
 
       {state.ok && state.sent && (
-        <p className="mt-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
-          ✓ E-mail {state.purpose === "RESET" ? "de redefinição" : "de convite"} enviado para{" "}
+        <p className="mt-3 inline-flex flex-wrap items-center gap-1.5 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
+          <Icon name="check" size={14} className="shrink-0" /> E-mail {state.purpose === "RESET" ? "de redefinição" : "de convite"} enviado para{" "}
           <span className="font-medium">{studentEmail}</span>.
         </p>
       )}

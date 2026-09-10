@@ -4,6 +4,7 @@ import { getCurrentUser, canManageTeams } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import GestorNav from "@/components/GestorNav";
 import SubmitButton from "@/components/SubmitButton";
+import Icon from "@/components/Icon";
 import {
   createTeam,
   renameTeam,
@@ -76,8 +77,9 @@ export default async function EquipesPage() {
           {/* Cabeçalho da equipe */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2">
             <div className="min-w-0">
-              <span className="text-sm font-semibold text-ink">
-                {depth === 0 ? "🏢" : "▸"} {team.name}
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink">
+                <Icon name={depth === 0 ? "building" : "chevronRight"} size={depth === 0 ? 15 : 13} className="shrink-0 text-slate-500" />
+                {team.name}
               </span>
               <span className="ml-2 text-xs text-slate-400">
                 {team.members.length} pessoa(s)
@@ -111,8 +113,9 @@ export default async function EquipesPage() {
           <ul className="divide-y divide-slate-50">
             {team.members.map((m) => (
               <li key={m.id} className="flex items-center justify-between gap-2 px-3 py-1.5 pl-5">
-                <span className="min-w-0 truncate text-sm">
-                  👤 {m.name} <span className="text-xs text-slate-400">{m.email}</span>
+                <span className="inline-flex min-w-0 items-center gap-1.5 truncate text-sm">
+                  <Icon name="user" size={14} className="shrink-0 text-slate-400" />
+                  {m.name} <span className="text-xs text-slate-400">{m.email}</span>
                 </span>
                 <form action={removeMember.bind(null, m.id)}>
                   <button className="shrink-0 text-xs text-slate-400 hover:text-red-500" type="submit">tirar</button>
@@ -291,12 +294,12 @@ export default async function EquipesPage() {
               pelo botão “Gerir equipe → Alocar pessoa”.
             </p>
             {unassigned.length === 0 ? (
-              <p className="text-sm text-emerald-600">Todo mundo está em uma equipe. ✓</p>
+              <p className="inline-flex items-center gap-1.5 text-sm text-emerald-600"><Icon name="check" size={15} className="shrink-0" /> Todo mundo está em uma equipe.</p>
             ) : (
               <ul className="max-h-72 space-y-1 overflow-y-auto text-sm">
                 {unassigned.map((p) => (
-                  <li key={p.id} className="truncate text-slate-600">
-                    👤 {p.name}
+                  <li key={p.id} className="flex items-center gap-1.5 truncate text-slate-600">
+                    <Icon name="user" size={14} className="shrink-0 text-slate-400" /> {p.name}
                     {p.role !== "STUDENT" && (
                       <span className="ml-1 text-[11px] text-slate-400">({p.role})</span>
                     )}

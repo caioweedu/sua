@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logoutAction } from "@/lib/actions/auth";
+import Icon, { type IconName } from "@/components/Icon";
 
 // Onda 3 · Navegação do admin — sidebar lateral recolhível.
 // A seção atual fica destacada na cor principal (var(--brand-color)); as demais
@@ -12,7 +13,7 @@ import { logoutAction } from "@/lib/actions/auth";
 
 type Item = {
   href: string;
-  icon: string;
+  icon: IconName;
   label: string;
   // Prefixos de rota que mantêm este item ativo (além do próprio href).
   match: string[];
@@ -23,21 +24,21 @@ type Item = {
 };
 
 const ITEMS: Item[] = [
-  { href: "/admin/analytics", icon: "📊", label: "Dashboard", match: [] },
-  { href: "/admin", icon: "📚", label: "Conteúdo", match: ["/admin/trilhas", "/admin/copiloto"] },
-  { href: "/admin/usuarios", icon: "👥", label: "Usuários", match: ["/admin/alunos"] },
+  { href: "/admin/analytics", icon: "dashboard", label: "Dashboard", match: [] },
+  { href: "/admin", icon: "book", label: "Conteúdo", match: ["/admin/trilhas", "/admin/copiloto"] },
+  { href: "/admin/usuarios", icon: "users", label: "Usuários", match: ["/admin/alunos"] },
   {
     href: "/admin/rh",
-    icon: "🧑‍💼",
+    icon: "briefcase",
     label: "Painel Gestor",
     match: ["/admin/equipes", "/admin/planejamento", "/admin/compliance"],
     teams: true,
   },
-  { href: "/admin/aparencia", icon: "🎨", label: "Aparência", match: [] },
-  { href: "/admin/gamificacao", icon: "🎮", label: "Gamificação", match: [] },
-  { href: "/admin/provas", icon: "📝", label: "Provas", match: [] },
-  { href: "/admin/certificados", icon: "🏆", label: "Certificados", match: [] },
-  { href: "/admin/filhas", icon: "🏢", label: "Filhas", match: [], superOnly: true },
+  { href: "/admin/aparencia", icon: "sliders", label: "Aparência", match: [] },
+  { href: "/admin/gamificacao", icon: "gamepad", label: "Gamificação", match: [] },
+  { href: "/admin/provas", icon: "fileText", label: "Provas", match: [] },
+  { href: "/admin/certificados", icon: "award", label: "Certificados", match: [] },
+  { href: "/admin/filhas", icon: "network", label: "Filhas", match: [], superOnly: true },
 ];
 
 function isActive(item: Item, pathname: string): boolean {
@@ -140,7 +141,7 @@ export default function AdminSidebar({
                     : undefined
                 }
               >
-                <span className="text-base leading-none">{it.icon}</span>
+                <Icon name={it.icon} size={19} className="shrink-0" />
                 {!collapsed && <span className="truncate">{it.label}</span>}
               </Link>
             );
@@ -171,7 +172,7 @@ export default function AdminSidebar({
               }`}
               title="Sair do sistema"
             >
-              <span aria-hidden>⎋</span>
+              <Icon name="logout" size={17} className="shrink-0" />
               {!collapsed && <span>Sair do Sistema</span>}
             </button>
           </form>
@@ -194,7 +195,7 @@ export default function AdminSidebar({
                 active ? { background: "var(--brand-color)", color: "var(--brand-fg)" } : undefined
               }
             >
-              <span>{it.icon}</span>
+              <Icon name={it.icon} size={16} className="shrink-0" />
               <span>{it.label}</span>
             </Link>
           );

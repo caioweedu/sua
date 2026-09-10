@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { logoutAction } from "@/lib/actions/auth";
 import AdminSidebar from "./AdminSidebar";
+import Icon from "./Icon";
 
 // Onda 3 · Casca da administração — cabeçalho enxuto + sidebar lateral
 // recolhível (AdminSidebar) + conteúdo. Substitui o AppShell nas telas de
@@ -61,9 +62,9 @@ export default function AdminShell({ children, user, tenant, fluid }: Props) {
       {user.impersonating && (
         <div className="border-b border-amber-300 bg-amber-100 text-amber-900">
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-sm">
-            <span>
-              👁️ Você está visualizando como <strong>{tenant.name}</strong> (universidade filha).
-              O que você fizer aqui afeta esta filha.
+            <span className="inline-flex items-center gap-1.5">
+              <Icon name="eye" size={15} className="shrink-0" />
+              <span>Você está visualizando como <strong>{tenant.name}</strong> (universidade filha). O que você fizer aqui afeta esta filha.</span>
             </span>
             <a href="/admin?tenant=" className="font-semibold underline hover:no-underline">
               Voltar para a Weedu →

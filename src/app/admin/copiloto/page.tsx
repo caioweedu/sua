@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import CopilotoClient from "./copiloto-client";
+import Icon from "@/components/Icon";
 
 // Copiloto de IA para criação (Fase 5): o gestor cola um texto ou sobe um PDF
 // e a IA propõe a estrutura do curso + quiz, editável antes de publicar.
@@ -24,7 +25,7 @@ export default async function CopilotoPage() {
       <Link href="/admin" className="text-sm text-slate-500 hover:text-slate-900">
         ← Administração
       </Link>
-      <h1 className="mt-2 mb-1 text-2xl font-bold">✨ Copiloto de criação</h1>
+      <h1 className="mt-2 mb-1 flex items-center gap-2 text-2xl font-bold"><Icon name="sparkles" size={22} className="shrink-0 text-brand" /> Copiloto de criação</h1>
       <p className="mb-6 max-w-2xl text-sm text-slate-500">
         Cole um material (manual, política, apostila) ou envie um PDF. A IA propõe
         a estrutura do curso — produto, módulos, aulas e um quiz com gabarito.

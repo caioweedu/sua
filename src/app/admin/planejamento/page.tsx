@@ -4,6 +4,7 @@ import { getCurrentUser, canManageTeams } from "@/lib/auth";
 import { contentTenantIds } from "@/lib/access";
 import { loadPlanningOverview } from "@/lib/planning";
 import GestorNav from "@/components/GestorNav";
+import Icon from "@/components/Icon";
 import ImportPlanningCard from "./import-planning-card";
 
 // Onda 3 · F3b — Painel de planejamento (RH): lista de colaboradores com o
@@ -12,11 +13,11 @@ import ImportPlanningCard from "./import-planning-card";
 
 function StatusBadge({ overdue, pending, total }: { overdue: number; pending: number; total: number }) {
   if (overdue > 0)
-    return <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">🔴 {overdue} atrasado(s)</span>;
+    return <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600"><Icon name="alertTriangle" size={12} className="shrink-0" /> {overdue} atrasado(s)</span>;
   if (pending > 0)
-    return <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">⚠️ {pending} pendente(s)</span>;
+    return <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700"><Icon name="alertCircle" size={12} className="shrink-0" /> {pending} pendente(s)</span>;
   if (total > 0)
-    return <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">✓ em dia</span>;
+    return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"><Icon name="check" size={12} className="shrink-0" /> em dia</span>;
   return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">sem plano</span>;
 }
 

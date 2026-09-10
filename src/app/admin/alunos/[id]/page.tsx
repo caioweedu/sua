@@ -7,6 +7,7 @@ import { contentTenantIds } from "@/lib/access";
 import { emailConfigured } from "@/lib/email";
 import { updateUser, resetUserPassword } from "@/lib/actions/users";
 import SubmitButton from "@/components/SubmitButton";
+import Icon from "@/components/Icon";
 import StudentAccessCard from "./student-access-card";
 
 function fmtDate(d: Date | null | undefined): string {
@@ -146,8 +147,8 @@ export default async function StudentDetailPage({
                     </td>
                     <td className="py-2 pr-4">
                       {c.certCode ? (
-                        <Link href={`/certificados/${c.certCode}`} className="text-brand hover:underline">
-                          🏆 {fmtDate(c.certIssuedAt)}
+                        <Link href={`/certificados/${c.certCode}`} className="inline-flex items-center gap-1.5 text-brand hover:underline">
+                          <Icon name="award" size={14} className="shrink-0" /> {fmtDate(c.certIssuedAt)}
                         </Link>
                       ) : (
                         <span className="text-slate-400">—</span>
@@ -168,8 +169,8 @@ export default async function StudentDetailPage({
           O planejamento de treinamentos desta pessoa (o que fazer e até quando)
           fica no painel de RH.
         </p>
-        <Link href={`/admin/planejamento/${student.id}`} className="btn-outline text-sm">
-          🗓️ Abrir planejamento de {student.name.split(" ")[0]}
+        <Link href={`/admin/planejamento/${student.id}`} className="btn-outline inline-flex items-center gap-2 text-sm">
+          <Icon name="calendar" size={15} className="shrink-0" /> Abrir planejamento de {student.name.split(" ")[0]}
         </Link>
       </div>
 

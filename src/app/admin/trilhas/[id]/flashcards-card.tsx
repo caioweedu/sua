@@ -8,6 +8,7 @@ import {
   adicionarFlashcards,
 } from "@/lib/actions/flashcards";
 import type { PropostaFlashcard } from "@/lib/copiloto";
+import Icon from "@/components/Icon";
 
 type Card = { id: string; front: string; back: string };
 type Phase = "idle" | "generating" | "review" | "saving";
@@ -138,14 +139,14 @@ export default function FlashcardsCard({
       {/* Geração por IA */}
       <div className="mt-4 border-t border-slate-100 pt-4">
         {!aiOpen ? (
-          <button className="btn-brand text-sm" onClick={() => setAiOpen(true)}>
-            ✨ Gerar flashcards com IA
+          <button className="btn-brand inline-flex items-center gap-2 text-sm" onClick={() => setAiOpen(true)}>
+            <Icon name="sparkles" size={15} className="shrink-0" /> Gerar flashcards com IA
           </button>
         ) : (
           <div className="space-y-3 rounded-xl border border-brand/30 bg-brand/5 p-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-ink">
-                ✨ Gerar flashcards com IA
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink">
+                <Icon name="sparkles" size={15} className="shrink-0 text-brand" /> Gerar flashcards com IA
               </span>
               <button
                 className="btn-ghost text-xs"

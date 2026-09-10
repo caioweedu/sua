@@ -6,6 +6,7 @@ import ImportCard from "./import-card";
 import ConditionEditor, { type CondOption } from "@/components/ConditionEditor";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
+import Icon from "@/components/Icon";
 import { describeCondition } from "@/lib/release";
 import { grantedSharedVitrineIds } from "@/lib/access";
 import {
@@ -111,8 +112,8 @@ export default async function AdminPage() {
           <h1 className="text-2xl font-bold">Conteúdo</h1>
           <p className="text-sm text-slate-500">Vitrines, produtos e perfis de acesso.</p>
         </div>
-        <Link href="/admin/copiloto" className="btn-brand text-sm">
-          ✨ Copiloto de criação
+        <Link href="/admin/copiloto" className="btn-brand inline-flex items-center gap-2 text-sm">
+          <Icon name="sparkles" size={16} className="shrink-0" /> Copiloto de criação
         </Link>
       </div>
 
@@ -123,8 +124,8 @@ export default async function AdminPage() {
             <h2 className="mb-1 font-semibold">Estrutura</h2>
             <p className="mb-4 text-xs text-slate-500">
               Vitrines contêm produtos; cada produto contém módulos, aulas, provas e
-              certificado. Clique em um produto para editar o conteúdo dele. O 🔒
-              indica uma condição de liberação.
+              certificado. Clique em um produto para editar o conteúdo dele. O
+              cadeado indica uma condição de liberação.
             </p>
 
             {vitrines.length === 0 && (
@@ -137,12 +138,12 @@ export default async function AdminPage() {
                   {/* Vitrine */}
                   <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2">
                     <div className="min-w-0">
-                      <span className="text-sm font-semibold text-ink">🗂️ {v.name}</span>
+                      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink"><Icon name="folder" size={15} className="shrink-0 text-slate-500" /> {v.name}</span>
                       <span className="ml-2 text-xs text-slate-400">
                         /{v.slug} · {v._count.trilhas} produto(s)
                       </span>
                       {v.releaseCondition && (
-                        <span className="ml-1 text-xs text-amber-600">· 🔒 {describeCondition(v.releaseCondition)}</span>
+                        <span className="ml-1 inline-flex items-center gap-1 text-xs text-amber-600">· <Icon name="lock" size={12} className="shrink-0" /> {describeCondition(v.releaseCondition)}</span>
                       )}
                     </div>
                     <form action={deleteVitrine.bind(null, v.id)}>
@@ -183,8 +184,8 @@ export default async function AdminPage() {
                     {v.trilhas.map((t) => (
                       <li key={t.id} className="flex items-center justify-between gap-2 px-3 py-2 pl-6">
                         <div className="min-w-0">
-                          <Link href={`/admin/trilhas/${t.id}`} className="text-sm font-medium hover:underline">
-                            📦 {t.title}
+                          <Link href={`/admin/trilhas/${t.id}`} className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline">
+                            <Icon name="package" size={14} className="shrink-0 text-slate-500" /> {t.title}
                           </Link>
                           <span className="ml-2 text-xs text-slate-400">
                             {t._count.modulos} módulo(s) · {t._count.aulas} aula(s) ·{" "}
@@ -233,7 +234,7 @@ export default async function AdminPage() {
                       />
                       {v.examPlacements.map((p) => (
                         <div key={p.id} className="mt-1.5 flex items-center justify-between text-xs">
-                          <span className="text-slate-600">📝 {p.exam.title} ({p.exam._count.questions} q.)</span>
+                          <span className="inline-flex items-center gap-1.5 text-slate-600"><Icon name="fileText" size={13} className="shrink-0 text-slate-500" /> {p.exam.title} ({p.exam._count.questions} q.)</span>
                           <form action={detachExamPlacement.bind(null, p.id, "/admin")}>
                             <button className="text-red-500 hover:underline" type="submit">remover</button>
                           </form>
@@ -258,14 +259,14 @@ export default async function AdminPage() {
               {/* Produtos sem vitrine */}
               {orphanTrilhas.length > 0 && (
                 <div className="rounded-xl border border-dashed border-slate-300">
-                  <div className="border-b border-slate-100 bg-amber-50/50 px-3 py-2 text-sm font-semibold text-amber-700">
-                    ⚠️ Produtos sem vitrine
+                  <div className="flex items-center gap-1.5 border-b border-slate-100 bg-amber-50/50 px-3 py-2 text-sm font-semibold text-amber-700">
+                    <Icon name="alertCircle" size={15} className="shrink-0" /> Produtos sem vitrine
                   </div>
                   <ul className="divide-y divide-slate-50">
                     {orphanTrilhas.map((t) => (
                       <li key={t.id} className="flex items-center justify-between gap-2 px-3 py-2 pl-6">
-                        <Link href={`/admin/trilhas/${t.id}`} className="text-sm font-medium hover:underline">
-                          📦 {t.title}
+                        <Link href={`/admin/trilhas/${t.id}`} className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline">
+                          <Icon name="package" size={14} className="shrink-0 text-slate-500" /> {t.title}
                         </Link>
                         <Link href={`/admin/trilhas/${t.id}`} className="btn-outline px-2 py-1 text-xs">abrir</Link>
                       </li>
@@ -278,8 +279,8 @@ export default async function AdminPage() {
             {/* Conteúdo liberado pela Weedu (só leitura — quem controla é a Weedu) */}
             {isDaughter && (
               <div className="mt-3 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40">
-                <div className="border-b border-indigo-100 px-3 py-2 text-sm font-semibold text-indigo-700">
-                  🔗 Conteúdo liberado pela Weedu
+                <div className="flex items-center gap-1.5 border-b border-indigo-100 px-3 py-2 text-sm font-semibold text-indigo-700">
+                  <Icon name="link" size={15} className="shrink-0" /> Conteúdo liberado pela Weedu
                 </div>
                 {receivedVitrines.length === 0 ? (
                   <p className="px-3 py-3 text-xs text-slate-500">
@@ -290,7 +291,7 @@ export default async function AdminPage() {
                     <ul className="divide-y divide-indigo-50">
                       {receivedVitrines.map((v) => (
                         <li key={v.id} className="px-3 py-2">
-                          <span className="text-sm font-medium text-ink">🗂️ {v.name}</span>
+                          <span className="inline-flex items-center gap-1.5 text-sm font-medium text-ink"><Icon name="folder" size={14} className="shrink-0 text-slate-500" /> {v.name}</span>
                           <span className="ml-2 text-xs text-slate-400">
                             {v.trilhas.length} produto(s)
                           </span>

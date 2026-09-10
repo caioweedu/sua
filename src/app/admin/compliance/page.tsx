@@ -4,6 +4,7 @@ import { getCurrentUser, canManageTeams } from "@/lib/auth";
 import { contentTenantIds } from "@/lib/access";
 import { loadComplianceOverview, WARN_DAYS } from "@/lib/compliance";
 import GestorNav from "@/components/GestorNav";
+import Icon from "@/components/Icon";
 
 // Onda 3 · F3 — Painel de Compliance (admin): conformidade dos treinamentos
 // OBRIGATÓRIOS por pessoa, considerando validade/recorrência. Só leitura.
@@ -89,7 +90,7 @@ export default async function CompliancePage() {
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-1.5">
                   {r.conforme && r.vencido === 0 && r.pendente === 0 && r.aVencer === 0 && r.semData === 0 ? (
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">✓ em conformidade</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"><Icon name="check" size={12} className="shrink-0" /> em conformidade</span>
                   ) : (
                     <>
                       <Chip n={r.vencido} tone="bg-red-50 text-red-600" label="vencido(s)" />

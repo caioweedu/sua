@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Icon from "@/components/Icon";
 import {
   type TeamCockpitData,
   type TeamNode,
@@ -84,8 +85,13 @@ export default function TeamCockpit({
           style={depth > 0 ? { borderLeftWidth: 3, borderLeftColor: "var(--brand,#2563eb)" } : undefined}
         >
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2">
-            <span className="text-sm font-semibold text-ink">
-              {depth === 0 ? "🏢" : "▸"} {team.name}
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink">
+              <Icon
+                name={depth === 0 ? "building" : "chevronRight"}
+                size={depth === 0 ? 16 : 14}
+                className="shrink-0 text-slate-500"
+              />
+              {team.name}
               {mode === "tree" && kids.length > 0 && (
                 <span className="ml-2 text-xs font-normal text-slate-400">(inclui subequipes)</span>
               )}

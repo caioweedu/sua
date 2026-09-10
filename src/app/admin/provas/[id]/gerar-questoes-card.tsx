@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { adicionarQuestoes } from "@/lib/actions/copiloto";
 import type { PropostaQuestao } from "@/lib/copiloto";
+import Icon from "@/components/Icon";
 
 type Phase = "input" | "generating" | "review" | "saving";
 
@@ -83,8 +84,8 @@ export default function GerarQuestoesCard({ examId }: { examId: string }) {
   if (!open) {
     return (
       <div className="mt-4 border-t border-slate-100 pt-4">
-        <button className="btn-outline text-sm" onClick={() => setOpen(true)}>
-          ✨ Gerar questões com IA
+        <button className="btn-outline inline-flex items-center gap-2 text-sm" onClick={() => setOpen(true)}>
+          <Icon name="sparkles" size={15} className="shrink-0" /> Gerar questões com IA
         </button>
       </div>
     );
@@ -95,7 +96,7 @@ export default function GerarQuestoesCard({ examId }: { examId: string }) {
   return (
     <div className="mt-4 space-y-3 rounded-xl border border-brand/30 bg-brand/5 p-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-ink">✨ Gerar questões com IA</span>
+        <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink"><Icon name="sparkles" size={15} className="shrink-0 text-brand" /> Gerar questões com IA</span>
         <button
           className="btn-ghost text-xs"
           onClick={() => {

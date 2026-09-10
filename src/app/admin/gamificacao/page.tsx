@@ -5,6 +5,7 @@ import { LEVEL_BADGES } from "@/lib/levelBadges";
 import { getLevelIconMap } from "@/lib/levelIcons";
 import SubmitButton from "@/components/SubmitButton";
 import ImageUpload from "@/components/ImageUpload";
+import Icon from "@/components/Icon";
 
 // Onda 3 · Navegação — Gamificação em um só lugar: ativar/ranking (por
 // universidade) e, para a Weedu, a personalização dos ícones dos níveis.
@@ -65,9 +66,9 @@ export default async function GamificacaoPage() {
               <SubmitButton pendingText="Salvando…">Salvar gamificação</SubmitButton>
             </form>
           ) : (
-            <p className="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500">
-              🔒 O módulo de gamificação não está liberado para esta universidade.
-              Fale com a Weedu para habilitar.
+            <p className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-500">
+              <Icon name="lock" size={15} className="mt-0.5 shrink-0" />
+              <span>O módulo de gamificação não está liberado para esta universidade. Fale com a Weedu para habilitar.</span>
             </p>
           )}
         </div>
