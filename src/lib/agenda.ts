@@ -96,7 +96,11 @@ export async function loadUserAgenda(
     if (!t) continue; // (garantido pelo filtro acima; estreita o tipo)
     const total = t.aulas.length;
     const done = t.aulas.filter((x) => doneAulas.has(x.id)).length;
-    const completed = completedTrilha.has(t.id) || (total > 0 && done === total);
+    // "Concluído" = matrícula COMPLETED (aprovado na prova final do produto) —
+    // MESMA régua do painel/planejamento e do compliance. Ter assistido todas
+    // as aulas NÃO conclui (ainda pode faltar a prova); por isso não usamos
+    // done === total aqui, senão a agenda divergiria da contagem de atrasados.
+    const completed = completedTrilha.has(t.id);
     const source: "you" | "team" = a.userId ? "you" : "team";
 
     const prev = byTrilha.get(t.id);
