@@ -4,8 +4,10 @@ import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { contentTenantIds, grantedSharedVitrineIds } from "@/lib/access";
 import { loadStudentDetail } from "@/lib/analytics";
+import { loadUserAgenda } from "@/lib/agenda";
 import { loadTeamCockpitData, visibleMemberIds } from "@/lib/teamCockpit";
 import AppShell from "@/components/AppShell";
+import AgendaReadonly from "@/components/AgendaReadonly";
 
 // Onda 3 · F2 — Ficha individual SÓ LEITURA para gestor/supervisor/RH.
 // Respeita o escopo de cada papel (mesma regra do painel /minha-equipe): a
@@ -56,6 +58,11 @@ export default async function EquipePessoaPage({
   if (!detail) notFound();
   const { student, totals, courses } = detail;
 
+  // Agenda de treinamentos planejados (mesma fonte da contagem de "atrasados"
+  // do painel) — só leitura. Reconcilia o número do alerta com o que a pessoa
+  // realmente tem planejado (inclui online não iniciados e externos).
+  const agenda = await loadUserAgenda(id, user.tenantId, student.teamId, contentTenantIds(user.tenant));
+
   return (
     <AppShell user={user} tenant={user.tenant}>
       <div className="mb-6">
@@ -91,9 +98,20 @@ export default async function EquipePessoaPage({
         ))}
       </div>
 
-      {/* Cursos da pessoa */}
+      {/* Agenda de treinamentos planejados (só leitura) */}
       <div className="card mt-6">
-        <h2 className="mb-4 font-semibold">Cursos</h2>
+        <h2 className="mb-1 font-semibold">Treinamentos planejados</h2>
+        <AgendaReadonly agenda={agenda} />
+      </div>
+
+      {/* Cursos da pessoa (matrículas efetivas na plataforma) */}
+      <div className="card mt-6">
+        <h2 className="mb-1 font-semibold">Cursos (matrículas)</h2>
+        <p className="mb-4 text-xs text-slate-500">
+          Cursos em que a pessoa <strong>já se matriculou</strong> na plataforma. Um
+          treinamento planejado que ela ainda não abriu aparece acima, mas só entra
+          aqui quando ela começa.
+        </p>
         {courses.length === 0 ? (
           <p className="text-sm text-slate-500">Esta pessoa ainda não se matriculou em nenhum curso.</p>
         ) : (
