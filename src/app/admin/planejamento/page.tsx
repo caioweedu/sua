@@ -85,7 +85,12 @@ export default async function PlanejamentoPage({
         <div>
           <Link href="/admin" className="text-sm text-slate-500 hover:text-ink">← Administração</Link>
           <h1 className="mt-1 text-2xl font-bold">Planejamento de treinamentos</h1>
-          <p className="text-sm text-slate-500">
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            Define e acompanha a execução de <strong>todos</strong> os treinamentos
+            planejados de cada pessoa (online e externos), com prazos.{" "}
+            <strong>Atrasado</strong> = o prazo passou e a pessoa ainda não concluiu.
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
             {scoped.length} colaborador(es) · {comAtraso} com atraso · {semPlano} sem plano.
           </p>
         </div>

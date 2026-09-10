@@ -98,9 +98,13 @@ export default async function CompliancePage({
       <div className="mb-6">
         <Link href="/admin" className="text-sm text-slate-500 hover:text-ink">← Administração</Link>
         <h1 className="mt-1 text-2xl font-bold">Compliance de treinamentos</h1>
-        <p className="text-sm text-slate-500">
-          Conformidade dos treinamentos <strong>obrigatórios</strong>, com validade e
-          recorrência (ex.: NRs anuais). Piores primeiro. Só leitura.
+        <p className="mt-1 max-w-3xl text-sm text-slate-500">
+          Acompanha <strong>só os treinamentos obrigatórios</strong> pela ótica de
+          validade e recorrência (ex.: NRs anuais). Aqui a régua é a conformidade,
+          não o prazo do plano — por isso: <strong>vencido</strong> = validade
+          expirou e precisa refazer; <strong>pendente</strong> = obrigatório ainda
+          não concluído; <strong>a vencer</strong> = vence em breve. Piores
+          primeiro. Só leitura.
         </p>
       </div>
 
