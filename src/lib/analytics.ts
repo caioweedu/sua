@@ -200,6 +200,7 @@ export async function loadStudentDetail(
       email: true,
       phone: true,
       active: true,
+      teamId: true,
       createdAt: true,
       accessProfile: { select: { name: true } },
     },

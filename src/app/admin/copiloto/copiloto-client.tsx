@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { publicarCurso, type PublicarResult } from "@/lib/actions/copiloto";
+import Icon from "@/components/Icon";
 import type {
   PropostaCurso,
   PropostaModulo,
@@ -93,7 +94,7 @@ export default function CopilotoClient({ vitrines }: { vitrines: Vitrine[] }) {
   if (phase === "done" && result?.ok) {
     return (
       <div className="card">
-        <h2 className="mb-1 text-lg font-semibold">✓ Curso criado</h2>
+        <h2 className="mb-1 flex items-center gap-2 text-lg font-semibold text-emerald-700"><Icon name="checkCircle" size={18} className="shrink-0" /> Curso criado</h2>
         <p className="mb-4 text-sm text-slate-600">
           {result.stats?.modulos} módulo(s) · {result.stats?.aulas} aula(s) ·{" "}
           {result.stats?.questoes} questão(ões).{" "}
@@ -495,8 +496,8 @@ export default function CopilotoClient({ vitrines }: { vitrines: Vitrine[] }) {
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
-      <button className="btn-brand" onClick={gerar} disabled={generating}>
-        {generating ? "Gerando estrutura..." : "✨ Gerar curso com IA"}
+      <button className="btn-brand inline-flex items-center gap-2" onClick={gerar} disabled={generating}>
+        {generating ? "Gerando estrutura..." : <><Icon name="sparkles" size={16} className="shrink-0" /> Gerar curso com IA</>}
       </button>
       {generating && (
         <p className="text-xs text-slate-500">

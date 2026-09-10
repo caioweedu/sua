@@ -9,6 +9,7 @@ export type PlanningRow = {
   id: string;
   name: string;
   email: string;
+  teamId: string | null;
   total: number;
   overdue: number;
   pending: number; // não concluídos (inclui atrasados)
@@ -98,6 +99,7 @@ export async function loadPlanningOverview(
         id: s.id,
         name: s.name,
         email: s.email,
+        teamId: s.teamId,
         total: items.size,
         overdue,
         pending,

@@ -7,6 +7,7 @@ import { loadPlanningOverview } from "@/lib/planning";
 import TeamCockpit from "@/components/TeamCockpit";
 import GestorNav from "@/components/GestorNav";
 import OverduePlanningAlert from "@/components/OverduePlanningAlert";
+import Icon from "@/components/Icon";
 
 // Onda 3 · F1 — Cockpit do RH (admin): visão da empresa + por equipe, só
 // leitura. Escopo por tenant, com o conteúdo liberado pela mãe contabilizado.
@@ -86,7 +87,9 @@ export default async function RhCockpitPage() {
         {data.noTeam.length > 0 && (
           <div className="mt-3 rounded-xl border border-dashed border-amber-300 bg-amber-50/40">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-100 px-3 py-2">
-              <span className="text-sm font-semibold text-amber-700">⚠️ Sem equipe</span>
+              <span className="flex items-center gap-1.5 text-sm font-semibold text-amber-700">
+                <Icon name="alertCircle" size={15} className="shrink-0" /> Sem equipe
+              </span>
               <span className="text-xs text-slate-600">
                 <b className="text-ink">{noTeamAgg.pessoas}</b> pessoa(s) · Adesão{" "}
                 <b className="text-ink">{noTeamAgg.adesao}%</b> · <b className="text-ink">{noTeamAgg.certs}</b> cert.

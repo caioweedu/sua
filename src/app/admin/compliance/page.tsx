@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, canManageTeams } from "@/lib/auth";
 import { contentTenantIds } from "@/lib/access";
 import { loadComplianceOverview, WARN_DAYS } from "@/lib/compliance";
+import { loadTeamTree, subtreeIds } from "@/lib/teamFilter";
 import GestorNav from "@/components/GestorNav";
+import TeamFilterBar, { type TeamFilterItem } from "@/components/TeamFilterBar";
+import ComplianceCollabList from "@/components/ComplianceCollabList";
 
 // Onda 3 · F3 — Painel de Compliance (admin): conformidade dos treinamentos
 // OBRIGATÓRIOS por pessoa, considerando validade/recorrência. Só leitura.
@@ -19,23 +22,73 @@ function Tile({ label, value, sub, tone }: { label: string; value: string | numb
   );
 }
 
-function Chip({ n, tone, label }: { n: number; tone: string; label: string }) {
-  if (n <= 0) return null;
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone}`}>{n} {label}</span>;
-}
 
-export default async function CompliancePage() {
+export default async function CompliancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ equipe?: string | string[] }>;
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!canManageTeams(user.role)) redirect("/dashboard");
 
-  const rows = await loadComplianceOverview(user.tenantId, contentTenantIds(user.tenant));
+  const sp = await searchParams;
+  const active = typeof sp.equipe === "string" ? sp.equipe : "all";
 
-  const comObrigatorio = rows.filter((r) => r.total > 0);
+  const [rows, tree] = await Promise.all([
+    loadComplianceOverview(user.tenantId, contentTenantIds(user.tenant)),
+    loadTeamTree(user.tenantId),
+  ]);
+
+  // Membros diretos por equipe, deduzidos das próprias linhas (sem consulta extra).
+  const directOf = new Map<string, string[]>();
+  for (const r of rows) {
+    if (!r.teamId) continue;
+    if (!directOf.has(r.teamId)) directOf.set(r.teamId, []);
+    directOf.get(r.teamId)!.push(r.id);
+  }
+
+  // Resumo por equipe (não filtrado): vencidos + pendentes por subárvore.
+  const item = (key: string, name: string, depth: number, subset: typeof rows): TeamFilterItem => {
+    const vencSum = subset.reduce((s, r) => s + r.vencido, 0);
+    const pendSum = subset.reduce((s, r) => s + r.pendente, 0);
+    return {
+      key,
+      name,
+      depth,
+      pessoas: subset.length,
+      stats: [
+        { value: `${vencSum}`, label: "vencidos", tone: vencSum > 0 ? "bad" : "good" },
+        { value: `${pendSum}`, label: "pendentes", tone: pendSum > 0 ? "warn" : "neutral" },
+      ],
+    };
+  };
+  const semEquipe = rows.filter((r) => !r.teamId);
+  const items: TeamFilterItem[] = [item("all", "Todas", 0, rows)];
+  for (const t of tree.ordered) {
+    const ids = new Set(subtreeIds(t.id, tree.childrenOf, directOf));
+    const subset = rows.filter((r) => ids.has(r.id));
+    if (subset.length > 0) items.push(item(t.id, t.name, t.depth, subset));
+  }
+  if (semEquipe.length > 0) items.push(item("none", "Sem equipe", 0, semEquipe));
+
+  // Escopo ativo → filtra os tiles e a lista.
+  let scoped = rows;
+  let activeName = "";
+  if (active === "none") {
+    scoped = semEquipe;
+    activeName = "Sem equipe";
+  } else if (active !== "all") {
+    const ids = new Set(subtreeIds(active, tree.childrenOf, directOf));
+    scoped = rows.filter((r) => ids.has(r.id));
+    activeName = tree.ordered.find((t) => t.id === active)?.name ?? "";
+  }
+
+  const comObrigatorio = scoped.filter((r) => r.total > 0);
   const conformes = comObrigatorio.filter((r) => r.conforme).length;
-  const comVencido = rows.filter((r) => r.vencido > 0).length;
-  const comPendente = rows.filter((r) => r.pendente > 0).length;
-  const aVencer = rows.reduce((s, r) => s + r.aVencer, 0);
+  const comVencido = scoped.filter((r) => r.vencido > 0).length;
+  const comPendente = scoped.filter((r) => r.pendente > 0).length;
+  const aVencer = scoped.reduce((s, r) => s + r.aVencer, 0);
   const conformidadePct =
     comObrigatorio.length > 0 ? Math.round((conformes / comObrigatorio.length) * 100) : 100;
 
@@ -45,9 +98,13 @@ export default async function CompliancePage() {
       <div className="mb-6">
         <Link href="/admin" className="text-sm text-slate-500 hover:text-ink">← Administração</Link>
         <h1 className="mt-1 text-2xl font-bold">Compliance de treinamentos</h1>
-        <p className="text-sm text-slate-500">
-          Conformidade dos treinamentos <strong>obrigatórios</strong>, com validade e
-          recorrência (ex.: NRs anuais). Piores primeiro. Só leitura.
+        <p className="mt-1 max-w-3xl text-sm text-slate-500">
+          Acompanha <strong>só os treinamentos obrigatórios</strong> pela ótica de
+          validade e recorrência (ex.: NRs anuais). Aqui a régua é a conformidade,
+          não o prazo do plano — por isso: <strong>vencido</strong> = validade
+          expirou e precisa refazer; <strong>pendente</strong> = obrigatório ainda
+          não concluído; <strong>a vencer</strong> = vence em breve. Piores
+          primeiro. Só leitura.
         </p>
       </div>
 
@@ -63,8 +120,12 @@ export default async function CompliancePage() {
         <Tile label="A vencer" value={aVencer} sub={`vencem em até ${WARN_DAYS} dias`} tone={aVencer > 0 ? "text-amber-600" : "text-ink"} />
       </div>
 
+      <TeamFilterBar items={items} active={active} baseHref="/admin/compliance" />
+
       <div className="card mt-6">
-        <h2 className="mb-1 font-semibold">Por colaborador</h2>
+        <h2 className="mb-1 font-semibold">
+          Por colaborador{activeName ? <span className="font-normal text-slate-400"> · {activeName}</span> : null}
+        </h2>
         <p className="mb-4 text-xs text-slate-500">
           Considera treinamentos obrigatórios atribuídos direto à pessoa e herdados da
           equipe. Clique para ver e ajustar o planejamento de cada um.
@@ -76,36 +137,7 @@ export default async function CompliancePage() {
             <Link href="/admin/planejamento" className="text-brand hover:underline">Planejamento</Link>.
           </p>
         ) : (
-          <ul className="divide-y divide-slate-100">
-            {comObrigatorio.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                <div className="min-w-0">
-                  <Link href={`/admin/planejamento/${r.id}`} className="font-medium hover:underline">
-                    {r.name}
-                  </Link>
-                  <p className="truncate text-xs text-slate-500">
-                    {r.email} · {r.total} obrigatório(s)
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-1.5">
-                  {r.conforme && r.vencido === 0 && r.pendente === 0 && r.aVencer === 0 && r.semData === 0 ? (
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">✓ em conformidade</span>
-                  ) : (
-                    <>
-                      <Chip n={r.vencido} tone="bg-red-50 text-red-600" label="vencido(s)" />
-                      <Chip n={r.pendente} tone="bg-amber-50 text-amber-700" label="pendente(s)" />
-                      <Chip n={r.aVencer} tone="bg-yellow-50 text-yellow-700" label="a vencer" />
-                      <Chip n={r.semData} tone="bg-slate-100 text-slate-500" label="sem data" />
-                      {r.emDia > 0 && <Chip n={r.emDia} tone="bg-emerald-50 text-emerald-700" label="em dia" />}
-                    </>
-                  )}
-                  <Link href={`/admin/planejamento/${r.id}`} className="btn-outline px-2 py-1 text-xs">
-                    planejar
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <ComplianceCollabList rows={comObrigatorio} />
         )}
       </div>
     </>

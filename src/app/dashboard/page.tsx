@@ -10,6 +10,7 @@ import Row from "@/components/Row";
 import PosterCard from "@/components/PosterCard";
 import HeroCarousel from "@/components/HeroCarousel";
 import XpCard from "@/components/XpCard";
+import Icon from "@/components/Icon";
 import BadgesStrip from "@/components/BadgesStrip";
 import StreakCard from "@/components/StreakCard";
 import { getGamificationStatus, getStreak, gamificationActive } from "@/lib/gamification";
@@ -165,8 +166,9 @@ export default async function DashboardPage() {
               href="/minha-equipe"
               className="s-card flex items-center justify-between gap-3 rounded-2xl px-5 py-4 transition hover:brightness-110"
             >
-              <span className="s-fg font-semibold">
-                🧑‍💼 {user.role === "HR" ? "Painel de RH" : "Acompanhar minha equipe"}
+              <span className="s-fg inline-flex items-center gap-2 font-semibold">
+                <Icon name="briefcase" size={18} className="shrink-0" />
+                {user.role === "HR" ? "Painel de RH" : "Acompanhar minha equipe"}
               </span>
               <span className="s-muted text-sm">ver progresso →</span>
             </Link>
@@ -175,7 +177,7 @@ export default async function DashboardPage() {
         {agenda.length > 0 && (
           <div className="px-4 pt-6">
             <div className="s-card rounded-2xl p-5">
-              <h2 className="s-fg mb-1 font-bold">📌 Meus treinamentos planejados</h2>
+              <h2 className="s-fg mb-1 flex items-center gap-2 font-bold"><Icon name="clipboardList" size={18} className="shrink-0" /> Meus treinamentos planejados</h2>
               <p className="s-muted mb-3 text-sm">
                 Definidos pela sua empresa. Fique de olho nos prazos.
               </p>
@@ -189,10 +191,10 @@ export default async function DashboardPage() {
                           <span className="s-muted ml-2 rounded bg-white/10 px-1.5 py-0.5 text-[10px]">obrigatório</span>
                         )}
                         {a.kind === "external" && (
-                          <span className="s-muted ml-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px]">🏫 {a.location || "externo"}</span>
+                          <span className="s-muted ml-1 inline-flex items-center gap-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px]"><Icon name="graduationCap" size={11} className="shrink-0" /> {a.location || "externo"}</span>
                         )}
                         {a.recurrenceMonths && (
-                          <span className="s-muted ml-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px]">🔁 renova</span>
+                          <span className="s-muted ml-1 inline-flex items-center gap-1 rounded bg-white/10 px-1.5 py-0.5 text-[10px]"><Icon name="repeat" size={11} className="shrink-0" /> renova</span>
                         )}
                         <span
                           className={`block text-xs ${

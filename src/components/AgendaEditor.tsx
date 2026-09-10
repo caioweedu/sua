@@ -1,5 +1,6 @@
 import SubmitButton from "@/components/SubmitButton";
 import TrilhaPicker from "@/components/TrilhaPicker";
+import Icon from "@/components/Icon";
 import {
   assignTraining,
   removeAssignment,
@@ -64,13 +65,13 @@ export default function AgendaEditor({
                     <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">obrigatório</span>
                   )}
                   {isExternal && (
-                    <span className="ml-1 rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">🏫 externo</span>
+                    <span className="ml-1 inline-flex items-center gap-1 rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700"><Icon name="graduationCap" size={11} className="shrink-0" /> externo</span>
                   )}
                   {a.source === "team" && (
                     <span className="ml-1 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] text-indigo-600">equipe</span>
                   )}
                   {rec && (
-                    <span className="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">🔁 {rec}</span>
+                    <span className="ml-1 inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700"><Icon name="repeat" size={11} className="shrink-0" /> {rec}</span>
                   )}
                   <p className="text-xs text-slate-500">
                     {isExternal && a.location ? <>{a.location} · </> : null}
@@ -159,7 +160,7 @@ export default function AgendaEditor({
 
       {/* Planejar treinamento EXTERNO / presencial (baixa manual) */}
       <form action={createExternalTraining} className="mt-6 space-y-3 rounded-lg border border-violet-200 bg-violet-50/40 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">🏫 Treinamento externo / presencial</p>
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-violet-700"><Icon name="graduationCap" size={14} className="shrink-0" /> Treinamento externo / presencial</p>
         <p className="text-xs text-slate-500">Fora da plataforma (presencial, curso externo, workshop). Depois de acontecer, você dá baixa aqui.</p>
         <input type="hidden" name="userId" value={student.id} />
         {student.teamId && <input type="hidden" name="teamId" value={student.teamId} />}
