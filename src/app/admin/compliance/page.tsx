@@ -3,8 +3,10 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, canManageTeams } from "@/lib/auth";
 import { contentTenantIds } from "@/lib/access";
 import { loadComplianceOverview, WARN_DAYS } from "@/lib/compliance";
+import { loadTeamTree, subtreeIds } from "@/lib/teamFilter";
 import GestorNav from "@/components/GestorNav";
 import Icon from "@/components/Icon";
+import TeamFilterBar, { type TeamFilterItem } from "@/components/TeamFilterBar";
 
 // Onda 3 · F3 — Painel de Compliance (admin): conformidade dos treinamentos
 // OBRIGATÓRIOS por pessoa, considerando validade/recorrência. Só leitura.
@@ -25,18 +27,72 @@ function Chip({ n, tone, label }: { n: number; tone: string; label: string }) {
   return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone}`}>{n} {label}</span>;
 }
 
-export default async function CompliancePage() {
+export default async function CompliancePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ equipe?: string | string[] }>;
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!canManageTeams(user.role)) redirect("/dashboard");
 
-  const rows = await loadComplianceOverview(user.tenantId, contentTenantIds(user.tenant));
+  const sp = await searchParams;
+  const active = typeof sp.equipe === "string" ? sp.equipe : "all";
 
-  const comObrigatorio = rows.filter((r) => r.total > 0);
+  const [rows, tree] = await Promise.all([
+    loadComplianceOverview(user.tenantId, contentTenantIds(user.tenant)),
+    loadTeamTree(user.tenantId),
+  ]);
+
+  // Membros diretos por equipe, deduzidos das próprias linhas (sem consulta extra).
+  const directOf = new Map<string, string[]>();
+  for (const r of rows) {
+    if (!r.teamId) continue;
+    if (!directOf.has(r.teamId)) directOf.set(r.teamId, []);
+    directOf.get(r.teamId)!.push(r.id);
+  }
+
+  // Resumo por equipe (não filtrado): % conforme por subárvore.
+  const item = (key: string, name: string, depth: number, subset: typeof rows): TeamFilterItem => {
+    const comObr = subset.filter((r) => r.total > 0);
+    const conf = comObr.filter((r) => r.conforme).length;
+    const pct = comObr.length ? Math.round((conf / comObr.length) * 100) : 100;
+    return {
+      key,
+      name,
+      depth,
+      pessoas: subset.length,
+      statValue: comObr.length ? `${pct}%` : "—",
+      statLabel: "conforme",
+      tone: comObr.length === 0 ? "neutral" : pct >= 90 ? "good" : pct >= 70 ? "warn" : "bad",
+    };
+  };
+  const semEquipe = rows.filter((r) => !r.teamId);
+  const items: TeamFilterItem[] = [item("all", "Todas", 0, rows)];
+  for (const t of tree.ordered) {
+    const ids = new Set(subtreeIds(t.id, tree.childrenOf, directOf));
+    const subset = rows.filter((r) => ids.has(r.id));
+    if (subset.length > 0) items.push(item(t.id, t.name, t.depth, subset));
+  }
+  if (semEquipe.length > 0) items.push(item("none", "Sem equipe", 0, semEquipe));
+
+  // Escopo ativo → filtra os tiles e a lista.
+  let scoped = rows;
+  let activeName = "";
+  if (active === "none") {
+    scoped = semEquipe;
+    activeName = "Sem equipe";
+  } else if (active !== "all") {
+    const ids = new Set(subtreeIds(active, tree.childrenOf, directOf));
+    scoped = rows.filter((r) => ids.has(r.id));
+    activeName = tree.ordered.find((t) => t.id === active)?.name ?? "";
+  }
+
+  const comObrigatorio = scoped.filter((r) => r.total > 0);
   const conformes = comObrigatorio.filter((r) => r.conforme).length;
-  const comVencido = rows.filter((r) => r.vencido > 0).length;
-  const comPendente = rows.filter((r) => r.pendente > 0).length;
-  const aVencer = rows.reduce((s, r) => s + r.aVencer, 0);
+  const comVencido = scoped.filter((r) => r.vencido > 0).length;
+  const comPendente = scoped.filter((r) => r.pendente > 0).length;
+  const aVencer = scoped.reduce((s, r) => s + r.aVencer, 0);
   const conformidadePct =
     comObrigatorio.length > 0 ? Math.round((conformes / comObrigatorio.length) * 100) : 100;
 
@@ -64,8 +120,12 @@ export default async function CompliancePage() {
         <Tile label="A vencer" value={aVencer} sub={`vencem em até ${WARN_DAYS} dias`} tone={aVencer > 0 ? "text-amber-600" : "text-ink"} />
       </div>
 
+      <TeamFilterBar items={items} active={active} baseHref="/admin/compliance" />
+
       <div className="card mt-6">
-        <h2 className="mb-1 font-semibold">Por colaborador</h2>
+        <h2 className="mb-1 font-semibold">
+          Por colaborador{activeName ? <span className="font-normal text-slate-400"> · {activeName}</span> : null}
+        </h2>
         <p className="mb-4 text-xs text-slate-500">
           Considera treinamentos obrigatórios atribuídos direto à pessoa e herdados da
           equipe. Clique para ver e ajustar o planejamento de cada um.
