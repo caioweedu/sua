@@ -5,8 +5,8 @@ import { contentTenantIds } from "@/lib/access";
 import { loadComplianceOverview, WARN_DAYS } from "@/lib/compliance";
 import { loadTeamTree, subtreeIds } from "@/lib/teamFilter";
 import GestorNav from "@/components/GestorNav";
-import Icon from "@/components/Icon";
 import TeamFilterBar, { type TeamFilterItem } from "@/components/TeamFilterBar";
+import ComplianceCollabList from "@/components/ComplianceCollabList";
 
 // Onda 3 · F3 — Painel de Compliance (admin): conformidade dos treinamentos
 // OBRIGATÓRIOS por pessoa, considerando validade/recorrência. Só leitura.
@@ -22,10 +22,6 @@ function Tile({ label, value, sub, tone }: { label: string; value: string | numb
   );
 }
 
-function Chip({ n, tone, label }: { n: number; tone: string; label: string }) {
-  if (n <= 0) return null;
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone}`}>{n} {label}</span>;
-}
 
 export default async function CompliancePage({
   searchParams,
@@ -52,19 +48,19 @@ export default async function CompliancePage({
     directOf.get(r.teamId)!.push(r.id);
   }
 
-  // Resumo por equipe (não filtrado): % conforme por subárvore.
+  // Resumo por equipe (não filtrado): vencidos + pendentes por subárvore.
   const item = (key: string, name: string, depth: number, subset: typeof rows): TeamFilterItem => {
-    const comObr = subset.filter((r) => r.total > 0);
-    const conf = comObr.filter((r) => r.conforme).length;
-    const pct = comObr.length ? Math.round((conf / comObr.length) * 100) : 100;
+    const vencSum = subset.reduce((s, r) => s + r.vencido, 0);
+    const pendSum = subset.reduce((s, r) => s + r.pendente, 0);
     return {
       key,
       name,
       depth,
       pessoas: subset.length,
-      statValue: comObr.length ? `${pct}%` : "—",
-      statLabel: "conforme",
-      tone: comObr.length === 0 ? "neutral" : pct >= 90 ? "good" : pct >= 70 ? "warn" : "bad",
+      stats: [
+        { value: `${vencSum}`, label: "vencidos", tone: vencSum > 0 ? "bad" : "good" },
+        { value: `${pendSum}`, label: "pendentes", tone: pendSum > 0 ? "warn" : "neutral" },
+      ],
     };
   };
   const semEquipe = rows.filter((r) => !r.teamId);
@@ -137,36 +133,7 @@ export default async function CompliancePage({
             <Link href="/admin/planejamento" className="text-brand hover:underline">Planejamento</Link>.
           </p>
         ) : (
-          <ul className="divide-y divide-slate-100">
-            {comObrigatorio.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-                <div className="min-w-0">
-                  <Link href={`/admin/planejamento/${r.id}`} className="font-medium hover:underline">
-                    {r.name}
-                  </Link>
-                  <p className="truncate text-xs text-slate-500">
-                    {r.email} · {r.total} obrigatório(s)
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-1.5">
-                  {r.conforme && r.vencido === 0 && r.pendente === 0 && r.aVencer === 0 && r.semData === 0 ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"><Icon name="check" size={12} className="shrink-0" /> em conformidade</span>
-                  ) : (
-                    <>
-                      <Chip n={r.vencido} tone="bg-red-50 text-red-600" label="vencido(s)" />
-                      <Chip n={r.pendente} tone="bg-amber-50 text-amber-700" label="pendente(s)" />
-                      <Chip n={r.aVencer} tone="bg-yellow-50 text-yellow-700" label="a vencer" />
-                      <Chip n={r.semData} tone="bg-slate-100 text-slate-500" label="sem data" />
-                      {r.emDia > 0 && <Chip n={r.emDia} tone="bg-emerald-50 text-emerald-700" label="em dia" />}
-                    </>
-                  )}
-                  <Link href={`/admin/planejamento/${r.id}`} className="btn-outline px-2 py-1 text-xs">
-                    planejar
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <ComplianceCollabList rows={comObrigatorio} />
         )}
       </div>
     </>

@@ -2,20 +2,20 @@ import Link from "next/link";
 import Icon from "@/components/Icon";
 
 // Onda 3 · F3c — resumo por equipe clicável (filtro) para Compliance e
-// Planejamento. Cada card mostra o headline da equipe e, ao clicar, filtra a
-// lista abaixo (via querystring ?equipe=<id>). Server component: só links,
-// sem estado no cliente.
+// Planejamento. Cada card mostra até dois indicadores da equipe e, ao clicar,
+// filtra a lista abaixo (via querystring ?equipe=<id>). Server component: só
+// links, sem estado no cliente.
 
 export type Tone = "good" | "warn" | "bad" | "neutral";
+
+export type TeamStat = { value: string; label: string; tone?: Tone };
 
 export type TeamFilterItem = {
   key: string; // "all" | teamId | "none"
   name: string;
   depth?: number;
   pessoas: number;
-  statValue: string;
-  statLabel: string;
-  tone?: Tone;
+  stats: TeamStat[]; // 1 a 2 indicadores
 };
 
 const toneClass: Record<Tone, string> = {
@@ -66,12 +66,17 @@ export default function TeamFilterBar({
                 {indent && <Icon name="chevronRight" size={11} className="shrink-0 text-slate-400" />}
                 <span className="truncate">{it.name}</span>
               </span>
-              <span className={`mt-1 text-lg font-black leading-none tabular-nums ${toneClass[it.tone ?? "neutral"]}`}>
-                {it.statValue}
+              <span className="mt-1 flex items-end gap-3">
+                {it.stats.map((s, i) => (
+                  <span key={i} className="flex flex-col">
+                    <span className={`text-lg font-black leading-none tabular-nums ${toneClass[s.tone ?? "neutral"]}`}>
+                      {s.value}
+                    </span>
+                    <span className="mt-0.5 text-[10px] uppercase tracking-wide text-slate-400">{s.label}</span>
+                  </span>
+                ))}
               </span>
-              <span className="mt-0.5 text-[11px] text-slate-400">
-                {it.statLabel} · {it.pessoas} pessoa(s)
-              </span>
+              <span className="mt-1.5 text-[11px] text-slate-400">{it.pessoas} pessoa(s)</span>
             </Link>
           );
         })}
