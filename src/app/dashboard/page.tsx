@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, canManageTeams } from "@/lib/auth";
 import { allowedVitrineIds, visibleVitrineWhere, contentTenantIds } from "@/lib/access";
 import { loadUserAgenda } from "@/lib/agenda";
 import { loadProgress, isUnlocked } from "@/lib/release";
@@ -103,11 +103,17 @@ export default async function DashboardPage() {
   );
 
   // Atalho para o painel de acompanhamento (RH, gestor ou supervisor).
-  const teamPanel =
-    user.role === "HR" ||
-    (await prisma.teamLead.count({
-      where: { userId: user.id, team: { tenantId: user.tenantId } },
-    })) > 0;
+  // RH/admin vão para o Painel Gestor completo (/admin/rh, com abas de
+  // Planejamento/Compliance/Equipes); gestor/supervisor (líderes de equipe)
+  // vão para o painel escopado (/minha-equipe).
+  const canManage = canManageTeams(user.role); // admin ou RH
+  const leadCount = await prisma.teamLead.count({
+    where: { userId: user.id, team: { tenantId: user.tenantId } },
+  });
+  const teamPanel = canManage || leadCount > 0;
+  const panelHref = canManage ? "/admin/rh" : "/minha-equipe";
+  const panelLabel =
+    user.role === "HR" ? "Painel de RH" : canManage ? "Painel Gestor" : "Acompanhar minha equipe";
 
   const dstr = (d: Date | null) => (d ? new Date(d).toLocaleDateString("pt-BR") : null);
   const agendaStatus = (a: (typeof agenda)[number]) => {
@@ -163,12 +169,12 @@ export default async function DashboardPage() {
         {teamPanel && (
           <div className="px-4 pt-6">
             <Link
-              href="/minha-equipe"
+              href={panelHref}
               className="s-card flex items-center justify-between gap-3 rounded-2xl px-5 py-4 transition hover:brightness-110"
             >
               <span className="s-fg inline-flex items-center gap-2 font-semibold">
                 <Icon name="briefcase" size={18} className="shrink-0" />
-                {user.role === "HR" ? "Painel de RH" : "Acompanhar minha equipe"}
+                {panelLabel}
               </span>
               <span className="s-muted text-sm">ver progresso →</span>
             </Link>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getCurrentUser, isAdmin } from "@/lib/auth";
+import { getCurrentUser, isAdmin, canManageTeams } from "@/lib/auth";
 import { grantedSharedVitrineIds, contentTenantIds } from "@/lib/access";
 import {
   loadTeamCockpitData,
@@ -35,6 +35,11 @@ function Tile({ label, value, sub }: { label: string; value: string | number; su
 export default async function MinhaEquipePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  // RH/admin usam o Painel Gestor completo (/admin/rh, com abas de
+  // Planejamento/Compliance/Equipes). Este painel escopado é só para
+  // gestor/supervisor (líderes de equipe). Evita o "painel duplicado" sem saída.
+  if (canManageTeams(user.role)) redirect("/admin/rh");
 
   const isHR = user.role === "HR";
   const isAdminUser = isAdmin(user.role);
