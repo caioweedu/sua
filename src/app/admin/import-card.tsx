@@ -54,9 +54,10 @@ export default function ImportCard() {
             </a>
           </div>
           <p className="mb-2 text-xs text-slate-500">
-            Colunas: Produto · Enunciado · Alternativa Correta · Alternativa 2…
-            (a 1ª alternativa é a correta). O produto é casado pelo título; se
-            ainda não existir, é criado automaticamente (sem vitrine).
+            Colunas: Prova · Enunciado · Alternativa Correta · Alternativa 2…
+            (a 1ª alternativa é a correta). As questões são agrupadas pelo nome
+            da <strong>prova</strong> e criadas na <strong>biblioteca de provas</strong>;
+            depois você vincula onde quiser (vitrine, produto ou módulo).
           </p>
           <input
             type="file"

@@ -73,7 +73,7 @@ const TEMPLATES: Record<string, { file: string; rows: string[][] }> = {
     file: "modelo-provas.csv",
     rows: [
       [
-        "Produto",
+        "Prova",
         "Enunciado",
         "Alternativa Correta",
         "Alternativa 2",
@@ -82,7 +82,7 @@ const TEMPLATES: Record<string, { file: string; rows: string[][] }> = {
         "Alternativa 5",
       ],
       [
-        "Gestão de Resultados",
+        "Fundamentos de Gestão de Resultados",
         "O que é uma meta SMART?",
         "Específica, mensurável, atingível, relevante e temporal",
         "Uma meta genérica sem prazo",
@@ -91,7 +91,7 @@ const TEMPLATES: Record<string, { file: string; rows: string[][] }> = {
         "",
       ],
       [
-        "Gestão de Resultados",
+        "Fundamentos de Gestão de Resultados",
         "Para que serve um indicador (KPI)?",
         "Medir o desempenho em relação a um objetivo",
         "Substituir a meta",

@@ -204,16 +204,15 @@ export async function importContent(
     if (rows.length < 2) {
       avisos.push("Planilha de provas sem linhas de dados.");
     } else {
-      const examCache = new Map<string, string>(); // trilhaId -> examId
-      const titleCache = new Map<string, string>(); // títuloLower -> trilhaId
+      const examCache = new Map<string, string>(); // provaTituloLower -> examId
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i].map((c) => (c ?? "").trim());
-        const produtoTitle = r[0] ?? "";
+        const provaTitle = r[0] ?? "";
         const statement = r[1] ?? "";
         const alts = r.slice(2).filter((a) => a !== "");
 
-        if (!produtoTitle || !statement) {
-          avisos.push(`Linha ${i + 1} das provas ignorada: falta produto ou enunciado.`);
+        if (!provaTitle || !statement) {
+          avisos.push(`Linha ${i + 1} das provas ignorada: falta o nome da prova ou o enunciado.`);
           continue;
         }
         if (alts.length < 2) {
@@ -221,56 +220,29 @@ export async function importContent(
           continue;
         }
 
-        // Localiza a trilha pelo título (sem diferenciar maiúsculas/acentos de
-        // caixa). Se não existir, cria o produto automaticamente (sem vitrine),
-        // para que a importação de provas funcione mesmo antes de cadastrar o
-        // conteúdo. O admin pode depois editar/vincular/excluir o produto.
-        const titleKey = produtoTitle.toLowerCase();
-        let trilhaId = titleCache.get(titleKey);
-        if (!trilhaId) {
-          const found = await prisma.trilha.findFirst({
-            where: { tenantId, title: { equals: produtoTitle, mode: "insensitive" } },
+        // A 1ª coluna é o NOME DA PROVA. As questões são agrupadas por ela e a
+        // prova é criada na BIBLIOTECA (sem vínculo) — o admin depois vincula
+        // onde fizer sentido (vitrine, produto ou módulo). Não cria produtos.
+        // Reaproveita uma prova de mesmo nome (sem diferenciar caixa/acentos)
+        // para reenvios não duplicarem.
+        const titleKey = provaTitle.toLowerCase();
+        let examId = examCache.get(titleKey);
+        if (!examId) {
+          const existing = await prisma.exam.findFirst({
+            where: { tenantId, title: { equals: provaTitle, mode: "insensitive" } },
             select: { id: true },
           });
-          if (found) {
-            trilhaId = found.id;
-          } else {
-            const count = await prisma.trilha.count({ where: { tenantId } });
-            const created = await prisma.trilha.create({
-              data: { tenantId, title: produtoTitle, published: true, order: count },
-              select: { id: true },
-            });
-            trilhaId = created.id;
-            stats.produtos++;
-            avisos.push(`Prova: produto "${produtoTitle}" não existia e foi criado (sem vitrine).`);
-          }
-          titleCache.set(titleKey, trilhaId);
-        }
-
-        // Garante a prova do produto: procura uma prova já colocada no produto
-        // (placement de trilha). Se não houver, cria a prova na biblioteca e a
-        // coloca no produto. Conta como criada só quando não existia.
-        let examId = examCache.get(trilhaId);
-        if (!examId) {
-          const existingPlacement = await prisma.examPlacement.findFirst({
-            where: { trilhaId, moduloId: null, vitrineId: null },
-            select: { examId: true },
-          });
-          if (existingPlacement) {
-            examId = existingPlacement.examId;
+          if (existing) {
+            examId = existing.id;
           } else {
             const created = await prisma.exam.create({
-              data: {
-                tenantId,
-                title: "Avaliação final",
-                placements: { create: { trilhaId } },
-              },
+              data: { tenantId, title: provaTitle },
               select: { id: true },
             });
             examId = created.id;
             stats.provas++;
           }
-          examCache.set(trilhaId, examId);
+          examCache.set(titleKey, examId);
         }
 
         // Evita duplicar a mesma questão (mesmo enunciado).
