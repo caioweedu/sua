@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import SubmitButton from "@/components/SubmitButton";
+import ImportCard from "../import-card";
 import { createExam } from "@/lib/actions/admin";
 
 // Biblioteca de provas: provas reutilizáveis do tenant. Uma prova criada aqui
@@ -124,6 +125,10 @@ export default async function ProvasBibliotecaPage() {
             <SubmitButton pendingText="Criando…">Criar prova</SubmitButton>
           </form>
         </section>
+      </div>
+
+      <div className="mt-6">
+        <ImportCard mode="provas" />
       </div>
     </>
   );

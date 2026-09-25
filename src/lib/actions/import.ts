@@ -204,15 +204,15 @@ export async function importContent(
     if (rows.length < 2) {
       avisos.push("Planilha de provas sem linhas de dados.");
     } else {
-      const examCache = new Map<string, string>(); // trilhaId -> examId
+      const examCache = new Map<string, string>(); // provaTituloLower -> examId
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i].map((c) => (c ?? "").trim());
-        const produtoTitle = r[0] ?? "";
+        const provaTitle = r[0] ?? "";
         const statement = r[1] ?? "";
         const alts = r.slice(2).filter((a) => a !== "");
 
-        if (!produtoTitle || !statement) {
-          avisos.push(`Linha ${i + 1} das provas ignorada: falta produto ou enunciado.`);
+        if (!provaTitle || !statement) {
+          avisos.push(`Linha ${i + 1} das provas ignorada: falta o nome da prova ou o enunciado.`);
           continue;
         }
         if (alts.length < 2) {
@@ -220,40 +220,29 @@ export async function importContent(
           continue;
         }
 
-        // Localiza a trilha pelo título (deve existir no tenant).
-        const trilha = await prisma.trilha.findFirst({
-          where: { tenantId, title: produtoTitle },
-          select: { id: true },
-        });
-        if (!trilha) {
-          avisos.push(`Prova linha ${i + 1}: produto "${produtoTitle}" não encontrado.`);
-          continue;
-        }
-
-        // Garante a prova do produto: procura uma prova já colocada no produto
-        // (placement de trilha). Se não houver, cria a prova na biblioteca e a
-        // coloca no produto. Conta como criada só quando não existia.
-        let examId = examCache.get(trilha.id);
+        // A 1ª coluna é o NOME DA PROVA. As questões são agrupadas por ela e a
+        // prova é criada na BIBLIOTECA (sem vínculo) — o admin depois vincula
+        // onde fizer sentido (vitrine, produto ou módulo). Não cria produtos.
+        // Reaproveita uma prova de mesmo nome (sem diferenciar caixa/acentos)
+        // para reenvios não duplicarem.
+        const titleKey = provaTitle.toLowerCase();
+        let examId = examCache.get(titleKey);
         if (!examId) {
-          const existingPlacement = await prisma.examPlacement.findFirst({
-            where: { trilhaId: trilha.id, moduloId: null, vitrineId: null },
-            select: { examId: true },
+          const existing = await prisma.exam.findFirst({
+            where: { tenantId, title: { equals: provaTitle, mode: "insensitive" } },
+            select: { id: true },
           });
-          if (existingPlacement) {
-            examId = existingPlacement.examId;
+          if (existing) {
+            examId = existing.id;
           } else {
             const created = await prisma.exam.create({
-              data: {
-                tenantId,
-                title: "Avaliação final",
-                placements: { create: { trilhaId: trilha.id } },
-              },
+              data: { tenantId, title: provaTitle },
               select: { id: true },
             });
             examId = created.id;
             stats.provas++;
           }
-          examCache.set(trilha.id, examId);
+          examCache.set(titleKey, examId);
         }
 
         // Evita duplicar a mesma questão (mesmo enunciado).
