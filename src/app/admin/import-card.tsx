@@ -55,7 +55,8 @@ export default function ImportCard() {
           </div>
           <p className="mb-2 text-xs text-slate-500">
             Colunas: Produto · Enunciado · Alternativa Correta · Alternativa 2…
-            (a 1ª alternativa é a correta)
+            (a 1ª alternativa é a correta). O produto é casado pelo título; se
+            ainda não existir, é criado automaticamente (sem vitrine).
           </p>
           <input
             type="file"

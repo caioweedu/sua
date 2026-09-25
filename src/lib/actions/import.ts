@@ -205,6 +205,7 @@ export async function importContent(
       avisos.push("Planilha de provas sem linhas de dados.");
     } else {
       const examCache = new Map<string, string>(); // trilhaId -> examId
+      const titleCache = new Map<string, string>(); // títuloLower -> trilhaId
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i].map((c) => (c ?? "").trim());
         const produtoTitle = r[0] ?? "";
@@ -220,23 +221,39 @@ export async function importContent(
           continue;
         }
 
-        // Localiza a trilha pelo título (deve existir no tenant).
-        const trilha = await prisma.trilha.findFirst({
-          where: { tenantId, title: produtoTitle },
-          select: { id: true },
-        });
-        if (!trilha) {
-          avisos.push(`Prova linha ${i + 1}: produto "${produtoTitle}" não encontrado.`);
-          continue;
+        // Localiza a trilha pelo título (sem diferenciar maiúsculas/acentos de
+        // caixa). Se não existir, cria o produto automaticamente (sem vitrine),
+        // para que a importação de provas funcione mesmo antes de cadastrar o
+        // conteúdo. O admin pode depois editar/vincular/excluir o produto.
+        const titleKey = produtoTitle.toLowerCase();
+        let trilhaId = titleCache.get(titleKey);
+        if (!trilhaId) {
+          const found = await prisma.trilha.findFirst({
+            where: { tenantId, title: { equals: produtoTitle, mode: "insensitive" } },
+            select: { id: true },
+          });
+          if (found) {
+            trilhaId = found.id;
+          } else {
+            const count = await prisma.trilha.count({ where: { tenantId } });
+            const created = await prisma.trilha.create({
+              data: { tenantId, title: produtoTitle, published: true, order: count },
+              select: { id: true },
+            });
+            trilhaId = created.id;
+            stats.produtos++;
+            avisos.push(`Prova: produto "${produtoTitle}" não existia e foi criado (sem vitrine).`);
+          }
+          titleCache.set(titleKey, trilhaId);
         }
 
         // Garante a prova do produto: procura uma prova já colocada no produto
         // (placement de trilha). Se não houver, cria a prova na biblioteca e a
         // coloca no produto. Conta como criada só quando não existia.
-        let examId = examCache.get(trilha.id);
+        let examId = examCache.get(trilhaId);
         if (!examId) {
           const existingPlacement = await prisma.examPlacement.findFirst({
-            where: { trilhaId: trilha.id, moduloId: null, vitrineId: null },
+            where: { trilhaId, moduloId: null, vitrineId: null },
             select: { examId: true },
           });
           if (existingPlacement) {
@@ -246,14 +263,14 @@ export async function importContent(
               data: {
                 tenantId,
                 title: "Avaliação final",
-                placements: { create: { trilhaId: trilha.id } },
+                placements: { create: { trilhaId } },
               },
               select: { id: true },
             });
             examId = created.id;
             stats.provas++;
           }
-          examCache.set(trilha.id, examId);
+          examCache.set(trilhaId, examId);
         }
 
         // Evita duplicar a mesma questão (mesmo enunciado).
