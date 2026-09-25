@@ -46,11 +46,36 @@ export async function createVitrine(formData: FormData) {
   revalidatePath("/admin");
 }
 
-export async function deleteVitrine(vitrineId: string) {
-  await requireAdmin();
-  // Não apaga os produtos: apenas os desvincula da vitrine.
-  await prisma.trilha.updateMany({ where: { vitrineId }, data: { vitrineId: null } });
+export async function deleteVitrine(vitrineId: string, apagarProdutos = false) {
+  const user = await requireAdmin();
+  const v = await prisma.vitrine.findFirst({
+    where: { id: vitrineId, tenantId: user.tenantId },
+    select: { id: true },
+  });
+  if (!v) return;
+  if (apagarProdutos) {
+    // Exclui os produtos da vitrine — módulos, aulas, provas, matrículas e
+    // certificados caem junto por ON DELETE CASCADE no banco.
+    await prisma.trilha.deleteMany({ where: { vitrineId, tenantId: user.tenantId } });
+  } else {
+    // Mantém os produtos: apenas os desvincula (viram "sem vitrine").
+    await prisma.trilha.updateMany({ where: { vitrineId }, data: { vitrineId: null } });
+  }
   await prisma.vitrine.delete({ where: { id: vitrineId } });
+  revalidatePath("/admin");
+}
+
+// Exclui um produto (trilha) e todo o seu conteúdo (módulos, aulas, provas,
+// matrículas, certificados) via cascade. Usado sobretudo em produtos sem
+// vitrine, mas escopado ao tenant por segurança.
+export async function deleteTrilha(trilhaId: string) {
+  const user = await requireAdmin();
+  const t = await prisma.trilha.findFirst({
+    where: { id: trilhaId, tenantId: user.tenantId },
+    select: { id: true },
+  });
+  if (!t) return;
+  await prisma.trilha.delete({ where: { id: trilhaId } });
   revalidatePath("/admin");
 }
 

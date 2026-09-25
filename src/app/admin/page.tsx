@@ -15,6 +15,7 @@ import {
   createVitrine,
   deleteVitrine,
   updateVitrine,
+  deleteTrilha,
   setReleaseCondition,
   attachExamToVitrine,
   detachExamPlacement,
@@ -22,6 +23,8 @@ import {
   updateAccessProfile,
   deleteAccessProfile,
 } from "@/lib/actions/admin";
+import DeleteVitrineButton from "@/components/DeleteVitrineButton";
+import DeleteProductButton from "@/components/DeleteProductButton";
 
 export default async function AdminPage() {
   const user = await getCurrentUser();
@@ -146,9 +149,11 @@ export default async function AdminPage() {
                         <span className="ml-1 inline-flex items-center gap-1 text-xs text-amber-600">· <Icon name="lock" size={12} className="shrink-0" /> {describeCondition(v.releaseCondition)}</span>
                       )}
                     </div>
-                    <form action={deleteVitrine.bind(null, v.id)}>
-                      <button className="shrink-0 text-xs text-red-500 hover:underline" type="submit">remover</button>
-                    </form>
+                    <DeleteVitrineButton
+                      action={deleteVitrine.bind(null, v.id)}
+                      vitrineName={v.name}
+                      productCount={v._count.trilhas}
+                    />
                   </div>
 
                   {/* Editar vitrine (nome, descrição, capa e banner) */}
@@ -265,10 +270,13 @@ export default async function AdminPage() {
                   <ul className="divide-y divide-slate-50">
                     {orphanTrilhas.map((t) => (
                       <li key={t.id} className="flex items-center justify-between gap-2 px-3 py-2 pl-6">
-                        <Link href={`/admin/trilhas/${t.id}`} className="inline-flex items-center gap-1.5 text-sm font-medium hover:underline">
-                          <Icon name="package" size={14} className="shrink-0 text-slate-500" /> {t.title}
+                        <Link href={`/admin/trilhas/${t.id}`} className="inline-flex min-w-0 items-center gap-1.5 text-sm font-medium hover:underline">
+                          <Icon name="package" size={14} className="shrink-0 text-slate-500" /> <span className="truncate">{t.title}</span>
                         </Link>
-                        <Link href={`/admin/trilhas/${t.id}`} className="btn-outline px-2 py-1 text-xs">abrir</Link>
+                        <div className="flex shrink-0 items-center gap-3">
+                          <Link href={`/admin/trilhas/${t.id}`} className="btn-outline px-2 py-1 text-xs">editar</Link>
+                          <DeleteProductButton action={deleteTrilha.bind(null, t.id)} name={t.title} />
+                        </div>
                       </li>
                     ))}
                   </ul>
